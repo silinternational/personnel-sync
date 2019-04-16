@@ -1,0 +1,37 @@
+{
+  "Runtime": {
+    "FailIfSinglePersonMissingRequiredAttribute": false
+  },
+  "Source": {
+    "URL": "https://domain.com/user-report",
+    "Method": "GET",
+    "Username": "testuser",
+    "Password": "testpass",
+    "ResultsJSONContainer": "ReportEntry",
+    "IDAttribute": "Email"
+  },
+  "Destination": {
+    "Type": "google-groups",
+    "URL": "notused",
+    "Username": "delegated-admin@domain.com",
+    "Password": "notused",
+    "Extra": "/path/to/auth.json"
+  },
+  "DestinationAttributeMap": [
+    {
+      "SourceName": "First_Name",
+      "DestinationName": "givenName",
+      "required": true
+    },
+    {
+      "SourceName": "Last_Name",
+      "DestinationName": "sn",
+      "required": true
+    },
+    {
+      "SourceName": "Email",
+      "DestinationName": "mail",
+      "required": true
+    }
+  ]
+}
