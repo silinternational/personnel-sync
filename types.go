@@ -1,5 +1,7 @@
 package personnel_sync
 
+import "encoding/json"
+
 type Person struct {
 	ID         string
 	Attributes []PersonAttribute
@@ -16,7 +18,7 @@ type DestinationAttributeMap struct {
 	Required        bool
 }
 
-type Source struct {
+type SourceConfig struct {
 	URL                  string
 	Method               string
 	Username             string
@@ -25,21 +27,39 @@ type Source struct {
 	IDAttribute          string
 }
 
-type Destination struct {
-	Type     string
-	URL      string
-	Username string
-	Password string
-	Extra    string
+type DestinationConfig struct {
+	Type      string
+	URL       string
+	Username  string
+	Password  string
+	ExtraJSON json.RawMessage
 }
 
-type Runtime struct {
+type RuntimeConfig struct {
 	FailIfSinglePersonMissingRequiredAttribute bool
 }
 
 type AppConfig struct {
-	Runtime                 Runtime
-	Source                  Source
-	Destination             Destination
+	Runtime                 RuntimeConfig
+	Source                  SourceConfig
+	Destination             DestinationConfig
 	DestinationAttributeMap []DestinationAttributeMap
+}
+
+type ChangeSet struct {
+	Create []Person
+	Update []Person
+	Delete []Person
+}
+
+type ChangeResults struct {
+	Created uint64
+	Updated uint64
+	Deleted uint64
+	Errors  []string
+}
+
+type Destination interface {
+	ListUsers() ([]Person, error)
+	ApplyChangeSet(changes ChangeSet) ChangeResults
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
@@ -52,7 +53,7 @@ func TestGetPersonsFromSource(t *testing.T) {
 		_, _ = fmt.Fprintf(w, expectedResultsJson)
 	})
 
-	sourceConfig := Source{
+	sourceConfig := SourceConfig{
 		URL:                  server.URL + "/people",
 		Username:             "test",
 		Password:             "test",
@@ -62,11 +63,11 @@ func TestGetPersonsFromSource(t *testing.T) {
 	}
 
 	appConfig := AppConfig{
-		Runtime: Runtime{
+		Runtime: RuntimeConfig{
 			FailIfSinglePersonMissingRequiredAttribute: false,
 		},
 		Source:      sourceConfig,
-		Destination: Destination{},
+		Destination: DestinationConfig{},
 		DestinationAttributeMap: []DestinationAttributeMap{
 			{
 				SourceName:      "First_Name",
@@ -99,4 +100,63 @@ func TestGetPersonsFromSource(t *testing.T) {
 	jsonResults, _ := json.Marshal(people)
 
 	fmt.Println(string(jsonResults))
+}
+
+func TestGenerateChangeSet(t *testing.T) {
+	type args struct {
+		sourcePeople      []Person
+		destinationPeople []Person
+	}
+	tests := []struct {
+		name string
+		args args
+		want ChangeSet
+	}{
+		{
+			name: "creates two, deletes one",
+			want: ChangeSet{
+				Create: []Person{
+					{
+						ID: "1",
+					},
+					{
+						ID: "2",
+					},
+				},
+				Delete: []Person{
+					{
+						ID: "3",
+					},
+				},
+			},
+			args: args{
+				sourcePeople: []Person{
+					{
+						ID: "1",
+					},
+					{
+						ID: "2",
+					},
+					{
+						ID: "4",
+					},
+				},
+				destinationPeople: []Person{
+					{
+						ID: "3",
+					},
+					{
+						ID: "4",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GenerateChangeSet() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

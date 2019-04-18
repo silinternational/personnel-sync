@@ -13,6 +13,7 @@ import (
 )
 
 const DefaultConfigFile = "./config.json"
+const DestinationTypeGoogleGroups = "GoogleGroups"
 
 func LoadConfig(configFile string) (AppConfig, error) {
 
@@ -37,6 +38,8 @@ func LoadConfig(configFile string) (AppConfig, error) {
 		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
 		return AppConfig{}, err
 	}
+
+	log.Printf("Configuration loaded. Source URL: %s, Destination type: %s", config.Source.URL, config.Destination.Type)
 
 	return config, nil
 }
@@ -165,6 +168,70 @@ func GetPersonIDFromAttributes(idAttributeName string, personAttributes []Person
 	return "", fmt.Errorf("person id attribute (%s) not found, have attributes: %s", idAttributeName, jsonAttrs)
 }
 
+// func GetDestinationInstance(config DestinationConfig) (Destination, error) {
+// 	if config.Type == DestinationTypeGoogleGroups {
+// 		return &googledest.GoogleGroups{
+// 			DestinationConfig: config,
+// 		}, nil
+// 	}
+//
+// 	return &EmptyDestination{}, fmt.Errorf("invalid destination config type: %s", config.Type)
+// }
+
+func IsPersonInList(id string, peopleList []Person) bool {
+	for _, person := range peopleList {
+		if person.ID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
+	var changeSet ChangeSet
+
+	// Find users who need to be created
+	for _, sp := range sourcePeople {
+		if !IsPersonInList(sp.ID, destinationPeople) {
+			changeSet.Create = append(changeSet.Create, sp)
+		}
+	}
+
+	// Find users who need to be deleted
+	for _, sp := range destinationPeople {
+		if !IsPersonInList(sp.ID, sourcePeople) {
+			changeSet.Delete = append(changeSet.Delete, sp)
+		}
+	}
+
+	return changeSet
+}
+
+func SyncPeople(config AppConfig, destination Destination) ChangeResults {
+	sourcePeople, err := GetPersonsFromSource(config)
+	if err != nil {
+		return ChangeResults{
+			Errors: []string{
+				err.Error(),
+			},
+		}
+	}
+
+	destinationPeople, err := destination.ListUsers()
+	if err != nil {
+		return ChangeResults{
+			Errors: []string{
+				err.Error(),
+			},
+		}
+	}
+
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople)
+
+	return destination.ApplyChangeSet(changeSet)
+}
+
 // This function will search element inside array with any type.
 // Will return boolean and index for matched element.
 // True and index more than 0 if element is exist.
@@ -187,6 +254,16 @@ func InArray(needle interface{}, haystack interface{}) (exists bool, index int) 
 	}
 
 	return
+}
+
+type EmptyDestination struct{}
+
+func (e *EmptyDestination) ListUsers() ([]Person, error) {
+	return []Person{}, nil
+}
+
+func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet) ChangeResults {
+	return ChangeResults{}
 }
 
 // todo
