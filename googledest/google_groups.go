@@ -47,7 +47,7 @@ func NewGoogleGroupsDesination(destinationConfig personnel_sync.DestinationConfi
 	}
 
 	// Initialize AdminService object
-	err = googleGroups.InitGoogleAdminService()
+	err = googleGroups.initGoogleAdminService()
 	if err != nil {
 		return &GoogleGroups{}, err
 	}
@@ -136,8 +136,7 @@ func (g *GoogleGroups) RemoveMember(person personnel_sync.Person, counter *uint6
 // GetGoogleAdminService authenticates with the Google API and returns an admin.Service
 //  that has the scopes for Group and GroupMember
 //  Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
-func (g *GoogleGroups) InitGoogleAdminService() error {
-
+func (g *GoogleGroups) initGoogleAdminService() error {
 	googleAuthJson, err := json.Marshal(g.GoogleGroupsConfig.GoogleAuth)
 	if err != nil {
 		return fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())

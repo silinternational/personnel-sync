@@ -9,6 +9,9 @@ import (
 )
 
 func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
+	t.Skip("Skipping test because it requires integration with Google")
+	t.SkipNow()
+
 	testConfig, err := personnel_sync.LoadConfig("")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
@@ -59,6 +62,9 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 }
 
 func TestGoogleGroups_ListUsers(t *testing.T) {
+	t.Skip("Skipping test because it requires integration with Google")
+	t.SkipNow()
+
 	testConfig, err := personnel_sync.LoadConfig("")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
