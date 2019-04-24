@@ -3,13 +3,8 @@ package personnel_sync
 import "encoding/json"
 
 type Person struct {
-	ID         string
-	Attributes []PersonAttribute
-}
-
-type PersonAttribute struct {
-	Name  string
-	Value string
+	CompareValue string
+	Attributes   map[string]string
 }
 
 type DestinationAttributeMap struct {
@@ -25,14 +20,16 @@ type SourceConfig struct {
 	Password             string
 	ResultsJSONContainer string
 	IDAttribute          string
+	CompareAttribute     string
 }
 
 type DestinationConfig struct {
-	Type      string
-	URL       string
-	Username  string
-	Password  string
-	ExtraJSON json.RawMessage
+	Type             string
+	URL              string
+	Username         string
+	Password         string
+	CompareAttribute string
+	ExtraJSON        json.RawMessage
 }
 
 type RuntimeConfig struct {

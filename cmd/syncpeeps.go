@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/silinternational/personnel-sync/webhelpdesk"
+
 	"github.com/silinternational/personnel-sync/googledest"
 
 	"github.com/silinternational/personnel-sync"
@@ -17,13 +19,20 @@ func main() {
 	}
 
 	var destination personnel_sync.Destination
-	if appConfig.Destination.Type == personnel_sync.DestinationTypeGoogleGroups {
+	switch appConfig.Destination.Type {
+	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDesination(appConfig.Destination)
 		if err != nil {
 			log.Println("Unable to load config, error: ", err.Error())
 			os.Exit(1)
 		}
-	} else {
+	case personnel_sync.DestinationTypeWebHelpDesk:
+		destination, err = webhelpdesk.NewWebHelpDeskDesination(appConfig.Destination)
+		if err != nil {
+			log.Println("Unable to load config, error: ", err.Error())
+			os.Exit(1)
+		}
+	default:
 		destination = &personnel_sync.EmptyDestination{}
 	}
 

@@ -113,40 +113,60 @@ func TestGenerateChangeSet(t *testing.T) {
 		want ChangeSet
 	}{
 		{
-			name: "creates two, deletes one",
+			name: "creates two, deletes one, updates one",
 			want: ChangeSet{
 				Create: []Person{
 					{
-						ID: "1",
+						CompareValue: "1",
 					},
 					{
-						ID: "2",
+						CompareValue: "2",
 					},
 				},
 				Delete: []Person{
 					{
-						ID: "3",
+						CompareValue: "3",
+					},
+				},
+				Update: []Person{
+					{
+						CompareValue: "5",
+						Attributes: map[string]string{
+							"name": "new value",
+						},
 					},
 				},
 			},
 			args: args{
 				sourcePeople: []Person{
 					{
-						ID: "1",
+						CompareValue: "1",
 					},
 					{
-						ID: "2",
+						CompareValue: "2",
 					},
 					{
-						ID: "4",
+						CompareValue: "4",
+					},
+					{
+						CompareValue: "5",
+						Attributes: map[string]string{
+							"name": "new value",
+						},
 					},
 				},
 				destinationPeople: []Person{
 					{
-						ID: "3",
+						CompareValue: "3",
 					},
 					{
-						ID: "4",
+						CompareValue: "4",
+					},
+					{
+						CompareValue: "5",
+						Attributes: map[string]string{
+							"name": "original value",
+						},
 					},
 				},
 			},
