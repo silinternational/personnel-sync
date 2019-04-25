@@ -14,6 +14,7 @@ import (
 
 const DefaultConfigFile = "./config.json"
 const DestinationTypeGoogleGroups = "GoogleGroups"
+const DestinationTypeWebHelpDesk = "WebHelpDesk"
 
 func LoadConfig(configFile string) (AppConfig, error) {
 
@@ -91,23 +92,27 @@ func GetPersonsFromSource(config AppConfig) ([]Person, error) {
 				return []Person{}, err
 			}
 		} else {
-			personId, err := GetPersonIDFromAttributes(config.Source.IDAttribute, attrs)
-			if err != nil {
-				return []Person{}, err
+			compareValue, ok := attrs[config.Source.CompareAttribute]
+			if !ok {
+				log.Printf("person id attribute (%s) not found, have attributes: %s\n", config.Source.IDAttribute, attrs)
+				if config.Runtime.FailIfSinglePersonMissingRequiredAttribute {
+					return []Person{}, err
+				}
+			} else {
+				// Append person to sourcePeople array to be returned from function
+				sourcePeople = append(sourcePeople, Person{
+					CompareValue: compareValue,
+					Attributes:   attrs,
+				})
 			}
-			// Append person to sourcePeople array to be returned from function
-			sourcePeople = append(sourcePeople, Person{
-				ID:         personId,
-				Attributes: attrs,
-			})
 		}
 	}
 
 	return sourcePeople, nil
 }
 
-func FilterMappedAttributes(personAttributes map[string]*gabs.Container, attributeMap []DestinationAttributeMap) ([]PersonAttribute, error) {
-	var attrs []PersonAttribute
+func FilterMappedAttributes(personAttributes map[string]*gabs.Container, attributeMap []DestinationAttributeMap) (map[string]string, error) {
+	attrs := map[string]string{}
 	var attrNames []string
 
 	// Get simple one-dimensional array of destination attribute names
@@ -116,19 +121,17 @@ func FilterMappedAttributes(personAttributes map[string]*gabs.Container, attribu
 	// Iterate through attributes of person and build []PersonAttribute with only attributes wanted in destination
 	for name, value := range personAttributes {
 		if ok, _ := InArray(name, desiredAttrs); ok {
-			attrs = append(attrs, PersonAttribute{Name: name, Value: value.Data().(string)})
+			attrs[name] = value.Data().(string)
 			attrNames = append(attrNames, name)
 		}
 	}
-
-	// Get simple array of resulting attribute names
 
 	// Check if all required attributes are present in results
 	requiredAttrs := GetRequiredAttributeNames(attributeMap)
 	for _, reqAttr := range requiredAttrs {
 		if ok, _ := InArray(reqAttr, attrNames); !ok {
 			jsonAttrs, _ := json.Marshal(attrs)
-			return []PersonAttribute{}, fmt.Errorf("user missing attribute %s. Rest of data: %s", reqAttr, jsonAttrs)
+			return map[string]string{}, fmt.Errorf("user missing attribute %s. Rest of data: %s", reqAttr, jsonAttrs)
 		}
 	}
 
@@ -157,30 +160,29 @@ func GetRequiredAttributeNames(attributeMap []DestinationAttributeMap) []string 
 	return attrs
 }
 
-func GetPersonIDFromAttributes(idAttributeName string, personAttributes []PersonAttribute) (string, error) {
-	for _, personAttr := range personAttributes {
-		if personAttr.Name == idAttributeName {
-			return personAttr.Value, nil
+func GetSourceAttrNameForDestinationAttr(attributeMap []DestinationAttributeMap, destinationAttrName string) string {
+	for _, attr := range attributeMap {
+		if attr.DestinationName == destinationAttrName {
+			return attr.SourceName
 		}
 	}
 
-	jsonAttrs, _ := json.Marshal(personAttributes)
-	return "", fmt.Errorf("person id attribute (%s) not found, have attributes: %s", idAttributeName, jsonAttrs)
+	return destinationAttrName
 }
 
-// func GetDestinationInstance(config DestinationConfig) (Destination, error) {
-// 	if config.Type == DestinationTypeGoogleGroups {
-// 		return &googledest.GoogleGroups{
-// 			DestinationConfig: config,
-// 		}, nil
-// 	}
-//
-// 	return &EmptyDestination{}, fmt.Errorf("invalid destination config type: %s", config.Type)
-// }
+func GetDestinationAttrNameForSourceAttr(attributeMap []DestinationAttributeMap, sourceAttrName string) string {
+	for _, attr := range attributeMap {
+		if attr.SourceName == sourceAttrName {
+			return attr.DestinationName
+		}
+	}
 
-func IsPersonInList(id string, peopleList []Person) bool {
+	return sourceAttrName
+}
+
+func IsPersonInList(compareValue string, peopleList []Person) bool {
 	for _, person := range peopleList {
-		if person.ID == id {
+		if person.CompareValue == compareValue {
 			return true
 		}
 	}
@@ -188,20 +190,41 @@ func IsPersonInList(id string, peopleList []Person) bool {
 	return false
 }
 
+const PersonIsNotInList = int(0)
+const PersonIsInList = int(1)
+const PersonIsInListButDifferent = int(2)
+
+func PersonStatusInList(compareValue string, attrs map[string]string, peopleList []Person) int {
+	for _, person := range peopleList {
+		if person.CompareValue == compareValue {
+			if !reflect.DeepEqual(attrs, person.Attributes) {
+				return PersonIsInListButDifferent
+			}
+			return PersonIsInList
+		}
+	}
+
+	return PersonIsNotInList
+}
+
 func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
 	var changeSet ChangeSet
 
 	// Find users who need to be created
 	for _, sp := range sourcePeople {
-		if !IsPersonInList(sp.ID, destinationPeople) {
+		personInDestinationStatus := PersonStatusInList(sp.CompareValue, sp.Attributes, destinationPeople)
+		switch personInDestinationStatus {
+		case PersonIsNotInList:
 			changeSet.Create = append(changeSet.Create, sp)
+		case PersonIsInListButDifferent:
+			changeSet.Update = append(changeSet.Update, sp)
 		}
 	}
 
 	// Find users who need to be deleted
-	for _, sp := range destinationPeople {
-		if !IsPersonInList(sp.ID, sourcePeople) {
-			changeSet.Delete = append(changeSet.Delete, sp)
+	for _, dp := range destinationPeople {
+		if !IsPersonInList(dp.CompareValue, sourcePeople) {
+			changeSet.Delete = append(changeSet.Delete, dp)
 		}
 	}
 

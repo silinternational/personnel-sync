@@ -80,3 +80,46 @@ The sync job will need to use the Service Account credentials to impersonate ano
 domain superadmin privilege and who has logged in at least once into G Suite and
 accepted the terms and conditions.
 
+## SolarWinds WebHelpDesk
+
+
+```json
+{
+  "DestinationAttributeMap": [
+      {
+        "SourceName": "FIRST_NAME",
+        "DestinationName": "firstName",
+        "required": true
+      },
+      {
+        "SourceName": "LAST_NAME",
+        "DestinationName": "lastName",
+        "required": true
+      },
+      {
+        "SourceName": "EMAIL",
+        "DestinationName": "email",
+        "required": true
+      },
+      {
+        "SourceName": "USER_NAME",
+        "DestinationName": "username",
+        "required": true
+      },
+      {
+        "SourceName": "Staff_ID",
+        "DestinationName": "employmentStatus"
+      }
+  ],
+  "Destination": {
+    "Type": "WebHelpDesk",
+    "URL": "https://whd.mycompany.com/helpdesk/WebObjects/Helpdesk.woa",
+    "Username": "syncuser",
+    "Password": "apitoken",
+    "ExtraJSON": {
+      "AccountID": "do we need this for a hosted install?",
+      "ListClientsPageLimit": 100
+    }
+  }
+}
+```

@@ -66,12 +66,9 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 
 	for _, nextMember := range membersList {
 		members = append(members, personnel_sync.Person{
-			ID: nextMember.Email,
-			Attributes: []personnel_sync.PersonAttribute{
-				{
-					Name:  "Email",
-					Value: nextMember.Email,
-				},
+			CompareValue: nextMember.Email,
+			Attributes: map[string]string{
+				"Email": nextMember.Email,
 			},
 		})
 	}
@@ -109,12 +106,12 @@ func (g *GoogleGroups) AddMember(person personnel_sync.Person, counter *uint64, 
 
 	newMember := admin.Member{
 		Role:  "MEMBER",
-		Email: person.ID,
+		Email: person.CompareValue,
 	}
 
 	_, err := g.AdminService.Members.Insert(g.GoogleGroupsConfig.GroupEmail, &newMember).Do()
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to insert %s in Google group %s: %s", person.ID, g.GoogleGroupsConfig.GroupEmail, err.Error())
+		errLog <- fmt.Sprintf("unable to insert %s in Google group %s: %s", person.CompareValue, g.GoogleGroupsConfig.GroupEmail, err.Error())
 		return
 	}
 
@@ -124,9 +121,9 @@ func (g *GoogleGroups) AddMember(person personnel_sync.Person, counter *uint64, 
 func (g *GoogleGroups) RemoveMember(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
 	defer wg.Done()
 
-	err := g.AdminService.Members.Delete(g.GoogleGroupsConfig.GroupEmail, person.ID).Do()
+	err := g.AdminService.Members.Delete(g.GoogleGroupsConfig.GroupEmail, person.CompareValue).Do()
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to delete %s from Google group %s: %s", person.ID, g.GoogleGroupsConfig.GroupEmail, err.Error())
+		errLog <- fmt.Sprintf("unable to delete %s from Google group %s: %s", person.CompareValue, g.GoogleGroupsConfig.GroupEmail, err.Error())
 		return
 	}
 
