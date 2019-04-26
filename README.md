@@ -6,6 +6,28 @@ interface. The runtime for this application is configured using a `config.json` 
 `config.example.json`, however it only has the `GoogleGroups` destination in it so other supported destinations are 
 documented below. 
 
+## Sources
+
+### REST API
+Data sources coming from simple API calls can use the `RestAPI` source. Here is an example of how to configure it:
+
+```json
+{
+  "Source": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "Method": "GET",
+      "URL": "https://someurl/path",
+      "ResultsJSONContainer": "Results",
+      "AuthType": "basic",
+      "Username": "username",
+      "Password": "password",
+      "CompareAttribute": "email"
+    }
+  }
+}
+```
+
 ## Destinations
 
 ### Google Groups

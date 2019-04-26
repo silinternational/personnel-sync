@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/silinternational/personnel-sync/restapi"
+
 	"github.com/silinternational/personnel-sync"
 )
 
@@ -262,7 +264,7 @@ func TestCreateChangeSet(t *testing.T) {
 		t.FailNow()
 	}
 
-	whd, err := NewWebHelpDeskDesination(testConfig.Destination)
+	whd, err := NewWebHelpDeskDesination(testConfig.SyncSets[0].Destination)
 	if err != nil {
 		t.Errorf("Failed to get new whd client, error: %s", err.Error())
 		t.FailNow()
@@ -274,7 +276,12 @@ func TestCreateChangeSet(t *testing.T) {
 		t.FailNow()
 	}
 
-	sourcePeople, err := personnel_sync.GetPersonsFromSource(testConfig)
+	source, err := restapi.NewRestAPISource(testConfig.SyncSets[0].Source)
+	if err != nil {
+		t.Error(err)
+	}
+
+	sourcePeople, err := source.ListUsers()
 	log.Printf("found %v people in source", len(sourcePeople))
 
 	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users)
@@ -289,7 +296,7 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 		t.FailNow()
 	}
 
-	whd, err := NewWebHelpDeskDesination(testConfig.Destination)
+	whd, err := NewWebHelpDeskDesination(testConfig.SyncSets[0].Destination)
 	if err != nil {
 		t.Errorf("Failed to get new whd client, error: %s", err.Error())
 		t.FailNow()
