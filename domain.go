@@ -2,19 +2,16 @@ package personnel_sync
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"reflect"
-
-	"github.com/Jeffail/gabs"
 )
 
 const DefaultConfigFile = "./config.json"
 const DestinationTypeGoogleGroups = "GoogleGroups"
 const DestinationTypeWebHelpDesk = "WebHelpDesk"
+const SourceTypeRestAPI = "RestAPI"
 
 func LoadConfig(configFile string) (AppConfig, error) {
 
@@ -40,102 +37,64 @@ func LoadConfig(configFile string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
-	log.Printf("Configuration loaded. Source URL: %s, Destination type: %s", config.Source.URL, config.Destination.Type)
+	log.Printf("Configuration loaded. Sync sets found:\n")
+	for _, syncSet := range config.SyncSets {
+		log.Printf("Name: %s, Source Type: %s, Destination Type: %s", syncSet.Name, syncSet.Source.Type, syncSet.Destination.Type)
+	}
 
 	return config, nil
 }
 
-func GetPersonsFromSource(config AppConfig) ([]Person, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", config.Source.URL, nil)
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
-	req.SetBasicAuth(config.Source.Username, config.Source.Password)
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
+func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []DestinationAttributeMap) ([]Person, error) {
+	var peopleForDestination []Person
 
-	bodyText, err := ioutil.ReadAll(resp.Body)
-	jsonParsed, err := gabs.ParseJSON(bodyText)
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
+	for _, person := range sourcePersons {
+		attrs := map[string]string{}
+		var attrNames []string
 
-	// sourcePeople will hold array of Person(s) from source API
-	var sourcePeople []Person
+		// Get simple one-dimensional array of destination attribute names
+		desiredAttrs := GetDesiredAttributeNames(attributeMap)
 
-	// Get children records based on ResultsJSONContainer from config
-	peopleList, err := jsonParsed.S(config.Source.ResultsJSONContainer).Children()
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
-
-	// Iterate through people in list from source to convert to Persons
-	for _, person := range peopleList {
-
-		personAttributes, err := person.ChildrenMap()
-		if err != nil {
-			log.Println(err)
-			return []Person{}, err
-		}
-
-		attrs, err := FilterMappedAttributes(personAttributes, config.DestinationAttributeMap)
-		if err != nil {
-			log.Println(err)
-			if config.Runtime.FailIfSinglePersonMissingRequiredAttribute {
-				return []Person{}, err
-			}
-		} else {
-			compareValue, ok := attrs[config.Source.CompareAttribute]
-			if !ok {
-				log.Printf("person id attribute (%s) not found, have attributes: %s\n", config.Source.IDAttribute, attrs)
-				if config.Runtime.FailIfSinglePersonMissingRequiredAttribute {
-					return []Person{}, err
-				}
-			} else {
-				// Append person to sourcePeople array to be returned from function
-				sourcePeople = append(sourcePeople, Person{
-					CompareValue: compareValue,
-					Attributes:   attrs,
-				})
+		// Iterate through attributes of person and build []PersonAttribute with only attributes wanted in destination
+		for name, value := range person.Attributes {
+			if ok, _ := InArray(name, desiredAttrs); ok {
+				attrs[name] = value
+				attrNames = append(attrNames, name)
 			}
 		}
+
+		// Check if all required attributes are present in results
+		if ok, missing := HasAllRequiredAttributes(person.Attributes, attributeMap); !ok {
+			jsonAttrs, _ := json.Marshal(attrs)
+			log.Printf("user missing attribute %s. Rest of data: %s", missing, jsonAttrs)
+			continue
+		}
+
+		peopleForDestination = append(peopleForDestination, Person{})
+
 	}
 
-	return sourcePeople, nil
+	return []Person{}, nil
 }
 
-func FilterMappedAttributes(personAttributes map[string]*gabs.Container, attributeMap []DestinationAttributeMap) (map[string]string, error) {
-	attrs := map[string]string{}
-	var attrNames []string
-
-	// Get simple one-dimensional array of destination attribute names
-	desiredAttrs := GetDesiredAttributeNames(attributeMap)
-
-	// Iterate through attributes of person and build []PersonAttribute with only attributes wanted in destination
-	for name, value := range personAttributes {
-		if ok, _ := InArray(name, desiredAttrs); ok {
-			attrs[name] = value.Data().(string)
-			attrNames = append(attrNames, name)
-		}
+// HasAllRequiredAttributes checks if a person has all required attributes, if not it will return false and the
+// name of the first missing required attribute
+func HasAllRequiredAttributes(personAttributes map[string]string, attributeMap []DestinationAttributeMap) (bool, string) {
+	// Build simple array of attributes present
+	var hasAttrs []string
+	for attrName := range personAttributes {
+		hasAttrs = append(hasAttrs, attrName)
 	}
 
 	// Check if all required attributes are present in results
 	requiredAttrs := GetRequiredAttributeNames(attributeMap)
 	for _, reqAttr := range requiredAttrs {
-		if ok, _ := InArray(reqAttr, attrNames); !ok {
-			jsonAttrs, _ := json.Marshal(attrs)
-			return map[string]string{}, fmt.Errorf("user missing attribute %s. Rest of data: %s", reqAttr, jsonAttrs)
+		if ok, _ := InArray(reqAttr, hasAttrs); !ok {
+			return false, reqAttr
 		}
 	}
 
-	return attrs, nil
+	return true, ""
 }
 
 func GetDesiredAttributeNames(attributeMap []DestinationAttributeMap) []string {
@@ -231,8 +190,18 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
 	return changeSet
 }
 
-func SyncPeople(config AppConfig, destination Destination) ChangeResults {
-	sourcePeople, err := GetPersonsFromSource(config)
+func SyncPeople(source Source, destination Destination, attributeMap []DestinationAttributeMap) ChangeResults {
+	sourcePeople, err := source.ListUsers()
+	if err != nil {
+		return ChangeResults{
+			Errors: []string{
+				err.Error(),
+			},
+		}
+	}
+
+	// remap source people to destination attributes for comparison
+	sourcePeople, err = RemapToDestinationAttributes(sourcePeople, attributeMap)
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{
@@ -287,6 +256,12 @@ func (e *EmptyDestination) ListUsers() ([]Person, error) {
 
 func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet) ChangeResults {
 	return ChangeResults{}
+}
+
+type EmptySource struct{}
+
+func (e *EmptySource) ListUsers() ([]Person, error) {
+	return []Person{}, nil
 }
 
 // todo

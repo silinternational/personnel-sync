@@ -14,13 +14,8 @@ type DestinationAttributeMap struct {
 }
 
 type SourceConfig struct {
-	URL                  string
-	Method               string
-	Username             string
-	Password             string
-	ResultsJSONContainer string
-	IDAttribute          string
-	CompareAttribute     string
+	Type      string
+	ExtraJSON json.RawMessage
 }
 
 type DestinationConfig struct {
@@ -37,7 +32,12 @@ type RuntimeConfig struct {
 }
 
 type AppConfig struct {
-	Runtime                 RuntimeConfig
+	Runtime  RuntimeConfig
+	SyncSets []SyncSet
+}
+
+type SyncSet struct {
+	Name                    string
 	Source                  SourceConfig
 	Destination             DestinationConfig
 	DestinationAttributeMap []DestinationAttributeMap
@@ -59,4 +59,8 @@ type ChangeResults struct {
 type Destination interface {
 	ListUsers() ([]Person, error)
 	ApplyChangeSet(changes ChangeSet) ChangeResults
+}
+
+type Source interface {
+	ListUsers() ([]Person, error)
 }

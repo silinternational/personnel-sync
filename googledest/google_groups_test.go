@@ -37,7 +37,7 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 				Deleted: uint64(1),
 			},
 			fields: fields{
-				DestinationConfig: testConfig.Destination,
+				DestinationConfig: testConfig.SyncSets[0].Destination,
 			},
 			args: args{
 				changes: personnel_sync.ChangeSet{
@@ -85,7 +85,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 		{
 			name: "test listing users",
 			fields: fields{
-				DestinationConfig: testConfig.Destination,
+				DestinationConfig: testConfig.SyncSets[0].Destination,
 			},
 			want:    []personnel_sync.Person{},
 			wantErr: false,
