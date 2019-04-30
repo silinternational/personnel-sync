@@ -6,10 +6,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Jeffail/gabs"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
+	"github.com/silinternational/personnel-sync"
 )
 
 const AuthTypeBasic = "basic"
@@ -17,12 +18,17 @@ const AuthTypeBearer = "bearer"
 
 type RestAPI struct {
 	Method               string
-	URL                  string
+	BaseURL              string
+	Path                 string
 	ResultsJSONContainer string
 	AuthType             string
 	Username             string
 	Password             string
 	CompareAttribute     string
+}
+
+type SetConfig struct {
+	Path string
 }
 
 func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.Source, error) {
@@ -33,12 +39,34 @@ func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.
 		return &RestAPI{}, err
 	}
 
+	log.Println(restAPI)
+
 	return &restAPI, nil
+}
+
+func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
+	var setConfig SetConfig
+	err := json.Unmarshal(syncSetJson, &setConfig)
+	if err != nil {
+		return err
+	}
+
+	if setConfig.Path == "" {
+		return fmt.Errorf("path is empty in sync set")
+	}
+	if !strings.HasPrefix(setConfig.Path, "/") {
+		setConfig.Path = "/" + setConfig.Path
+	}
+
+	r.Path = setConfig.Path
+
+	return nil
 }
 
 func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 	client := &http.Client{}
-	req, err := http.NewRequest(r.Method, r.URL, nil)
+	url := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
+	req, err := http.NewRequest(r.Method, url, nil)
 	if err != nil {
 		log.Println(err)
 		return []personnel_sync.Person{}, err
@@ -98,7 +126,12 @@ func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 
 		compareValue, ok := personAttributes[r.CompareAttribute]
 		if !ok {
-			log.Printf("person id attribute (%s) not found, have attributes: %s\n", r.CompareAttribute, personAttributes)
+			msg := fmt.Sprintf("ListUsers failed, user missing CompareValue (%s), have attributes: %s",
+				r.CompareAttribute, personAttributes)
+
+			log.Println(msg)
+
+			return []personnel_sync.Person{}, fmt.Errorf(msg)
 		} else {
 			// Append person to sourcePeople array to be returned from function
 			sourcePeople = append(sourcePeople, personnel_sync.Person{

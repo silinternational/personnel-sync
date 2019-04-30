@@ -15,7 +15,6 @@ import (
 
 type GoogleGroupsConfig struct {
 	DelegatedAdminEmail string
-	GroupEmail          string
 	GoogleAuth          GoogleAuth
 }
 
@@ -36,9 +35,14 @@ type GoogleGroups struct {
 	DestinationConfig  personnel_sync.DestinationConfig
 	GoogleGroupsConfig GoogleGroupsConfig
 	AdminService       admin.Service
+	GroupEmail         string
 }
 
-func NewGoogleGroupsDesination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+type GroupSyncSet struct {
+	GroupEmail string
+}
+
+func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
 	var googleGroups GoogleGroups
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleGroups.GoogleGroupsConfig)
@@ -55,11 +59,29 @@ func NewGoogleGroupsDesination(destinationConfig personnel_sync.DestinationConfi
 	return &googleGroups, nil
 }
 
-func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
-	membersHolder, err := g.AdminService.Members.List(g.GoogleGroupsConfig.GroupEmail).Do()
+func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
+	var syncSetConfig GroupSyncSet
+	err := json.Unmarshal(syncSetJson, &syncSetConfig)
 	if err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GoogleGroupsConfig.GroupEmail, err.Error())
+		return err
 	}
+
+	if syncSetConfig.GroupEmail == "" {
+		return fmt.Errorf("GroupEmail missing from sync set json")
+	}
+
+	g.GroupEmail = syncSetConfig.GroupEmail
+
+	return nil
+}
+
+func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
+	membersHolder, err := g.AdminService.Members.List(g.GroupEmail).Do()
+	if err != nil {
+		return []personnel_sync.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupEmail, err.Error())
+	}
+
+	// todo do we need to paginate here?
 
 	membersList := membersHolder.Members
 	var members []personnel_sync.Person
@@ -109,9 +131,9 @@ func (g *GoogleGroups) AddMember(person personnel_sync.Person, counter *uint64, 
 		Email: person.CompareValue,
 	}
 
-	_, err := g.AdminService.Members.Insert(g.GoogleGroupsConfig.GroupEmail, &newMember).Do()
+	_, err := g.AdminService.Members.Insert(g.GroupEmail, &newMember).Do()
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to insert %s in Google group %s: %s", person.CompareValue, g.GoogleGroupsConfig.GroupEmail, err.Error())
+		errLog <- fmt.Sprintf("unable to insert %s in Google group %s: %s", person.CompareValue, g.GroupEmail, err.Error())
 		return
 	}
 
@@ -121,9 +143,9 @@ func (g *GoogleGroups) AddMember(person personnel_sync.Person, counter *uint64, 
 func (g *GoogleGroups) RemoveMember(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
 	defer wg.Done()
 
-	err := g.AdminService.Members.Delete(g.GoogleGroupsConfig.GroupEmail, person.CompareValue).Do()
+	err := g.AdminService.Members.Delete(g.GroupEmail, person.CompareValue).Do()
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to delete %s from Google group %s: %s", person.CompareValue, g.GoogleGroupsConfig.GroupEmail, err.Error())
+		errLog <- fmt.Sprintf("unable to delete %s from Google group %s: %s", person.CompareValue, g.GroupEmail, err.Error())
 		return
 	}
 

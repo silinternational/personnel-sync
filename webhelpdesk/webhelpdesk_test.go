@@ -16,7 +16,7 @@ import (
 
 func TestWebHelpDesk_ListUsers(t *testing.T) {
 
-	fixtures := map[string][]WebHelpDeskClient{
+	fixtures := map[string][]User{
 		"page1": {
 			{
 				ID:               1,
@@ -115,9 +115,20 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 		fmt.Fprintf(w, string(jsonBytes))
 	})
 
+	whdConfig := WebHelpDesk{
+		URL:                  server.URL,
+		Password:             "alala",
+		Username:             "bkbkb",
+		ListClientsPageLimit: 5,
+	}
+
+	extraJson, err := json.Marshal(whdConfig)
+	if err != nil {
+		t.Errorf("Error marshalling whdConfig to json: %s", err.Error())
+	}
+
 	type fields struct {
 		DestinationConfig personnel_sync.DestinationConfig
-		Config            WebHelpDeskConfig
 	}
 	tests := []struct {
 		name    string
@@ -130,8 +141,7 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 			fields: fields{
 				DestinationConfig: personnel_sync.DestinationConfig{
 					Type:      personnel_sync.DestinationTypeWebHelpDesk,
-					URL:       server.URL,
-					ExtraJSON: []byte(`{"ListClientsPageLimit": 5}`),
+					ExtraJSON: extraJson,
 				},
 			},
 			want: []personnel_sync.Person{
@@ -264,7 +274,7 @@ func TestCreateChangeSet(t *testing.T) {
 		t.FailNow()
 	}
 
-	whd, err := NewWebHelpDeskDesination(testConfig.SyncSets[0].Destination)
+	whd, err := NewWebHelpDeskDesination(testConfig.Destination)
 	if err != nil {
 		t.Errorf("Failed to get new whd client, error: %s", err.Error())
 		t.FailNow()
@@ -276,7 +286,7 @@ func TestCreateChangeSet(t *testing.T) {
 		t.FailNow()
 	}
 
-	source, err := restapi.NewRestAPISource(testConfig.SyncSets[0].Source)
+	source, err := restapi.NewRestAPISource(testConfig.Source)
 	if err != nil {
 		t.Error(err)
 	}
@@ -296,7 +306,7 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 		t.FailNow()
 	}
 
-	whd, err := NewWebHelpDeskDesination(testConfig.SyncSets[0].Destination)
+	whd, err := NewWebHelpDeskDesination(testConfig.Destination)
 	if err != nil {
 		t.Errorf("Failed to get new whd client, error: %s", err.Error())
 		t.FailNow()

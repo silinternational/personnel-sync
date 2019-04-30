@@ -37,106 +37,43 @@ func LoadConfig(configFile string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
-	log.Printf("Configuration loaded. Sync sets found:\n")
+	log.Printf("Configuration loaded. Source type: %s, Destination type: %s Sync sets found:\n", config.Source.Type, config.Destination.Type)
+	counter := 1
 	for _, syncSet := range config.SyncSets {
-		log.Printf("Name: %s, Source Type: %s, Destination Type: %s", syncSet.Name, syncSet.Source.Type, syncSet.Destination.Type)
+		log.Printf("  %v) %s\n", counter, syncSet.Name)
+		counter++
 	}
 
 	return config, nil
 }
 
-func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []DestinationAttributeMap) ([]Person, error) {
+func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []AttributeMap) ([]Person, error) {
 	var peopleForDestination []Person
 
 	for _, person := range sourcePersons {
 		attrs := map[string]string{}
-		var attrNames []string
 
-		// Get simple one-dimensional array of destination attribute names
-		desiredAttrs := GetDesiredAttributeNames(attributeMap)
-
-		// Iterate through attributes of person and build []PersonAttribute with only attributes wanted in destination
-		for name, value := range person.Attributes {
-			if ok, _ := InArray(name, desiredAttrs); ok {
-				attrs[name] = value
-				attrNames = append(attrNames, name)
+		// Build attrs with only attributes from destination map, disable changes on person missing a required attribute
+		disableChanges := false
+		for _, attrMap := range attributeMap {
+			if value, ok := person.Attributes[attrMap.Source]; ok {
+				attrs[attrMap.Destination] = value
+			} else if attrMap.Required {
+				jsonAttrs, _ := json.Marshal(attrs)
+				log.Printf("user missing attribute %s. Rest of data: %s", attrMap.Source, jsonAttrs)
+				disableChanges = true
 			}
 		}
 
-		// Check if all required attributes are present in results
-		if ok, missing := HasAllRequiredAttributes(person.Attributes, attributeMap); !ok {
-			jsonAttrs, _ := json.Marshal(attrs)
-			log.Printf("user missing attribute %s. Rest of data: %s", missing, jsonAttrs)
-			continue
-		}
-
-		peopleForDestination = append(peopleForDestination, Person{})
+		peopleForDestination = append(peopleForDestination, Person{
+			CompareValue:   person.CompareValue,
+			Attributes:     attrs,
+			DisableChanges: disableChanges,
+		})
 
 	}
 
-	return []Person{}, nil
-}
-
-// HasAllRequiredAttributes checks if a person has all required attributes, if not it will return false and the
-// name of the first missing required attribute
-func HasAllRequiredAttributes(personAttributes map[string]string, attributeMap []DestinationAttributeMap) (bool, string) {
-	// Build simple array of attributes present
-	var hasAttrs []string
-	for attrName := range personAttributes {
-		hasAttrs = append(hasAttrs, attrName)
-	}
-
-	// Check if all required attributes are present in results
-	requiredAttrs := GetRequiredAttributeNames(attributeMap)
-	for _, reqAttr := range requiredAttrs {
-		if ok, _ := InArray(reqAttr, hasAttrs); !ok {
-			return false, reqAttr
-		}
-	}
-
-	return true, ""
-}
-
-func GetDesiredAttributeNames(attributeMap []DestinationAttributeMap) []string {
-	var attrs []string
-
-	for _, attr := range attributeMap {
-		attrs = append(attrs, attr.SourceName)
-	}
-
-	return attrs
-}
-
-func GetRequiredAttributeNames(attributeMap []DestinationAttributeMap) []string {
-	var attrs []string
-
-	for _, attr := range attributeMap {
-		if attr.Required {
-			attrs = append(attrs, attr.SourceName)
-		}
-	}
-
-	return attrs
-}
-
-func GetSourceAttrNameForDestinationAttr(attributeMap []DestinationAttributeMap, destinationAttrName string) string {
-	for _, attr := range attributeMap {
-		if attr.DestinationName == destinationAttrName {
-			return attr.SourceName
-		}
-	}
-
-	return destinationAttrName
-}
-
-func GetDestinationAttrNameForSourceAttr(attributeMap []DestinationAttributeMap, sourceAttrName string) string {
-	for _, attr := range attributeMap {
-		if attr.SourceName == sourceAttrName {
-			return attr.DestinationName
-		}
-	}
-
-	return sourceAttrName
+	return peopleForDestination, nil
 }
 
 func IsPersonInList(compareValue string, peopleList []Person) bool {
@@ -171,6 +108,11 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
 
 	// Find users who need to be created
 	for _, sp := range sourcePeople {
+		// If user was missing a required attribute, don't change their record
+		if sp.DisableChanges {
+			continue
+		}
+
 		personInDestinationStatus := PersonStatusInList(sp.CompareValue, sp.Attributes, destinationPeople)
 		switch personInDestinationStatus {
 		case PersonIsNotInList:
@@ -190,7 +132,7 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
 	return changeSet
 }
 
-func SyncPeople(source Source, destination Destination, attributeMap []DestinationAttributeMap) ChangeResults {
+func SyncPeople(source Source, destination Destination, attributeMap []AttributeMap, dryRun bool) ChangeResults {
 	sourcePeople, err := source.ListUsers()
 	if err != nil {
 		return ChangeResults{
@@ -221,34 +163,48 @@ func SyncPeople(source Source, destination Destination, attributeMap []Destinati
 
 	changeSet := GenerateChangeSet(sourcePeople, destinationPeople)
 
-	return destination.ApplyChangeSet(changeSet)
-}
-
-// This function will search element inside array with any type.
-// Will return boolean and index for matched element.
-// True and index more than 0 if element is exist.
-// needle is element to search, haystack is slice of value to be search.
-func InArray(needle interface{}, haystack interface{}) (exists bool, index int) {
-	exists = false
-	index = -1
-
-	switch reflect.TypeOf(haystack).Kind() {
-	case reflect.Slice:
-		s := reflect.ValueOf(haystack)
-
-		for i := 0; i < s.Len(); i++ {
-			if reflect.DeepEqual(needle, s.Index(i).Interface()) == true {
-				index = i
-				exists = true
-				return
-			}
+	if dryRun {
+		printChaneSet(changeSet)
+		return ChangeResults{
+			Created: uint64(len(changeSet.Create)),
+			Updated: uint64(len(changeSet.Update)),
+			Deleted: uint64(len(changeSet.Delete)),
 		}
 	}
 
-	return
+	return destination.ApplyChangeSet(changeSet)
+}
+
+func printChaneSet(changeSet ChangeSet) {
+	log.Printf("ChangeSet Plans: Create %v, Update %v, Delete %v\n", len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
+
+	log.Println("Users to be created...")
+	c := 1
+	for _, user := range changeSet.Create {
+		log.Printf("  %v) %s", c, user.CompareValue)
+		c++
+	}
+
+	log.Println("Users to be updated...")
+	u := 1
+	for _, user := range changeSet.Update {
+		log.Printf("  %v) %s", u, user.CompareValue)
+		u++
+	}
+
+	log.Println("Users to be deleted...")
+	d := 1
+	for _, user := range changeSet.Delete {
+		log.Printf("  %v) %s", d, user.CompareValue)
+		d++
+	}
 }
 
 type EmptyDestination struct{}
+
+func (e *EmptyDestination) ForSet(syncSetJson json.RawMessage) error {
+	return nil
+}
 
 func (e *EmptyDestination) ListUsers() ([]Person, error) {
 	return []Person{}, nil
@@ -260,12 +216,10 @@ func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet) ChangeResults {
 
 type EmptySource struct{}
 
+func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
+	return nil
+}
+
 func (e *EmptySource) ListUsers() ([]Person, error) {
 	return []Person{}, nil
 }
-
-// todo
-// create interface for destinations
-// get destination user list
-// calculate change set (create/update/delete)
-// apply change set (goroutines?)

@@ -37,7 +37,7 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 				Deleted: uint64(1),
 			},
 			fields: fields{
-				DestinationConfig: testConfig.SyncSets[0].Destination,
+				DestinationConfig: testConfig.Destination,
 			},
 			args: args{
 				changes: personnel_sync.ChangeSet{
@@ -49,7 +49,7 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, err := NewGoogleGroupsDesination(tt.fields.DestinationConfig)
+			g, err := NewGoogleGroupsDestination(tt.fields.DestinationConfig)
 			if err != nil {
 				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
 				t.FailNow()
@@ -85,7 +85,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 		{
 			name: "test listing users",
 			fields: fields{
-				DestinationConfig: testConfig.SyncSets[0].Destination,
+				DestinationConfig: testConfig.Destination,
 			},
 			want:    []personnel_sync.Person{},
 			wantErr: false,
@@ -93,7 +93,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, err := NewGoogleGroupsDesination(tt.fields.DestinationConfig)
+			g, err := NewGoogleGroupsDestination(tt.fields.DestinationConfig)
 			if err != nil {
 				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
 				t.FailNow()

@@ -94,7 +94,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				Type: personnel_sync.SourceTypeRestAPI,
 				ExtraJSON: []byte(fmt.Sprintf(`{
 		  "Method": "GET",
-		  "URL": "%s/workday",
+		  "BaseURL": "%s/workday",
 		  "ResultsJSONContainer": "Report_Entry",
 		  "AuthType": "basic",
 		  "Username": "username",
@@ -142,7 +142,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				Type: personnel_sync.SourceTypeRestAPI,
 				ExtraJSON: []byte(fmt.Sprintf(`{
       "Method": "GET",
-      "URL": "%s/other",
+      "BaseURL": "%s/other",
       "AuthType": "basic",
       "Username": "username",
       "Password": "password",

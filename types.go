@@ -3,14 +3,15 @@ package personnel_sync
 import "encoding/json"
 
 type Person struct {
-	CompareValue string
-	Attributes   map[string]string
+	CompareValue   string
+	Attributes     map[string]string
+	DisableChanges bool
 }
 
-type DestinationAttributeMap struct {
-	SourceName      string
-	DestinationName string
-	Required        bool
+type AttributeMap struct {
+	Source      string
+	Destination string
+	Required    bool
 }
 
 type SourceConfig struct {
@@ -19,28 +20,27 @@ type SourceConfig struct {
 }
 
 type DestinationConfig struct {
-	Type             string
-	URL              string
-	Username         string
-	Password         string
-	CompareAttribute string
-	ExtraJSON        json.RawMessage
+	Type      string
+	ExtraJSON json.RawMessage
 }
 
 type RuntimeConfig struct {
-	FailIfSinglePersonMissingRequiredAttribute bool
+	DryRunMode                            bool
+	FailIfSinglePersonMissingCompareValue bool
 }
 
 type AppConfig struct {
-	Runtime  RuntimeConfig
-	SyncSets []SyncSet
+	Runtime      RuntimeConfig
+	Source       SourceConfig
+	Destination  DestinationConfig
+	AttributeMap []AttributeMap
+	SyncSets     []SyncSet
 }
 
 type SyncSet struct {
-	Name                    string
-	Source                  SourceConfig
-	Destination             DestinationConfig
-	DestinationAttributeMap []DestinationAttributeMap
+	Name        string
+	Source      json.RawMessage
+	Destination json.RawMessage
 }
 
 type ChangeSet struct {
@@ -57,10 +57,12 @@ type ChangeResults struct {
 }
 
 type Destination interface {
+	ForSet(syncSetJson json.RawMessage) error
 	ListUsers() ([]Person, error)
 	ApplyChangeSet(changes ChangeSet) ChangeResults
 }
 
 type Source interface {
+	ForSet(syncSetJson json.RawMessage) error
 	ListUsers() ([]Person, error)
 }
