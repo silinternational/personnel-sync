@@ -39,8 +39,6 @@ func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.
 		return &RestAPI{}, err
 	}
 
-	log.Println(restAPI)
-
 	return &restAPI, nil
 }
 

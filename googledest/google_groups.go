@@ -3,6 +3,7 @@ package googledest
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -12,6 +13,10 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 )
+
+const RoleMemeber = "MEMBER"
+const RoleOwner = "OWNER"
+const RoleManager = "MANAGER"
 
 type GoogleGroupsConfig struct {
 	DelegatedAdminEmail string
@@ -35,11 +40,14 @@ type GoogleGroups struct {
 	DestinationConfig  personnel_sync.DestinationConfig
 	GoogleGroupsConfig GoogleGroupsConfig
 	AdminService       admin.Service
-	GroupEmail         string
+	GroupSyncSet       GroupSyncSet
 }
 
 type GroupSyncSet struct {
-	GroupEmail string
+	GroupEmail  string
+	Owners      []string
+	Managers    []string
+	ExtraOwners []string
 }
 
 func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -70,15 +78,15 @@ func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
 		return fmt.Errorf("GroupEmail missing from sync set json")
 	}
 
-	g.GroupEmail = syncSetConfig.GroupEmail
+	g.GroupSyncSet = syncSetConfig
 
 	return nil
 }
 
 func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
-	membersHolder, err := g.AdminService.Members.List(g.GroupEmail).Do()
+	membersHolder, err := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail).Do()
 	if err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupEmail, err.Error())
+		return []personnel_sync.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupSyncSet.GroupEmail, err.Error())
 	}
 
 	// todo do we need to paginate here?
@@ -104,14 +112,37 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet) personne
 	var wg sync.WaitGroup
 	errLog := make(chan string, 10000)
 
-	for _, cp := range changes.Create {
+	// key = email, value = role
+	toBeCreated := map[string]string{}
+	for _, person := range changes.Create {
+		toBeCreated[person.CompareValue] = RoleMemeber
+	}
+
+	// Update Owner / Manager roles
+	for _, owner := range g.GroupSyncSet.Owners {
+		if _, ok := toBeCreated[owner]; ok {
+			toBeCreated[owner] = RoleOwner
+		}
+	}
+	for _, manager := range g.GroupSyncSet.Managers {
+		if _, ok := toBeCreated[manager]; ok {
+			toBeCreated[manager] = RoleManager
+		}
+	}
+
+	// Add any ExtraOwners to Create list since they are not in the source people
+	for _, owner := range g.GroupSyncSet.ExtraOwners {
+		toBeCreated[owner] = RoleOwner
+	}
+
+	for email, role := range toBeCreated {
 		wg.Add(1)
-		go g.AddMember(cp, &results.Created, &wg, errLog)
+		go g.addMember(email, role, &results.Created, &wg, errLog)
 	}
 
 	for _, dp := range changes.Delete {
 		wg.Add(1)
-		go g.RemoveMember(dp, &results.Deleted, &wg, errLog)
+		go g.removeMember(dp.CompareValue, &results.Deleted, &wg, errLog)
 	}
 
 	wg.Wait()
@@ -123,29 +154,29 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet) personne
 	return results
 }
 
-func (g *GoogleGroups) AddMember(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
+func (g *GoogleGroups) addMember(email, role string, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
 	defer wg.Done()
 
 	newMember := admin.Member{
-		Role:  "MEMBER",
-		Email: person.CompareValue,
+		Role:  role,
+		Email: email,
 	}
 
-	_, err := g.AdminService.Members.Insert(g.GroupEmail, &newMember).Do()
-	if err != nil {
-		errLog <- fmt.Sprintf("unable to insert %s in Google group %s: %s", person.CompareValue, g.GroupEmail, err.Error())
+	_, err := g.AdminService.Members.Insert(g.GroupSyncSet.GroupEmail, &newMember).Do()
+	if err != nil && !strings.Contains(err.Error(), "409") { // error code 409 is for existing user
+		errLog <- fmt.Sprintf("unable to insert %s in Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())
 		return
 	}
 
 	atomic.AddUint64(counter, 1)
 }
 
-func (g *GoogleGroups) RemoveMember(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
+func (g *GoogleGroups) removeMember(email string, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
 	defer wg.Done()
 
-	err := g.AdminService.Members.Delete(g.GroupEmail, person.CompareValue).Do()
+	err := g.AdminService.Members.Delete(g.GroupSyncSet.GroupEmail, email).Do()
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to delete %s from Google group %s: %s", person.CompareValue, g.GroupEmail, err.Error())
+		errLog <- fmt.Sprintf("unable to delete %s from Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())
 		return
 	}
 
