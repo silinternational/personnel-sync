@@ -119,7 +119,11 @@ func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 		// Convert map of attributes to simple map of string to string
 		attrs := map[string]string{}
 		for key, value := range personAttributes {
-			attrs[key] = value.Data().(string)
+			attrVal := value.Data().(string)
+			if strings.ToLower(key) == strings.ToLower(r.CompareAttribute) {
+				attrVal = strings.ToLower(attrVal)
+			}
+			attrs[key] = attrVal
 		}
 
 		compareValue, ok := personAttributes[r.CompareAttribute]
@@ -133,7 +137,7 @@ func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 		} else {
 			// Append person to sourcePeople array to be returned from function
 			sourcePeople = append(sourcePeople, personnel_sync.Person{
-				CompareValue: compareValue.Data().(string),
+				CompareValue: strings.ToLower(compareValue.Data().(string)),
 				Attributes:   attrs,
 			})
 		}
