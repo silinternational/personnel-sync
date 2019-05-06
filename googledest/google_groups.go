@@ -84,21 +84,30 @@ func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
 }
 
 func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
-	membersHolder, err := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail).Do()
+	var membersList []*admin.Member
+	membersListCall := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail)
+	err := membersListCall.Pages(context.TODO(), func(members *admin.Members) error {
+		for _, member := range members.Members {
+			membersList = append(membersList, member)
+		}
+		return nil
+	})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupSyncSet.GroupEmail, err.Error())
 	}
 
-	// todo do we need to paginate here?
-
-	membersList := membersHolder.Members
 	var members []personnel_sync.Person
 
 	for _, nextMember := range membersList {
+		// Do not include ExtraOwners in list to prevent inclusion in delete list
+		if isExtraOwner, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraOwners); isExtraOwner {
+			continue
+		}
+
 		members = append(members, personnel_sync.Person{
 			CompareValue: nextMember.Email,
 			Attributes: map[string]string{
-				"Email": nextMember.Email,
+				"Email": strings.ToLower(nextMember.Email),
 			},
 		})
 	}
@@ -141,6 +150,11 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet) personne
 	}
 
 	for _, dp := range changes.Delete {
+		// Do not delete ExtraOwners
+		if isExtraOwner, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
+			continue
+		}
+
 		wg.Add(1)
 		go g.removeMember(dp.CompareValue, &results.Deleted, &wg, errLog)
 	}

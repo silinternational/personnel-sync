@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strings"
 )
 
 const DefaultConfigFile = "./config.json"
@@ -37,7 +38,8 @@ func LoadConfig(configFile string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
-	log.Printf("Configuration loaded. Source type: %s, Destination type: %s Sync sets found:\n", config.Source.Type, config.Destination.Type)
+	log.Printf("Configuration loaded. Source type: %s, Destination type: %s\n", config.Source.Type, config.Destination.Type)
+	log.Printf("%v Sync sets found:\n", len(config.SyncSets))
 	counter := 1
 	for _, syncSet := range config.SyncSets {
 		log.Printf("  %v) %s\n", counter, syncSet.Name)
@@ -78,7 +80,7 @@ func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []Attribu
 
 func IsPersonInList(compareValue string, peopleList []Person) bool {
 	for _, person := range peopleList {
-		if person.CompareValue == compareValue {
+		if strings.ToLower(person.CompareValue) == strings.ToLower(compareValue) {
 			return true
 		}
 	}
@@ -92,8 +94,9 @@ const PersonIsInListButDifferent = int(2)
 
 func PersonStatusInList(compareValue string, attrs map[string]string, peopleList []Person) int {
 	for _, person := range peopleList {
-		if person.CompareValue == compareValue {
+		if strings.ToLower(person.CompareValue) == strings.ToLower(compareValue) {
 			if !reflect.DeepEqual(attrs, person.Attributes) {
+				log.Printf("Attributes not equal: %v, %v\n", attrs, person.Attributes)
 				return PersonIsInListButDifferent
 			}
 			return PersonIsInList
@@ -141,6 +144,7 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 			},
 		}
 	}
+	log.Printf("    Found %v people in source", len(sourcePeople))
 
 	// remap source people to destination attributes for comparison
 	sourcePeople, err = RemapToDestinationAttributes(sourcePeople, attributeMap)
@@ -160,9 +164,11 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 			},
 		}
 	}
+	log.Printf("    Found %v people in destination", len(destinationPeople))
 
 	changeSet := GenerateChangeSet(sourcePeople, destinationPeople)
 
+	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if dryRun {
 		printChaneSet(changeSet)
 		return ChangeResults{
@@ -198,6 +204,30 @@ func printChaneSet(changeSet ChangeSet) {
 		log.Printf("  %v) %s", d, user.CompareValue)
 		d++
 	}
+}
+
+// This function will search element inside array with any type.
+// Will return boolean and index for matched element.
+// True and index more than 0 if element is exist.
+// needle is element to search, haystack is slice of value to be search.
+func InArray(needle interface{}, haystack interface{}) (exists bool, index int) {
+	exists = false
+	index = -1
+
+	switch reflect.TypeOf(haystack).Kind() {
+	case reflect.Slice:
+		s := reflect.ValueOf(haystack)
+
+		for i := 0; i < s.Len(); i++ {
+			if reflect.DeepEqual(needle, s.Index(i).Interface()) == true {
+				index = i
+				exists = true
+				return
+			}
+		}
+	}
+
+	return
 }
 
 type EmptyDestination struct{}

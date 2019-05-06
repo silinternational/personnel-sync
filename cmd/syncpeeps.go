@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/silinternational/personnel-sync/restapi"
 
@@ -14,6 +15,11 @@ import (
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
+	log.SetFlags(0)
+	now := time.Now().UTC()
+	log.Printf("Personnel sync started at %s", now.Format(time.RFC1123Z))
+
 	appConfig, err := personnel_sync.LoadConfig("")
 	if err != nil {
 		log.Println("Unable to load config, error: ", err.Error())
@@ -54,7 +60,7 @@ func main() {
 
 	// Iterate through SyncSets and process changes
 	for i, syncSet := range appConfig.SyncSets {
-		log.Printf("%v/%v: Beginning sync set: %s\n", i+1, len(appConfig.SyncSets), syncSet.Name)
+		log.Printf("\n\n%v/%v: Beginning sync set: %s\n", i+1, len(appConfig.SyncSets), syncSet.Name)
 
 		// Apply SyncSet configs (excluding source/destination as appropriate)
 		err = source.ForSet(syncSet.Source)
