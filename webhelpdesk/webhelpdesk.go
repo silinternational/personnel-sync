@@ -20,12 +20,11 @@ const ClientsAPIPath = "/ra/Clients"
 
 // In WebHelpDesk the basic user is called a "Client", so this is not an API Client
 type User struct {
-	ID               int    `json:"id,omitempty"`
-	FirstName        string `json:"firstName"`
-	LastName         string `json:"lastName"`
-	Email            string `json:"email"`
-	Username         string `json:"username"`
-	EmploymentStatus string `json:"employmentStatus,omitempty"`
+	ID        int    `json:"id,omitempty"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email"`
+	Username  string `json:"username"`
 }
 
 type WebHelpDesk struct {
@@ -93,12 +92,11 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 		users = append(users, personnel_sync.Person{
 			CompareValue: nextClient.Email,
 			Attributes: map[string]string{
-				"id":               strconv.Itoa(nextClient.ID),
-				"email":            nextClient.Email,
-				"firstName":        nextClient.FirstName,
-				"lastName":         nextClient.LastName,
-				"username":         nextClient.Username,
-				"employmentStatus": nextClient.EmploymentStatus,
+				"id":        strconv.Itoa(nextClient.ID),
+				"email":     nextClient.Email,
+				"firstName": nextClient.FirstName,
+				"lastName":  nextClient.LastName,
+				"username":  nextClient.Username,
 			},
 		})
 	}
@@ -212,11 +210,10 @@ func (w *WebHelpDesk) makeHttpRequest(path, method, body string, additionalQuery
 
 func getWebHelpDeskClientFromPerson(person personnel_sync.Person) (User, error) {
 	newClient := User{
-		FirstName:        person.Attributes["firstName"],
-		LastName:         person.Attributes["lastName"],
-		Username:         person.Attributes["username"],
-		EmploymentStatus: person.Attributes["employmentStatus"],
-		Email:            person.Attributes["email"],
+		FirstName: person.Attributes["firstName"],
+		LastName:  person.Attributes["lastName"],
+		Username:  person.Attributes["username"],
+		Email:     person.Attributes["email"],
 	}
 
 	// if id attribute isn't present, default to a zero

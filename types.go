@@ -9,9 +9,10 @@ type Person struct {
 }
 
 type AttributeMap struct {
-	Source      string
-	Destination string
-	Required    bool
+	Source        string
+	Destination   string
+	Required      bool
+	CaseSensitive bool
 }
 
 type SourceConfig struct {

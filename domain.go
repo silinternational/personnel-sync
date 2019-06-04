@@ -13,6 +13,8 @@ const DefaultConfigFile = "./config.json"
 const DestinationTypeGoogleGroups = "GoogleGroups"
 const DestinationTypeWebHelpDesk = "WebHelpDesk"
 const SourceTypeRestAPI = "RestAPI"
+const CaseSensitive = true
+const CaseInsensitive = false
 
 // LoadConfig looks for a config file if one is provided. Otherwise, it looks for
 // a config file based on the CONFIG_PATH env var.  If that is not set, it gets
@@ -38,6 +40,21 @@ func LoadConfig(configFile string) (AppConfig, error) {
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
+		return AppConfig{}, err
+	}
+
+	if config.Source.Type == "" {
+		log.Printf("configuration appears to be missing a Source configuration")
+		return AppConfig{}, err
+	}
+
+	if config.Destination.Type == "" {
+		log.Printf("configuration appears to be missing a Destination configuration")
+		return AppConfig{}, err
+	}
+
+	if len(config.AttributeMap) == 0 {
+		log.Printf("configuration appears to be missing an AttributeMap")
 		return AppConfig{}, err
 	}
 
@@ -106,14 +123,17 @@ const PersonIsInListButDifferent = int(2)
 // and if so whether they have different attributes than expected.
 // Note this is based on comparing the lower-case version of the compareValue with the
 // lower-case versions of each Person's CompareValue.
-func PersonStatusInList(compareValue string, attrs map[string]string, peopleList []Person) int {
-	lowerCompareValue := strings.ToLower(compareValue)
+func PersonStatusInList(sourcePerson Person, peopleList []Person, attributeMap []AttributeMap) int {
+	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
 
 	for _, person := range peopleList {
-		if strings.ToLower(person.CompareValue) == lowerCompareValue {
-			if !reflect.DeepEqual(attrs, person.Attributes) {
-				log.Printf("Attributes not equal: %v, %v\n", attrs, person.Attributes)
-				return PersonIsInListButDifferent
+		if stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
+			for key, val := range sourcePerson.Attributes {
+				if !stringsAreEqual(val, person.Attributes[key], caseSensitivityList[key]) {
+					log.Printf("Attribute %s not equal for user %s. Case Sensitive: %v, Source: %s, Destination: %s \n",
+						key, sourcePerson.CompareValue, caseSensitivityList[key], val, person.Attributes[key])
+					return PersonIsInListButDifferent
+				}
 			}
 			return PersonIsInList
 		}
@@ -122,11 +142,29 @@ func PersonStatusInList(compareValue string, attrs map[string]string, peopleList
 	return PersonIsNotInList
 }
 
+func stringsAreEqual(val1, val2 string, caseSensitive bool) bool {
+	if caseSensitive {
+		return val1 == val2
+	}
+
+	return strings.ToLower(val1) == strings.ToLower(val2)
+}
+
+func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[string]bool {
+	results := map[string]bool{}
+
+	for _, attrMap := range attributeMap {
+		results[attrMap.Destination] = attrMap.CaseSensitive
+	}
+
+	return results
+}
+
 // GenerateChangeSet builds the three slice attributes of a ChangeSet
 // (Create, Update and Delete) based on whether they are in the slice
 //  of destination Person instances.
 // It skips all source Person instances that have DisableChanges set to true
-func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
+func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []AttributeMap) ChangeSet {
 	var changeSet ChangeSet
 
 	// Find users who need to be created
@@ -136,7 +174,7 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
 			continue
 		}
 
-		personInDestinationStatus := PersonStatusInList(sp.CompareValue, sp.Attributes, destinationPeople)
+		personInDestinationStatus := PersonStatusInList(sp, destinationPeople, attributeMap)
 		switch personInDestinationStatus {
 		case PersonIsNotInList:
 			changeSet.Create = append(changeSet.Create, sp)
@@ -186,11 +224,12 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 	}
 	log.Printf("    Found %v people in destination", len(destinationPeople))
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople)
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap)
+
+	printChangeSet(changeSet)
 
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if dryRun {
-		printChangeSet(changeSet)
 		return ChangeResults{
 			Created: uint64(len(changeSet.Create)),
 			Updated: uint64(len(changeSet.Update)),
