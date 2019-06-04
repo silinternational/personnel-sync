@@ -57,6 +57,10 @@ func TestGenerateChangeSet(t *testing.T) {
 							"name": "new value",
 						},
 					},
+					{
+						CompareValue: "6",
+						DisableChanges: true,
+					},
 				},
 				destinationPeople: []Person{
 					{
