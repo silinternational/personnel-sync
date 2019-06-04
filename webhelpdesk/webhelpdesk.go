@@ -76,10 +76,10 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 			return []personnel_sync.Person{}, err
 		}
 
-		for _, c := range whdClients {
-			allClients = append(allClients, c)
-		}
+		// Append the new users to the master list of users
+		allClients = append(allClients, whdClients...)
 
+		// If this batch of users is fewer than the normal number returned per page, we're done
 		if len(whdClients) < w.ListClientsPageLimit {
 			break
 		}

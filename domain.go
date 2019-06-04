@@ -16,6 +16,9 @@ const SourceTypeRestAPI = "RestAPI"
 const CaseSensitive = true
 const CaseInsensitive = false
 
+// LoadConfig looks for a config file if one is provided. Otherwise, it looks for
+// a config file based on the CONFIG_PATH env var.  If that is not set, it gets
+// the default config file ("./config.json").
 func LoadConfig(configFile string) (AppConfig, error) {
 
 	if configFile == "" {
@@ -57,15 +60,18 @@ func LoadConfig(configFile string) (AppConfig, error) {
 
 	log.Printf("Configuration loaded. Source type: %s, Destination type: %s\n", config.Source.Type, config.Destination.Type)
 	log.Printf("%v Sync sets found:\n", len(config.SyncSets))
-	counter := 1
-	for _, syncSet := range config.SyncSets {
-		log.Printf("  %v) %s\n", counter, syncSet.Name)
-		counter++
+
+	for i, syncSet := range config.SyncSets {
+		log.Printf("  %v) %s\n", i+1, syncSet.Name)
 	}
 
 	return config, nil
 }
 
+// RemapToDestinationAttributes returns a slice of Person instances that each have
+// only the desired attributes based on the destination attribute keys.
+// If a required attribute is missing for a Person, then their disableChanges
+// value is set to true.
 func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []AttributeMap) ([]Person, error) {
 	var peopleForDestination []Person
 
@@ -95,9 +101,13 @@ func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []Attribu
 	return peopleForDestination, nil
 }
 
+// IsPersonInList returns true if the lower-case version of the compareValue matches
+// any of the lower-case versions of the CompareValues of the Person instances.
 func IsPersonInList(compareValue string, peopleList []Person) bool {
+	lowerCompareValue := strings.ToLower(compareValue)
+
 	for _, person := range peopleList {
-		if strings.ToLower(person.CompareValue) == strings.ToLower(compareValue) {
+		if strings.ToLower(person.CompareValue) == lowerCompareValue {
 			return true
 		}
 	}
@@ -109,6 +119,10 @@ const PersonIsNotInList = int(0)
 const PersonIsInList = int(1)
 const PersonIsInListButDifferent = int(2)
 
+// PersonStatusInList returns an integer that denotes whether a Person instance is included in a slice,
+// and if so whether they have different attributes than expected.
+// Note this is based on comparing the lower-case version of the compareValue with the
+// lower-case versions of each Person's CompareValue.
 func PersonStatusInList(sourcePerson Person, peopleList []Person, attributeMap []AttributeMap) int {
 	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
 
@@ -146,6 +160,10 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 	return results
 }
 
+// GenerateChangeSet builds the three slice attributes of a ChangeSet
+// (Create, Update and Delete) based on whether they are in the slice
+//  of destination Person instances.
+// It skips all source Person instances that have DisableChanges set to true
 func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []AttributeMap) ChangeSet {
 	var changeSet ChangeSet
 
@@ -175,13 +193,17 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []
 	return changeSet
 }
 
+// SyncPeople calls a number of functions to do the following ...
+//  - it gets the list of people from the source
+//  - it remaps their attributes to match the keys used in the destination
+//  - it gets the list of people from the destination
+//  - it generates the lists of people to change, update and delete
+//  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
 func SyncPeople(source Source, destination Destination, attributeMap []AttributeMap, dryRun bool) ChangeResults {
 	sourcePeople, err := source.ListUsers()
 	if err != nil {
 		return ChangeResults{
-			Errors: []string{
-				err.Error(),
-			},
+			Errors: []string{err.Error()},
 		}
 	}
 	log.Printf("    Found %v people in source", len(sourcePeople))
@@ -190,18 +212,14 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 	sourcePeople, err = RemapToDestinationAttributes(sourcePeople, attributeMap)
 	if err != nil {
 		return ChangeResults{
-			Errors: []string{
-				err.Error(),
-			},
+			Errors: []string{err.Error()},
 		}
 	}
 
 	destinationPeople, err := destination.ListUsers()
 	if err != nil {
 		return ChangeResults{
-			Errors: []string{
-				err.Error(),
-			},
+			Errors: []string{err.Error()},
 		}
 	}
 	log.Printf("    Found %v people in destination", len(destinationPeople))
@@ -226,24 +244,18 @@ func printChangeSet(changeSet ChangeSet) {
 	log.Printf("ChangeSet Plans: Create %v, Update %v, Delete %v\n", len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
 
 	log.Println("Users to be created...")
-	c := 1
-	for _, user := range changeSet.Create {
-		log.Printf("  %v) %s", c, user.CompareValue)
-		c++
+	for i, user := range changeSet.Create {
+		log.Printf("  %v) %s", i+1, user.CompareValue)
 	}
 
 	log.Println("Users to be updated...")
-	u := 1
-	for _, user := range changeSet.Update {
-		log.Printf("  %v) %s", u, user.CompareValue)
-		u++
+	for i, user := range changeSet.Update {
+		log.Printf("  %v) %s", i+1, user.CompareValue)
 	}
 
 	log.Println("Users to be deleted...")
-	d := 1
-	for _, user := range changeSet.Delete {
-		log.Printf("  %v) %s", d, user.CompareValue)
-		d++
+	for i, user := range changeSet.Delete {
+		log.Printf("  %v) %s", i+1, user.CompareValue)
 	}
 }
 
