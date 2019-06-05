@@ -127,16 +127,18 @@ func PersonStatusInList(sourcePerson Person, peopleList []Person, attributeMap [
 	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
 
 	for _, person := range peopleList {
-		if stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
-			for key, val := range sourcePerson.Attributes {
-				if !stringsAreEqual(val, person.Attributes[key], caseSensitivityList[key]) {
-					log.Printf("Attribute %s not equal for user %s. Case Sensitive: %v, Source: %s, Destination: %s \n",
-						key, sourcePerson.CompareValue, caseSensitivityList[key], val, person.Attributes[key])
-					return PersonIsInListButDifferent
-				}
-			}
-			return PersonIsInList
+		if ! stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
+			continue
 		}
+
+		for key, val := range sourcePerson.Attributes {
+			if !stringsAreEqual(val, person.Attributes[key], caseSensitivityList[key]) {
+				log.Printf("Attribute %s not equal for user %s. Case Sensitive: %v, Source: %s, Destination: %s \n",
+					key, sourcePerson.CompareValue, caseSensitivityList[key], val, person.Attributes[key])
+				return PersonIsInListButDifferent
+			}
+		}
+		return PersonIsInList
 	}
 
 	return PersonIsNotInList

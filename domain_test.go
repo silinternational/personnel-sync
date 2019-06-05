@@ -35,7 +35,7 @@ func TestGenerateChangeSet(t *testing.T) {
 					{
 						CompareValue: "5",
 						Attributes: map[string]string{
-							"name": "new value",
+							"name": "case sensitive",
 						},
 					},
 				},
@@ -50,11 +50,14 @@ func TestGenerateChangeSet(t *testing.T) {
 					},
 					{
 						CompareValue: "4",
+						Attributes: map[string]string{
+							"school": "harvard",
+						},
 					},
 					{
 						CompareValue: "5",
 						Attributes: map[string]string{
-							"name": "new value",
+							"name": "case sensitive",
 						},
 					},
 					{
@@ -68,20 +71,36 @@ func TestGenerateChangeSet(t *testing.T) {
 					},
 					{
 						CompareValue: "4",
+						Attributes: map[string]string{
+							"school": "HARVARD",
+						},
 					},
 					{
 						CompareValue: "5",
 						Attributes: map[string]string{
-							"name": "original value",
+							"name": "CASE SENSITIVE",
 						},
 					},
 				},
 			},
 		},
 	}
+
+	attrMaps := []AttributeMap{
+		{
+			Source:        "name",
+			Destination:   "name",
+			CaseSensitive: true,
+		},
+		{
+			Source:        "school",
+			Destination:   "school",
+			CaseSensitive: false,
+		},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople); !reflect.DeepEqual(got, tt.want) {
+			if got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople, attrMaps); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GenerateChangeSet() = %v, want %v", got, tt.want)
 			}
 		})
