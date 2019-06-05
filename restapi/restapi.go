@@ -31,6 +31,7 @@ type SetConfig struct {
 	Path string
 }
 
+// NewRestAPISource unmarshals the sourceConfig's ExtraJson into a restApi struct
 func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.Source, error) {
 	var restAPI RestAPI
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
@@ -42,6 +43,9 @@ func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.
 	return &restAPI, nil
 }
 
+// ForSet sets this RestAPI structs Path value to the one in the
+// umarshalled syncSetJson.
+// It ensures the resulting Path attribute includes an initial "/"
 func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	var setConfig SetConfig
 	err := json.Unmarshal(syncSetJson, &setConfig)
@@ -61,6 +65,8 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
+// ListUsers makes an http request and uses the response to populate
+// and return a slice of Person instances
 func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
@@ -108,41 +114,47 @@ func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 
 	// Iterate through people in list from source to convert to Persons
 	for _, person := range peopleList {
-
-		// Get map of attribute name to gabs container
-		personAttributes, err := person.ChildrenMap()
+		sourcePerson, err := r.getPersonFromContainer(person)
 		if err != nil {
 			log.Println(err)
 			return []personnel_sync.Person{}, err
 		}
 
-		// Convert map of attributes to simple map of string to string
-		attrs := map[string]string{}
-		for key, value := range personAttributes {
-			attrVal := value.Data().(string)
-			if strings.ToLower(key) == strings.ToLower(r.CompareAttribute) {
-				attrVal = strings.ToLower(attrVal)
-			}
-			attrs[key] = attrVal
-		}
-
-		compareValue, ok := personAttributes[r.CompareAttribute]
-		if !ok {
-			msg := fmt.Sprintf("ListUsers failed, user missing CompareValue (%s), have attributes: %s",
-				r.CompareAttribute, personAttributes)
-
-			log.Println(msg)
-
-			return []personnel_sync.Person{}, fmt.Errorf(msg)
-		} else {
-			// Append person to sourcePeople array to be returned from function
-			sourcePeople = append(sourcePeople, personnel_sync.Person{
-				CompareValue: strings.ToLower(compareValue.Data().(string)),
-				Attributes:   attrs,
-			})
-		}
-
+		sourcePeople = append(sourcePeople, sourcePerson)
 	}
 
 	return sourcePeople, nil
+}
+
+func (r *RestAPI) getPersonFromContainer(personContainer *gabs.Container) (personnel_sync.Person, error) {
+	// Get map of attribute name to gabs container
+	personAttributes, err := personContainer.ChildrenMap()
+	if err != nil {
+		return personnel_sync.Person{}, err
+	}
+
+	// Convert map of attributes to simple map of string to string
+	attrs := map[string]string{}
+	for key, value := range personAttributes {
+		attrVal := value.Data().(string)
+		if strings.ToLower(key) == strings.ToLower(r.CompareAttribute) {
+			attrVal = strings.ToLower(attrVal)
+		}
+		attrs[key] = attrVal
+	}
+
+	compareValue, ok := personAttributes[r.CompareAttribute]
+	if !ok {
+		msg := fmt.Sprintf("ListUsers failed, user missing CompareValue (%s), have attributes: %s",
+			r.CompareAttribute, personAttributes)
+
+		return personnel_sync.Person{}, fmt.Errorf(msg)
+	}
+
+	sourcePerson :=  personnel_sync.Person{
+		CompareValue: strings.ToLower(compareValue.Data().(string)),
+		Attributes:   attrs,
+	}
+
+	return sourcePerson, nil
 }

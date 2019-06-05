@@ -23,7 +23,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c1",
 				LastName:         "c1",
 				Email:            "c1@c1.com",
-				EmploymentStatus: "c1",
 				Username:         "c1",
 			},
 			{
@@ -31,7 +30,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c2",
 				LastName:         "c2",
 				Email:            "c2@c2.com",
-				EmploymentStatus: "c2",
 				Username:         "c2",
 			},
 			{
@@ -39,7 +37,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c3",
 				LastName:         "c3",
 				Email:            "c3@c3.com",
-				EmploymentStatus: "c3",
 				Username:         "c3",
 			},
 			{
@@ -47,7 +44,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c4",
 				LastName:         "c4",
 				Email:            "c4@c4.com",
-				EmploymentStatus: "c4",
 				Username:         "c4",
 			},
 			{
@@ -55,7 +51,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c5",
 				LastName:         "c5",
 				Email:            "c5@c5.com",
-				EmploymentStatus: "c5",
 				Username:         "c5",
 			},
 		},
@@ -65,7 +60,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c6",
 				LastName:         "c6",
 				Email:            "c6@c6.com",
-				EmploymentStatus: "c6",
 				Username:         "c6",
 			},
 			{
@@ -73,7 +67,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c7",
 				LastName:         "c7",
 				Email:            "c7@c7.com",
-				EmploymentStatus: "c7",
 				Username:         "c7",
 			},
 			{
@@ -81,7 +74,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c8",
 				LastName:         "c8",
 				Email:            "c8@c8.com",
-				EmploymentStatus: "c8",
 				Username:         "c8",
 			},
 			{
@@ -89,7 +81,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				FirstName:        "c9",
 				LastName:         "c9",
 				Email:            "c9@c9.com",
-				EmploymentStatus: "c9",
 				Username:         "c9",
 			},
 		},
@@ -153,7 +144,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c1",
 						"lastName":         "c1",
 						"username":         "c1",
-						"employmentStatus": "c1",
 					},
 				},
 				{
@@ -164,7 +154,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c2",
 						"lastName":         "c2",
 						"username":         "c2",
-						"employmentStatus": "c2",
 					},
 				},
 				{
@@ -175,7 +164,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c3",
 						"lastName":         "c3",
 						"username":         "c3",
-						"employmentStatus": "c3",
 					},
 				},
 				{
@@ -186,7 +174,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c4",
 						"lastName":         "c4",
 						"username":         "c4",
-						"employmentStatus": "c4",
 					},
 				},
 				{
@@ -197,7 +184,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c5",
 						"lastName":         "c5",
 						"username":         "c5",
-						"employmentStatus": "c5",
 					},
 				},
 				{
@@ -208,7 +194,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c6",
 						"lastName":         "c6",
 						"username":         "c6",
-						"employmentStatus": "c6",
 					},
 				},
 				{
@@ -219,7 +204,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c7",
 						"lastName":         "c7",
 						"username":         "c7",
-						"employmentStatus": "c7",
 					},
 				},
 				{
@@ -230,7 +214,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c8",
 						"lastName":         "c8",
 						"username":         "c8",
-						"employmentStatus": "c8",
 					},
 				},
 				{
@@ -241,7 +224,6 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 						"firstName":        "c9",
 						"lastName":         "c9",
 						"username":         "c9",
-						"employmentStatus": "c9",
 					},
 				},
 			},
@@ -294,7 +276,9 @@ func TestCreateChangeSet(t *testing.T) {
 	sourcePeople, err := source.ListUsers()
 	log.Printf("found %v people in source", len(sourcePeople))
 
-	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users)
+	attributeMaps := testConfig.AttributeMap
+
+	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users, attributeMaps)
 
 	log.Printf("ChangeSet ready %v to be created, %v to be deleted", len(changeSet.Create), len(changeSet.Delete))
 }
@@ -318,7 +302,6 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 			"lastName":         "test-for-phillip",
 			"email":            "phillip_shipley+testing123456@sil.org",
 			"username":         "phillip_shipley+testing123456@sil.org",
-			"employmentStatus": "123456",
 		},
 	}
 

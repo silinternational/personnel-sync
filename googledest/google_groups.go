@@ -87,9 +87,7 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 	var membersList []*admin.Member
 	membersListCall := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail)
 	err := membersListCall.Pages(context.TODO(), func(members *admin.Members) error {
-		for _, member := range members.Members {
-			membersList = append(membersList, member)
-		}
+			membersList = append(membersList, members.Members...)
 		return nil
 	})
 	if err != nil {
