@@ -135,8 +135,7 @@ func TestBatchTimer(t *testing.T) {
 	}
 
 	for _, testRun := range testRuns {
-		bTimer := BatchTimer{}
-		bTimer.Init(testRun.batchSize, testRun.secondsPerBatch)
+		bTimer := NewBatchTimer(testRun.batchSize, testRun.secondsPerBatch)
 		startTime := time.Now()
 
 		for i := 0; i < testRun.numberOfCalls; i++ {

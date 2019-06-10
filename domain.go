@@ -310,6 +310,15 @@ func (e *EmptySource) ListUsers() ([]Person, error) {
 	return []Person{}, nil
 }
 
+
+// Init sets the startTime to the current time,
+//    sets the endTime based on secondsPerBatch into the future
+func NewBatchTimer(batchSize, secondsPerBatch int) BatchTimer {
+	b := BatchTimer{}
+	b.Init(batchSize, secondsPerBatch)
+	return b
+}
+
 // BatchTimer is intended as a time limited batch enforcer
 // To create one, call its Init method.
 // Then, to use it call its WaitOnBatch method after every call to

@@ -114,9 +114,8 @@ func (w *WebHelpDesk) ApplyChangeSet(changes personnel_sync.ChangeSet) personnel
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
 
-	secondsPerBatch := int(60) // One minute per batch
-	batchTimer := personnel_sync.BatchTimer{}
-	batchTimer.Init(w.BatchSizePerMinute, secondsPerBatch)
+	// One minute per batch
+	batchTimer := personnel_sync.NewBatchTimer(w.BatchSizePerMinute, int(60))
 
 	errLog := make(chan string, 10000)
 
