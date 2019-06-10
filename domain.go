@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"time"
 )
 
 const DefaultConfigFile = "./config.json"
@@ -307,4 +308,55 @@ func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
 
 func (e *EmptySource) ListUsers() ([]Person, error) {
 	return []Person{}, nil
+}
+
+// BatchTimer is intended as a time limited batch enforcer
+// To create one, call its Init method.
+// Then, to use it call its WaitOnBatch method after every call to
+//  the associated go routine
+type BatchTimer struct {
+	startTime       time.Time
+	endTime         time.Time
+	Counter         int
+	SecondsPerBatch int
+	BatchSize       int
+}
+
+// Init sets the startTime to the current time,
+//    sets the endTime based on secondsPerBatch into the future
+func (b *BatchTimer) Init(batchSize, secondsPerBatch int) {
+	b.startTime = time.Now()
+	b.setEndTime()
+	b.SecondsPerBatch = secondsPerBatch
+	b.BatchSize = batchSize
+	b.Counter = 0
+}
+
+
+func (b *BatchTimer) setEndTime()  {
+	var emptyTime time.Time
+	if b.startTime == emptyTime {
+		b.startTime = time.Now()
+	}
+	b.endTime = b.startTime.Add(time.Second * time.Duration(b.SecondsPerBatch))
+}
+
+// WaitOnBatch increments the Counter and then
+//   if fewer than BatchSize have been dealt with, just returns without doing anything
+//   Otherwise, sleeps until the batch time has expired (i.e. current time is past endTime).
+//   If this last process occurs, then it ends by resetting the batch's times and counter.
+func (b *BatchTimer) WaitOnBatch()  {
+	b.Counter ++
+	if b.Counter < b.BatchSize {
+		return
+	}
+
+	for {
+		currTime := time.Now()
+		if currTime.After(b.endTime) {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	b.Init(b.BatchSize, b.SecondsPerBatch)
 }

@@ -3,6 +3,7 @@ package personnel_sync
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestGenerateChangeSet(t *testing.T) {
@@ -104,5 +105,52 @@ func TestGenerateChangeSet(t *testing.T) {
 				t.Errorf("GenerateChangeSet() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func DoNothing() {}
+
+func TestBatchTimer(t *testing.T) {
+
+	type testData struct {
+		batchSize int
+		secondsPerBatch int
+		numberOfCalls int
+		expectedDelayInSeconds int
+	}
+
+	testRuns := []testData{
+		{
+			batchSize: 1,
+			secondsPerBatch: 1,
+			numberOfCalls: 2,
+			expectedDelayInSeconds: 1,
+		},
+		{
+			batchSize: 5,
+			secondsPerBatch: 1,
+			numberOfCalls: 5,
+			expectedDelayInSeconds: 0,
+		},
+	}
+
+	for _, testRun := range testRuns {
+		bTimer := BatchTimer{}
+		bTimer.Init(testRun.batchSize, testRun.secondsPerBatch)
+		startTime := time.Now()
+
+		for i := 0; i < testRun.numberOfCalls; i++ {
+			DoNothing()
+			bTimer.WaitOnBatch()
+		}
+
+		elapsedTime := time.Since(startTime)
+
+		results := int(elapsedTime.Seconds())
+		expected := testRun.expectedDelayInSeconds
+
+		if results != expected {
+			t.Errorf("BatchTimer should have taken %v second(s) to complete. Instead, it took %v seconds", expected, results)
+		}
 	}
 }

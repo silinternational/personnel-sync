@@ -15,6 +15,7 @@ import (
 	"github.com/silinternational/personnel-sync"
 )
 
+const DefaultBatchSizePerMinute = 50
 const DefaultListClientsPageLimit = 100
 const ClientsAPIPath = "/ra/Clients"
 
@@ -32,6 +33,7 @@ type WebHelpDesk struct {
 	Username             string
 	Password             string
 	ListClientsPageLimit int
+	BatchSizePerMinute   int
 }
 
 func NewWebHelpDeskDesination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -42,7 +44,11 @@ func NewWebHelpDeskDesination(destinationConfig personnel_sync.DestinationConfig
 		return &webHelpDesk, err
 	}
 
-	// Set default page limit if not provided in ExtraJSON
+	// Set defaults for batch size per minute and page limit if not provided in ExtraJSON
+	if webHelpDesk.BatchSizePerMinute <= 0 {
+		webHelpDesk.BatchSizePerMinute = DefaultBatchSizePerMinute
+	}
+
 	if webHelpDesk.ListClientsPageLimit == 0 {
 		webHelpDesk.ListClientsPageLimit = DefaultListClientsPageLimit
 	}
@@ -107,16 +113,23 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 func (w *WebHelpDesk) ApplyChangeSet(changes personnel_sync.ChangeSet) personnel_sync.ChangeResults {
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
+
+	secondsPerBatch := int(60) // One minute per batch
+	batchTimer := personnel_sync.BatchTimer{}
+	batchTimer.Init(w.BatchSizePerMinute, secondsPerBatch)
+
 	errLog := make(chan string, 10000)
 
 	for _, cp := range changes.Create {
 		wg.Add(1)
 		go w.CreateUser(cp, &results.Created, &wg, errLog)
+		batchTimer.WaitOnBatch()
 	}
 
 	for _, dp := range changes.Update {
 		wg.Add(1)
 		go w.UpdateUser(dp, &results.Updated, &wg, errLog)
+		batchTimer.WaitOnBatch()
 	}
 
 	// WHD API does not support deactivating or deleting users
