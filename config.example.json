@@ -17,6 +17,7 @@
   "Destination": {
     "Type": "GoogleGroups",
     "ExtraJSON": {
+      "BatchSizePerMinute": 50,
       "DelegatedAdminEmail": "delegated-admin@domain.com",
       "GoogleAuth": {
         "type": "service_account",
