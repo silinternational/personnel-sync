@@ -180,8 +180,7 @@ func (g *GoogleGroups) addMember(
 	email, role string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan personnel_sync.EventLogItem,
-) {
+	eventLog chan personnel_sync.EventLogItem) {
 
 	defer wg.Done()
 
@@ -210,8 +209,7 @@ func (g *GoogleGroups) removeMember(
 	email string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan personnel_sync.EventLogItem,
-) {
+	eventLog chan personnel_sync.EventLogItem) {
 
 	defer wg.Done()
 
