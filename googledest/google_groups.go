@@ -14,6 +14,7 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+const DefaultBatchSizePerMinute = 50
 const RoleMemeber = "MEMBER"
 const RoleOwner = "OWNER"
 const RoleManager = "MANAGER"
@@ -41,6 +42,7 @@ type GoogleGroups struct {
 	GoogleGroupsConfig GoogleGroupsConfig
 	AdminService       admin.Service
 	GroupSyncSet       GroupSyncSet
+	BatchSizePerMinute int
 }
 
 type GroupSyncSet struct {
@@ -56,6 +58,11 @@ func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConf
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleGroups.GoogleGroupsConfig)
 	if err != nil {
 		return &GoogleGroups{}, err
+	}
+
+	// Defaults
+	if googleGroups.BatchSizePerMinute <= 0 {
+		googleGroups.BatchSizePerMinute = DefaultBatchSizePerMinute
 	}
 
 	// Initialize AdminService object
@@ -141,9 +148,13 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog
 		toBeCreated[owner] = RoleOwner
 	}
 
+	// One minute per batch
+	batchTimer := personnel_sync.NewBatchTimer(g.BatchSizePerMinute, int(60))
+
 	for email, role := range toBeCreated {
 		wg.Add(1)
 		go g.addMember(email, role, &results.Created, &wg, eventLog)
+		batchTimer.WaitOnBatch()
 	}
 
 	for _, dp := range changes.Delete {
@@ -154,6 +165,7 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog
 
 		wg.Add(1)
 		go g.removeMember(dp.CompareValue, &results.Deleted, &wg, eventLog)
+		batchTimer.WaitOnBatch()
 	}
 
 	wg.Wait()
