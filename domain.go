@@ -128,7 +128,7 @@ func PersonStatusInList(sourcePerson Person, peopleList []Person, attributeMap [
 	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
 
 	for _, person := range peopleList {
-		if ! stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
+		if !stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
 			continue
 		}
 
@@ -229,10 +229,9 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 
 	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap)
 
-	printChangeSet(changeSet)
-
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if dryRun {
+		printChangeSet(changeSet)
 		return ChangeResults{
 			Created: uint64(len(changeSet.Create)),
 			Updated: uint64(len(changeSet.Update)),
@@ -240,7 +239,25 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 		}
 	}
 
-	return destination.ApplyChangeSet(changeSet)
+	// Create a channel to pass activity logs for printing
+	activityLog := make(chan EventLogItem, 50)
+	go processEventLog(activityLog)
+
+	results := destination.ApplyChangeSet(changeSet, activityLog)
+	close(activityLog)
+
+	return results
+}
+
+type EventLogItem struct {
+	Event   string
+	Message string
+}
+
+func processEventLog(eventLog <-chan EventLogItem) {
+	for msg := range eventLog {
+		log.Printf("%s %s", msg.Event, msg.Message)
+	}
 }
 
 func printChangeSet(changeSet ChangeSet) {
@@ -296,7 +313,7 @@ func (e *EmptyDestination) ListUsers() ([]Person, error) {
 	return []Person{}, nil
 }
 
-func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet) ChangeResults {
+func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet, eventLog chan EventLogItem) ChangeResults {
 	return ChangeResults{}
 }
 
@@ -309,7 +326,6 @@ func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
 func (e *EmptySource) ListUsers() ([]Person, error) {
 	return []Person{}, nil
 }
-
 
 // Init sets the startTime to the current time,
 //    sets the endTime based on secondsPerBatch into the future
@@ -341,8 +357,7 @@ func (b *BatchTimer) Init(batchSize, secondsPerBatch int) {
 	b.Counter = 0
 }
 
-
-func (b *BatchTimer) setEndTime()  {
+func (b *BatchTimer) setEndTime() {
 	var emptyTime time.Time
 	if b.startTime == emptyTime {
 		b.startTime = time.Now()
@@ -354,8 +369,8 @@ func (b *BatchTimer) setEndTime()  {
 //   if fewer than BatchSize have been dealt with, just returns without doing anything
 //   Otherwise, sleeps until the batch time has expired (i.e. current time is past endTime).
 //   If this last process occurs, then it ends by resetting the batch's times and counter.
-func (b *BatchTimer) WaitOnBatch()  {
-	b.Counter ++
+func (b *BatchTimer) WaitOnBatch() {
+	b.Counter++
 	if b.Counter < b.BatchSize {
 		return
 	}

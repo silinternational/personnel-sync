@@ -60,7 +60,7 @@ type ChangeResults struct {
 type Destination interface {
 	ForSet(syncSetJson json.RawMessage) error
 	ListUsers() ([]Person, error)
-	ApplyChangeSet(changes ChangeSet) ChangeResults
+	ApplyChangeSet(changes ChangeSet, activityLog chan EventLogItem) ChangeResults
 }
 
 type Source interface {

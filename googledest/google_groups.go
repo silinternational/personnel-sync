@@ -87,7 +87,7 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 	var membersList []*admin.Member
 	membersListCall := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail)
 	err := membersListCall.Pages(context.TODO(), func(members *admin.Members) error {
-			membersList = append(membersList, members.Members...)
+		membersList = append(membersList, members.Members...)
 		return nil
 	})
 	if err != nil {
@@ -113,11 +113,10 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 	return members, nil
 }
 
-func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet) personnel_sync.ChangeResults {
+func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog chan personnel_sync.EventLogItem) personnel_sync.ChangeResults {
 
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
-	errLog := make(chan string, 10000)
 
 	// key = email, value = role
 	toBeCreated := map[string]string{}
@@ -144,7 +143,7 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet) personne
 
 	for email, role := range toBeCreated {
 		wg.Add(1)
-		go g.addMember(email, role, &results.Created, &wg, errLog)
+		go g.addMember(email, role, &results.Created, &wg, eventLog)
 	}
 
 	for _, dp := range changes.Delete {
@@ -154,19 +153,15 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet) personne
 		}
 
 		wg.Add(1)
-		go g.removeMember(dp.CompareValue, &results.Deleted, &wg, errLog)
+		go g.removeMember(dp.CompareValue, &results.Deleted, &wg, eventLog)
 	}
 
 	wg.Wait()
-	close(errLog)
-	for msg := range errLog {
-		results.Errors = append(results.Errors, msg)
-	}
 
 	return results
 }
 
-func (g *GoogleGroups) addMember(email, role string, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
+func (g *GoogleGroups) addMember(email, role string, counter *uint64, wg *sync.WaitGroup, eventLog chan personnel_sync.EventLogItem) {
 	defer wg.Done()
 
 	newMember := admin.Member{
@@ -176,20 +171,34 @@ func (g *GoogleGroups) addMember(email, role string, counter *uint64, wg *sync.W
 
 	_, err := g.AdminService.Members.Insert(g.GroupSyncSet.GroupEmail, &newMember).Do()
 	if err != nil && !strings.Contains(err.Error(), "409") { // error code 409 is for existing user
-		errLog <- fmt.Sprintf("unable to insert %s in Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to insert %s in Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
 		return
+	}
+
+	eventLog <- personnel_sync.EventLogItem{
+		Event:   "AddMember",
+		Message: email,
 	}
 
 	atomic.AddUint64(counter, 1)
 }
 
-func (g *GoogleGroups) removeMember(email string, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
+func (g *GoogleGroups) removeMember(email string, counter *uint64, wg *sync.WaitGroup, eventLog chan personnel_sync.EventLogItem) {
 	defer wg.Done()
 
 	err := g.AdminService.Members.Delete(g.GroupSyncSet.GroupEmail, email).Do()
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to delete %s from Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to delete %s from Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
 		return
+	}
+
+	eventLog <- personnel_sync.EventLogItem{
+		Event:   "RemoveMember",
+		Message: email,
 	}
 
 	atomic.AddUint64(counter, 1)
