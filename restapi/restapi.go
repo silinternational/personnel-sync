@@ -89,9 +89,15 @@ func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 	}
 
 	bodyText, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("error reading response body: %s", err.Error())
+		return []personnel_sync.Person{}, err
+	}
+
 	jsonParsed, err := gabs.ParseJSON(bodyText)
 	if err != nil {
 		log.Printf("error parsing json results: %s", err.Error())
+		log.Printf("response body: %s", bodyText)
 		return []personnel_sync.Person{}, err
 	}
 
@@ -151,7 +157,7 @@ func (r *RestAPI) getPersonFromContainer(personContainer *gabs.Container) (perso
 		return personnel_sync.Person{}, fmt.Errorf(msg)
 	}
 
-	sourcePerson :=  personnel_sync.Person{
+	sourcePerson := personnel_sync.Person{
 		CompareValue: strings.ToLower(compareValue.Data().(string)),
 		Attributes:   attrs,
 	}
