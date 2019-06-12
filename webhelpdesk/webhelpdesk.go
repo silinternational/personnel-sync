@@ -112,8 +112,7 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 
 func (w *WebHelpDesk) ApplyChangeSet(
 	changes personnel_sync.ChangeSet,
-	eventLog chan personnel_sync.EventLogItem,
-) personnel_sync.ChangeResults {
+	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
 
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
@@ -144,8 +143,8 @@ func (w *WebHelpDesk) CreateUser(
 	person personnel_sync.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan personnel_sync.EventLogItem,
-) {
+	eventLog chan<- personnel_sync.EventLogItem) {
+
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)
@@ -184,8 +183,8 @@ func (w *WebHelpDesk) UpdateUser(
 	person personnel_sync.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan personnel_sync.EventLogItem,
-) {
+	eventLog chan<- personnel_sync.EventLogItem) {
+
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)
