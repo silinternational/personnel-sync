@@ -110,7 +110,7 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 	return users, nil
 }
 
-func (w *WebHelpDesk) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog chan personnel_sync.EventLogItem) personnel_sync.ChangeResults {
+func (w *WebHelpDesk) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
 
@@ -136,7 +136,7 @@ func (w *WebHelpDesk) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog 
 	return results
 }
 
-func (w *WebHelpDesk) CreateUser(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, eventLog chan personnel_sync.EventLogItem) {
+func (w *WebHelpDesk) CreateUser(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, eventLog chan<- personnel_sync.EventLogItem) {
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)
@@ -171,7 +171,7 @@ func (w *WebHelpDesk) CreateUser(person personnel_sync.Person, counter *uint64, 
 	atomic.AddUint64(counter, 1)
 }
 
-func (w *WebHelpDesk) UpdateUser(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, eventLog chan personnel_sync.EventLogItem) {
+func (w *WebHelpDesk) UpdateUser(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, eventLog chan<- personnel_sync.EventLogItem) {
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)

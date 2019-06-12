@@ -240,11 +240,11 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 	}
 
 	// Create a channel to pass activity logs for printing
-	activityLog := make(chan EventLogItem, 50)
-	go processEventLog(activityLog)
+	eventLog := make(chan EventLogItem, 50)
+	go processEventLog(eventLog)
 
-	results := destination.ApplyChangeSet(changeSet, activityLog)
-	close(activityLog)
+	results := destination.ApplyChangeSet(changeSet, eventLog)
+	close(eventLog)
 
 	return results
 }
@@ -313,7 +313,7 @@ func (e *EmptyDestination) ListUsers() ([]Person, error) {
 	return []Person{}, nil
 }
 
-func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet, eventLog chan EventLogItem) ChangeResults {
+func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet, eventLog chan<- EventLogItem) ChangeResults {
 	return ChangeResults{}
 }
 

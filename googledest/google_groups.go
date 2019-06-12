@@ -15,7 +15,7 @@ import (
 )
 
 const DefaultBatchSizePerMinute = 50
-const RoleMemeber = "MEMBER"
+const RoleMember = "MEMBER"
 const RoleOwner = "OWNER"
 const RoleManager = "MANAGER"
 
@@ -120,7 +120,7 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 	return members, nil
 }
 
-func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog chan personnel_sync.EventLogItem) personnel_sync.ChangeResults {
+func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
 
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
@@ -128,7 +128,7 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog
 	// key = email, value = role
 	toBeCreated := map[string]string{}
 	for _, person := range changes.Create {
-		toBeCreated[person.CompareValue] = RoleMemeber
+		toBeCreated[person.CompareValue] = RoleMember
 	}
 
 	// Update Owner / Manager roles
@@ -173,7 +173,7 @@ func (g *GoogleGroups) ApplyChangeSet(changes personnel_sync.ChangeSet, eventLog
 	return results
 }
 
-func (g *GoogleGroups) addMember(email, role string, counter *uint64, wg *sync.WaitGroup, eventLog chan personnel_sync.EventLogItem) {
+func (g *GoogleGroups) addMember(email, role string, counter *uint64, wg *sync.WaitGroup, eventLog chan<- personnel_sync.EventLogItem) {
 	defer wg.Done()
 
 	newMember := admin.Member{
@@ -197,7 +197,7 @@ func (g *GoogleGroups) addMember(email, role string, counter *uint64, wg *sync.W
 	atomic.AddUint64(counter, 1)
 }
 
-func (g *GoogleGroups) removeMember(email string, counter *uint64, wg *sync.WaitGroup, eventLog chan personnel_sync.EventLogItem) {
+func (g *GoogleGroups) removeMember(email string, counter *uint64, wg *sync.WaitGroup, eventLog chan<- personnel_sync.EventLogItem) {
 	defer wg.Done()
 
 	err := g.AdminService.Members.Delete(g.GroupSyncSet.GroupEmail, email).Do()
