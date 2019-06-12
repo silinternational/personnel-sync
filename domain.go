@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"time"
 )
 
 const DefaultConfigFile = "./config.json"
@@ -127,7 +128,7 @@ func PersonStatusInList(sourcePerson Person, peopleList []Person, attributeMap [
 	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
 
 	for _, person := range peopleList {
-		if ! stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
+		if !stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
 			continue
 		}
 
@@ -228,10 +229,9 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 
 	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap)
 
-	printChangeSet(changeSet)
-
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if dryRun {
+		printChangeSet(changeSet)
 		return ChangeResults{
 			Created: uint64(len(changeSet.Create)),
 			Updated: uint64(len(changeSet.Update)),
@@ -239,7 +239,25 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 		}
 	}
 
-	return destination.ApplyChangeSet(changeSet)
+	// Create a channel to pass activity logs for printing
+	activityLog := make(chan EventLogItem, 50)
+	go processEventLog(activityLog)
+
+	results := destination.ApplyChangeSet(changeSet, activityLog)
+	close(activityLog)
+
+	return results
+}
+
+type EventLogItem struct {
+	Event   string
+	Message string
+}
+
+func processEventLog(eventLog <-chan EventLogItem) {
+	for msg := range eventLog {
+		log.Printf("%s %s", msg.Event, msg.Message)
+	}
 }
 
 func printChangeSet(changeSet ChangeSet) {
@@ -295,7 +313,7 @@ func (e *EmptyDestination) ListUsers() ([]Person, error) {
 	return []Person{}, nil
 }
 
-func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet) ChangeResults {
+func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet, eventLog chan EventLogItem) ChangeResults {
 	return ChangeResults{}
 }
 
@@ -307,4 +325,62 @@ func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
 
 func (e *EmptySource) ListUsers() ([]Person, error) {
 	return []Person{}, nil
+}
+
+// Init sets the startTime to the current time,
+//    sets the endTime based on secondsPerBatch into the future
+func NewBatchTimer(batchSize, secondsPerBatch int) BatchTimer {
+	b := BatchTimer{}
+	b.Init(batchSize, secondsPerBatch)
+	return b
+}
+
+// BatchTimer is intended as a time limited batch enforcer
+// To create one, call its Init method.
+// Then, to use it call its WaitOnBatch method after every call to
+//  the associated go routine
+type BatchTimer struct {
+	startTime       time.Time
+	endTime         time.Time
+	Counter         int
+	SecondsPerBatch int
+	BatchSize       int
+}
+
+// Init sets the startTime to the current time,
+//    sets the endTime based on secondsPerBatch into the future
+func (b *BatchTimer) Init(batchSize, secondsPerBatch int) {
+	b.startTime = time.Now()
+	b.setEndTime()
+	b.SecondsPerBatch = secondsPerBatch
+	b.BatchSize = batchSize
+	b.Counter = 0
+}
+
+func (b *BatchTimer) setEndTime() {
+	var emptyTime time.Time
+	if b.startTime == emptyTime {
+		b.startTime = time.Now()
+	}
+	b.endTime = b.startTime.Add(time.Second * time.Duration(b.SecondsPerBatch))
+}
+
+// WaitOnBatch increments the Counter and then
+//   if fewer than BatchSize have been dealt with, just returns without doing anything
+//   Otherwise, sleeps until the batch time has expired (i.e. current time is past endTime).
+//   If this last process occurs, then it ends by resetting the batch's times and counter.
+func (b *BatchTimer) WaitOnBatch() {
+	b.Counter++
+	if b.Counter < b.BatchSize {
+		return
+	}
+
+	for {
+		currTime := time.Now()
+		if currTime.After(b.endTime) {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	b.Init(b.BatchSize, b.SecondsPerBatch)
 }

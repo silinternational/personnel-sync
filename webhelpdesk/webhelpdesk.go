@@ -12,9 +12,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync"
 )
 
+const DefaultBatchSizePerMinute = 50
 const DefaultListClientsPageLimit = 100
 const ClientsAPIPath = "/ra/Clients"
 
@@ -32,6 +33,7 @@ type WebHelpDesk struct {
 	Username             string
 	Password             string
 	ListClientsPageLimit int
+	BatchSizePerMinute   int
 }
 
 func NewWebHelpDeskDesination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -42,7 +44,11 @@ func NewWebHelpDeskDesination(destinationConfig personnel_sync.DestinationConfig
 		return &webHelpDesk, err
 	}
 
-	// Set default page limit if not provided in ExtraJSON
+	// Set defaults for batch size per minute and page limit if not provided in ExtraJSON
+	if webHelpDesk.BatchSizePerMinute <= 0 {
+		webHelpDesk.BatchSizePerMinute = DefaultBatchSizePerMinute
+	}
+
 	if webHelpDesk.ListClientsPageLimit == 0 {
 		webHelpDesk.ListClientsPageLimit = DefaultListClientsPageLimit
 	}
@@ -104,75 +110,111 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 	return users, nil
 }
 
-func (w *WebHelpDesk) ApplyChangeSet(changes personnel_sync.ChangeSet) personnel_sync.ChangeResults {
+func (w *WebHelpDesk) ApplyChangeSet(
+	changes personnel_sync.ChangeSet,
+	eventLog chan personnel_sync.EventLogItem,
+) personnel_sync.ChangeResults {
+
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
-	errLog := make(chan string, 10000)
+
+	// One minute per batch
+	batchTimer := personnel_sync.NewBatchTimer(w.BatchSizePerMinute, int(60))
 
 	for _, cp := range changes.Create {
 		wg.Add(1)
-		go w.CreateUser(cp, &results.Created, &wg, errLog)
+		go w.CreateUser(cp, &results.Created, &wg, eventLog)
+		batchTimer.WaitOnBatch()
 	}
 
 	for _, dp := range changes.Update {
 		wg.Add(1)
-		go w.UpdateUser(dp, &results.Updated, &wg, errLog)
+		go w.UpdateUser(dp, &results.Updated, &wg, eventLog)
+		batchTimer.WaitOnBatch()
 	}
 
 	// WHD API does not support deactivating or deleting users
 
 	wg.Wait()
-	close(errLog)
-	for msg := range errLog {
-		results.Errors = append(results.Errors, msg)
-	}
 
 	return results
 }
 
-func (w *WebHelpDesk) CreateUser(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
+func (w *WebHelpDesk) CreateUser(
+	person personnel_sync.Person,
+	counter *uint64,
+	wg *sync.WaitGroup,
+	eventLog chan personnel_sync.EventLogItem,
+) {
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to create user, unable to convert string to int, error: %s", err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to create user, unable to convert string to int, error: %s", err.Error())}
 		return
 	}
 
 	jsonBody, err := json.Marshal(newClient)
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to create user, unable to marshal json, error: %s", err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to create user, unable to marshal json, error: %s", err.Error())}
 		return
 	}
 
 	_, err = w.makeHttpRequest(ClientsAPIPath, http.MethodPost, string(jsonBody), map[string]string{})
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to create user, error calling api, error: %s", err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to create user, error calling api, error: %s", err.Error())}
 		return
+	}
+
+	eventLog <- personnel_sync.EventLogItem{
+		Event:   "CreateUser",
+		Message: person.CompareValue,
 	}
 
 	atomic.AddUint64(counter, 1)
 }
 
-func (w *WebHelpDesk) UpdateUser(person personnel_sync.Person, counter *uint64, wg *sync.WaitGroup, errLog chan string) {
+func (w *WebHelpDesk) UpdateUser(
+	person personnel_sync.Person,
+	counter *uint64,
+	wg *sync.WaitGroup,
+	eventLog chan personnel_sync.EventLogItem,
+) {
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to update user, unable to convert string to int, error: %s", err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to update user, unable to convert string to int, error: %s", err.Error())}
 		return
 	}
 
 	jsonBody, err := json.Marshal(newClient)
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to update user, unable to marshal json, error: %s", err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to update user, unable to marshal json, error: %s", err.Error())}
 		return
 	}
 
 	_, err = w.makeHttpRequest(ClientsAPIPath, http.MethodPut, string(jsonBody), map[string]string{})
 	if err != nil {
-		errLog <- fmt.Sprintf("unable to update user, error calling api, error: %s", err.Error())
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to update user, error calling api, error: %s", err.Error())}
 		return
+	}
+
+	eventLog <- personnel_sync.EventLogItem{
+		Event:   "UpdateUser",
+		Message: person.CompareValue,
 	}
 
 	atomic.AddUint64(counter, 1)
