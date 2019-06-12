@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -242,11 +241,19 @@ func (w *WebHelpDesk) makeHttpRequest(path, method, body string, additionalQuery
 	// do request
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println(err)
 		return []byte{}, err
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode > 204 {
+		return []byte{}, fmt.Errorf("error returned from API. status: %v, body: %s", resp.StatusCode, responseBody)
+	}
+
+	return responseBody, nil
 }
 
 func getWebHelpDeskClientFromPerson(person personnel_sync.Person) (User, error) {
