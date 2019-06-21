@@ -211,7 +211,7 @@ func TestIDSetForUpdate(t *testing.T) {
 		t.Error("Change set should include one person to be created.")
 	}
 	if changeSet.Create[0].ID != "" {
-		t.Error("The user to be created as an ID but shouldn't")
+		t.Error("The user to be created has an ID but shouldn't")
 	}
 	if len(changeSet.Update) != 2 {
 		t.Error("Change set should include two people to be updated")
