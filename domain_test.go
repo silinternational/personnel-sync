@@ -208,7 +208,7 @@ func TestIDSetForUpdate(t *testing.T) {
 
 	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap, "id")
 	if len(changeSet.Create) != 1 {
-		t.Error("Change set should include one person")
+		t.Error("Change set should include one person to be created.")
 	}
 	if changeSet.Create[0].ID != "" {
 		t.Error("The user to be created as an ID but shouldn't")
