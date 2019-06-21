@@ -74,8 +74,8 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 // and return a slice of Person instances
 func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	client := &http.Client{}
-	url := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
-	req, err := http.NewRequest(r.Method, url, nil)
+	apiURL := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
+	req, err := http.NewRequest(r.Method, apiURL, nil)
 	if err != nil {
 		log.Println(err)
 		return []personnel_sync.Person{}, err
@@ -85,13 +85,18 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 	case AuthTypeBasic:
 		req.SetBasicAuth(r.Username, r.Password)
 	case AuthTypeBearer:
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer: %s", r.Password))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
 	case AuthTypeSalesforceOauth:
 		token, err := r.getSalesforceOauthToken()
 		if err != nil {
 			return []personnel_sync.Person{}, err
 		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer: %s", token))
+		newApiUrl := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
+		req.URL, err = url.Parse(newApiUrl)
+		if err != nil {
+			return []personnel_sync.Person{}, fmt.Errorf("unable to change api url after Salesforce auth")
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
 	resp, err := client.Do(req)
@@ -172,20 +177,21 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 	// Body params
 	data := url.Values{}
 	data.Set("grant_type", "password")
-	data.Set("client_id", r.ClientID)
-	data.Set("client_secret", r.ClientSecret)
 	data.Set("username", r.Username)
 	data.Set("password", r.Password)
+	data.Set("client_id", r.ClientID)
+	data.Set("client_secret", r.ClientSecret)
 
 	client := &http.Client{}
-	req, err := http.NewRequest(r.Method, r.BaseURL, strings.NewReader(data.Encode()))
+	req, err := http.NewRequest(http.MethodPost, r.BaseURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		log.Println(err)
 		return "", err
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Length", strconv.Itoa(len(data.Encode())))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -202,7 +208,7 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 	var authResponse SalesforceAuthResponse
 	err = json.Unmarshal(bodyText, &authResponse)
 	if err != nil {
-		log.Printf("Unable to parse auth response, err: %s. body: %s", err.Error(), string(bodyText))
+		log.Printf("Unable to parse auth response, status: %v, err: %s. body: %s", resp.StatusCode, err.Error(), string(bodyText))
 		return "", err
 	}
 
