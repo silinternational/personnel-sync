@@ -55,6 +55,10 @@ func NewWebHelpDeskDesination(destinationConfig personnel_sync.DestinationConfig
 	return &webHelpDesk, nil
 }
 
+func (w *WebHelpDesk) GetIDField() string {
+	return "id"
+}
+
 func (w *WebHelpDesk) ForSet(syncSetJson json.RawMessage) error {
 	// unused in WebHelpDesk
 	return nil
@@ -95,7 +99,7 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 	var users []personnel_sync.Person
 	for _, nextClient := range allClients {
 		users = append(users, personnel_sync.Person{
-			CompareValue: nextClient.Email,
+			CompareValue: nextClient.Username,
 			Attributes: map[string]string{
 				"id":        strconv.Itoa(nextClient.ID),
 				"email":     nextClient.Email,
@@ -164,9 +168,11 @@ func (w *WebHelpDesk) CreateUser(
 
 	_, err = w.makeHttpRequest(ClientsAPIPath, http.MethodPost, string(jsonBody), map[string]string{})
 	if err != nil {
+		// Since WebHelpDesk APIs are garbage, just ignore errors, but don't count as a newly created user
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("unable to create user, error calling api, error: %s", err.Error())}
+			Event: "error",
+			Message: fmt.Sprintf("unable to create user (person=%v, client=%v), error calling api: %s",
+				person, newClient, err.Error())}
 		return
 	}
 
@@ -202,11 +208,14 @@ func (w *WebHelpDesk) UpdateUser(
 		return
 	}
 
-	_, err = w.makeHttpRequest(ClientsAPIPath, http.MethodPut, string(jsonBody), map[string]string{})
+	updatePath := fmt.Sprintf("%s/%v", ClientsAPIPath, newClient.ID)
+	_, err = w.makeHttpRequest(updatePath, http.MethodPut, string(jsonBody), map[string]string{})
 	if err != nil {
+		// Since WebHelpDesk APIs are garbage, just ignore errors, but don't count as a newly created user
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("unable to update user, error calling api, error: %s", err.Error())}
+			Event: "error",
+			Message: fmt.Sprintf("unable to update user (person=%+v, client=%+v), error calling api, error: %s",
+				person, newClient, err.Error())}
 		return
 	}
 
@@ -265,9 +274,8 @@ func getWebHelpDeskClientFromPerson(person personnel_sync.Person) (User, error) 
 	}
 
 	// if id attribute isn't present, default to a zero
-	_, ok := person.Attributes["id"]
-	if ok {
-		intId, err := strconv.Atoi(person.Attributes["id"])
+	if person.ID != "" {
+		intId, err := strconv.Atoi(person.ID)
 		if err != nil {
 			return User{}, err
 		}

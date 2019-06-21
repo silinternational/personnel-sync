@@ -74,6 +74,10 @@ func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConf
 	return &googleGroups, nil
 }
 
+func (g *GoogleGroups) GetIDField() string {
+	return "email"
+}
+
 func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
 	var syncSetConfig GroupSyncSet
 	err := json.Unmarshal(syncSetJson, &syncSetConfig)
