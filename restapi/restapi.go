@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/Jeffail/gabs"
@@ -15,6 +17,7 @@ import (
 
 const AuthTypeBasic = "basic"
 const AuthTypeBearer = "bearer"
+const AuthTypeSalesforceOauth = "SalesforceOauth"
 
 type RestAPI struct {
 	Method               string
@@ -24,6 +27,8 @@ type RestAPI struct {
 	AuthType             string
 	Username             string
 	Password             string
+	ClientID             string
+	ClientSecret         string
 	CompareAttribute     string
 }
 
@@ -67,7 +72,7 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 
 // ListUsers makes an http request and uses the response to populate
 // and return a slice of Person instances
-func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
+func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
 	req, err := http.NewRequest(r.Method, url, nil)
@@ -80,6 +85,12 @@ func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 		req.SetBasicAuth(r.Username, r.Password)
 	} else if r.AuthType == AuthTypeBearer {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer: %s", r.Password))
+	} else if r.AuthType == AuthTypeSalesforceOauth {
+		token, err := r.getSalesforceOauthToken()
+		if err != nil {
+			return []personnel_sync.Person{}, err
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer: %s", token))
 	}
 
 	resp, err := client.Do(req)
@@ -120,47 +131,80 @@ func (r *RestAPI) ListUsers() ([]personnel_sync.Person, error) {
 
 	// Iterate through people in list from source to convert to Persons
 	for _, person := range peopleList {
-		sourcePerson, err := r.getPersonFromContainer(person)
-		if err != nil {
-			log.Println(err)
-			return []personnel_sync.Person{}, err
+		peep := personnel_sync.Person{
+			Attributes: map[string]string{},
 		}
 
-		sourcePeople = append(sourcePeople, sourcePerson)
+		for _, sourceKey := range desiredAttrs {
+			if !person.ExistsP(sourceKey) {
+				continue
+			}
+
+			peep.Attributes[sourceKey] = person.Path(sourceKey).Data().(string)
+			if sourceKey == r.CompareAttribute {
+				peep.CompareValue = person.Path(sourceKey).Data().(string)
+			}
+		}
+
+		// If person is missing a compare value, do not append them to list
+		if peep.CompareValue == "" {
+			continue
+		}
+
+		sourcePeople = append(sourcePeople, peep)
 	}
 
 	return sourcePeople, nil
 }
 
-func (r *RestAPI) getPersonFromContainer(personContainer *gabs.Container) (personnel_sync.Person, error) {
-	// Get map of attribute name to gabs container
-	personAttributes, err := personContainer.ChildrenMap()
+type SalesforceAuthResponse struct {
+	ID          string `json:"id"`
+	IssuedAt    string `json:"issued_at"`
+	InstanceURL string `json:"instance_url"`
+	Signature   string `json:"signature"`
+	AccessToken string `json:"access_token"`
+}
+
+func (r *RestAPI) getSalesforceOauthToken() (string, error) {
+	// Body params
+	data := url.Values{}
+	data.Set("grant_type", "password")
+	data.Set("client_id", r.ClientID)
+	data.Set("client_secret", r.ClientSecret)
+	data.Set("username", r.Username)
+	data.Set("password", r.Password)
+
+	client := &http.Client{}
+	req, err := http.NewRequest(r.Method, r.BaseURL, strings.NewReader(data.Encode()))
 	if err != nil {
-		return personnel_sync.Person{}, err
+		log.Println(err)
+		return "", err
 	}
 
-	// Convert map of attributes to simple map of string to string
-	attrs := map[string]string{}
-	for key, value := range personAttributes {
-		attrVal := value.Data().(string)
-		if strings.ToLower(key) == strings.ToLower(r.CompareAttribute) {
-			attrVal = strings.ToLower(attrVal)
-		}
-		attrs[key] = attrVal
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+		return "", err
 	}
 
-	compareValue, ok := personAttributes[r.CompareAttribute]
-	if !ok {
-		msg := fmt.Sprintf("ListUsers failed, user missing CompareValue (%s), have attributes: %s",
-			r.CompareAttribute, personAttributes)
-
-		return personnel_sync.Person{}, fmt.Errorf(msg)
+	bodyText, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("error reading response body: %s", err.Error())
+		return "", err
 	}
 
-	sourcePerson := personnel_sync.Person{
-		CompareValue: strings.ToLower(compareValue.Data().(string)),
-		Attributes:   attrs,
+	var authResponse SalesforceAuthResponse
+	err = json.Unmarshal(bodyText, &authResponse)
+	if err != nil {
+		log.Printf("Unable to parse auth response, err: %s. body: %s", err.Error(), string(bodyText))
+		return "", err
 	}
 
-	return sourcePerson, nil
+	// Update BaseUrl to instance url
+	r.BaseURL = strings.TrimSuffix(authResponse.InstanceURL, "/")
+
+	return authResponse.AccessToken, nil
 }

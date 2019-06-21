@@ -4,6 +4,7 @@ import "encoding/json"
 
 type Person struct {
 	CompareValue   string
+	ID             string
 	Attributes     map[string]string
 	DisableChanges bool
 }
@@ -26,8 +27,7 @@ type DestinationConfig struct {
 }
 
 type RuntimeConfig struct {
-	DryRunMode                            bool
-	FailIfSinglePersonMissingCompareValue bool
+	DryRunMode bool
 }
 
 type AppConfig struct {
@@ -58,6 +58,7 @@ type ChangeResults struct {
 }
 
 type Destination interface {
+	GetIDField() string
 	ForSet(syncSetJson json.RawMessage) error
 	ListUsers() ([]Person, error)
 	ApplyChangeSet(changes ChangeSet, activityLog chan<- EventLogItem) ChangeResults
@@ -65,5 +66,5 @@ type Destination interface {
 
 type Source interface {
 	ForSet(syncSetJson json.RawMessage) error
-	ListUsers() ([]Person, error)
+	ListUsers(desiredAttrs []string) ([]Person, error)
 }

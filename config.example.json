@@ -10,6 +10,8 @@
       "Method": "GET",
       "Username": "testuser",
       "Password": "testpass",
+      "ClientID": "UsedForSalesforceOauth",
+      "ClientSecret": "UsedForSalesforceOauth",
       "ResultsJSONContainer": "ReportEntry",
       "IDAttribute": "Email"
     }

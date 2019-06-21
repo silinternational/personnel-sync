@@ -14,8 +14,6 @@ const DefaultConfigFile = "./config.json"
 const DestinationTypeGoogleGroups = "GoogleGroups"
 const DestinationTypeWebHelpDesk = "WebHelpDesk"
 const SourceTypeRestAPI = "RestAPI"
-const CaseSensitive = true
-const CaseInsensitive = false
 
 // LoadConfig looks for a config file if one is provided. Otherwise, it looks for
 // a config file based on the CONFIG_PATH env var.  If that is not set, it gets
@@ -102,47 +100,30 @@ func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []Attribu
 	return peopleForDestination, nil
 }
 
-// IsPersonInList returns true if the lower-case version of the compareValue matches
-// any of the lower-case versions of the CompareValues of the Person instances.
-func IsPersonInList(compareValue string, peopleList []Person) bool {
+// getPersonFromList returns the person if found in peopleList otherwise an empty Person{}
+func getPersonFromList(compareValue string, peopleList []Person) Person {
 	lowerCompareValue := strings.ToLower(compareValue)
 
 	for _, person := range peopleList {
 		if strings.ToLower(person.CompareValue) == lowerCompareValue {
-			return true
+			return person
 		}
 	}
 
-	return false
+	return Person{}
 }
 
-const PersonIsNotInList = int(0)
-const PersonIsInList = int(1)
-const PersonIsInListButDifferent = int(2)
-
-// PersonStatusInList returns an integer that denotes whether a Person instance is included in a slice,
-// and if so whether they have different attributes than expected.
-// Note this is based on comparing the lower-case version of the compareValue with the
-// lower-case versions of each Person's CompareValue.
-func PersonStatusInList(sourcePerson Person, peopleList []Person, attributeMap []AttributeMap) int {
+func personAttributesAreEqual(sp, dp Person, attributeMap []AttributeMap) bool {
 	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
-
-	for _, person := range peopleList {
-		if !stringsAreEqual(person.CompareValue, sourcePerson.CompareValue, CaseInsensitive) {
-			continue
+	for key, val := range sp.Attributes {
+		if !stringsAreEqual(val, dp.Attributes[key], caseSensitivityList[key]) {
+			log.Printf("Attribute %s not equal for user %s. Case Sensitive: %v, Source: %s, Destination: %s \n",
+				key, sp.CompareValue, caseSensitivityList[key], val, dp.Attributes[key])
+			return false
 		}
-
-		for key, val := range sourcePerson.Attributes {
-			if !stringsAreEqual(val, person.Attributes[key], caseSensitivityList[key]) {
-				log.Printf("Attribute %s not equal for user %s. Case Sensitive: %v, Source: %s, Destination: %s \n",
-					key, sourcePerson.CompareValue, caseSensitivityList[key], val, person.Attributes[key])
-				return PersonIsInListButDifferent
-			}
-		}
-		return PersonIsInList
 	}
 
-	return PersonIsNotInList
+	return true
 }
 
 func stringsAreEqual(val1, val2 string, caseSensitive bool) bool {
@@ -167,28 +148,33 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 // (Create, Update and Delete) based on whether they are in the slice
 //  of destination Person instances.
 // It skips all source Person instances that have DisableChanges set to true
-func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []AttributeMap) ChangeSet {
+func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []AttributeMap, idField string) ChangeSet {
 	var changeSet ChangeSet
 
-	// Find users who need to be created
+	// Find users who need to be created or updated
 	for _, sp := range sourcePeople {
 		// If user was missing a required attribute, don't change their record
 		if sp.DisableChanges {
 			continue
 		}
 
-		personInDestinationStatus := PersonStatusInList(sp, destinationPeople, attributeMap)
-		switch personInDestinationStatus {
-		case PersonIsNotInList:
+		destinationPerson := getPersonFromList(sp.CompareValue, destinationPeople)
+		if destinationPerson.CompareValue == "" {
 			changeSet.Create = append(changeSet.Create, sp)
-		case PersonIsInListButDifferent:
+			continue
+		}
+
+		if !personAttributesAreEqual(sp, destinationPerson, attributeMap) {
+			sp.ID = destinationPerson.Attributes["id"]
 			changeSet.Update = append(changeSet.Update, sp)
+			continue
 		}
 	}
 
 	// Find users who need to be deleted
 	for _, dp := range destinationPeople {
-		if !IsPersonInList(dp.CompareValue, sourcePeople) {
+		sourcePerson := getPersonFromList(dp.CompareValue, sourcePeople)
+		if sourcePerson.CompareValue == "" {
 			changeSet.Delete = append(changeSet.Delete, dp)
 		}
 	}
@@ -203,7 +189,8 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []
 //  - it generates the lists of people to change, update and delete
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
 func SyncPeople(source Source, destination Destination, attributeMap []AttributeMap, dryRun bool) ChangeResults {
-	sourcePeople, err := source.ListUsers()
+	desiredAttrs := GetDesiredAttributes(attributeMap)
+	sourcePeople, err := source.ListUsers(desiredAttrs)
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -227,7 +214,7 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 	}
 	log.Printf("    Found %v people in destination", len(destinationPeople))
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap)
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap, destination.GetIDField())
 
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if dryRun {
@@ -249,6 +236,15 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 	return results
 }
 
+func GetDesiredAttributes(attrMap []AttributeMap) []string {
+	var keys []string
+	for _, attrMap := range attrMap {
+		keys = append(keys, attrMap.Source)
+	}
+
+	return keys
+}
+
 type EventLogItem struct {
 	Event   string
 	Message string
@@ -256,7 +252,7 @@ type EventLogItem struct {
 
 func processEventLog(eventLog <-chan EventLogItem) {
 	for msg := range eventLog {
-		log.Printf("%s %s", msg.Event, msg.Message)
+		log.Printf("%s %s\n", msg.Event, msg.Message)
 	}
 }
 
@@ -292,7 +288,7 @@ func InArray(needle interface{}, haystack interface{}) (exists bool, index int) 
 		s := reflect.ValueOf(haystack)
 
 		for i := 0; i < s.Len(); i++ {
-			if reflect.DeepEqual(needle, s.Index(i).Interface()) == true {
+			if reflect.DeepEqual(needle, s.Index(i).Interface()) {
 				index = i
 				exists = true
 				return
@@ -304,6 +300,10 @@ func InArray(needle interface{}, haystack interface{}) (exists bool, index int) 
 }
 
 type EmptyDestination struct{}
+
+func (e *EmptyDestination) GetIDField() string {
+	return "id"
+}
 
 func (e *EmptyDestination) ForSet(syncSetJson json.RawMessage) error {
 	return nil
@@ -323,7 +323,7 @@ func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (e *EmptySource) ListUsers() ([]Person, error) {
+func (e *EmptySource) ListUsers(desiredAttrs []string) ([]Person, error) {
 	return []Person{}, nil
 }
 
