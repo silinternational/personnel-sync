@@ -81,11 +81,12 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 		return []personnel_sync.Person{}, err
 	}
 
-	if r.AuthType == AuthTypeBasic {
+	switch r.AuthType {
+	case AuthTypeBasic:
 		req.SetBasicAuth(r.Username, r.Password)
-	} else if r.AuthType == AuthTypeBearer {
+	case AuthTypeBearer:
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer: %s", r.Password))
-	} else if r.AuthType == AuthTypeSalesforceOauth {
+	case AuthTypeSalesforceOauth:
 		token, err := r.getSalesforceOauthToken()
 		if err != nil {
 			return []personnel_sync.Person{}, err
@@ -112,9 +113,6 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 		return []personnel_sync.Person{}, err
 	}
 
-	// sourcePeople will hold array of Person(s) from source API
-	var sourcePeople []personnel_sync.Person
-
 	var peopleList []*gabs.Container
 	if r.ResultsJSONContainer != "" {
 		// Get children records based on ResultsJSONContainer from config
@@ -129,7 +127,12 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 		return []personnel_sync.Person{}, err
 	}
 
-	// Iterate through people in list from source to convert to Persons
+	return getPersonsFromResults(peopleList, r.CompareAttribute, desiredAttrs), nil
+}
+
+func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, desiredAttrs []string) []personnel_sync.Person {
+	var sourcePeople []personnel_sync.Person
+
 	for _, person := range peopleList {
 		peep := personnel_sync.Person{
 			Attributes: map[string]string{},
@@ -141,7 +144,7 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 			}
 
 			peep.Attributes[sourceKey] = person.Path(sourceKey).Data().(string)
-			if sourceKey == r.CompareAttribute {
+			if sourceKey == compareAttr {
 				peep.CompareValue = person.Path(sourceKey).Data().(string)
 			}
 		}
@@ -154,7 +157,7 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 		sourcePeople = append(sourcePeople, peep)
 	}
 
-	return sourcePeople, nil
+	return sourcePeople
 }
 
 type SalesforceAuthResponse struct {

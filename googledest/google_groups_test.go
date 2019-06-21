@@ -54,9 +54,11 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			if got := g.ApplyChangeSet(tt.args.changes); !reflect.DeepEqual(got, tt.want) {
+			eventLog := make(chan personnel_sync.EventLogItem, 50)
+			if got := g.ApplyChangeSet(tt.args.changes, eventLog); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GoogleGroups.ApplyChangeSet() = %v, want %v", got, tt.want)
 			}
+			close(eventLog)
 		})
 	}
 }
