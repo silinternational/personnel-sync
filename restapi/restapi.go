@@ -114,7 +114,7 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 	jsonParsed, err := gabs.ParseJSON(bodyText)
 	if err != nil {
 		log.Printf("error parsing json results: %s", err.Error())
-		log.Printf("response body: %s", bodyText)
+		log.Printf("response body: %s", string(bodyText))
 		return []personnel_sync.Person{}, err
 	}
 
