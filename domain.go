@@ -12,6 +12,7 @@ import (
 
 const DefaultConfigFile = "./config.json"
 const DestinationTypeGoogleGroups = "GoogleGroups"
+const DestinationTypeGoogleContacts = "GoogleContacts"
 const DestinationTypeWebHelpDesk = "WebHelpDesk"
 const SourceTypeRestAPI = "RestAPI"
 

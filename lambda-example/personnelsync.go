@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/silinternational/personnel-sync"
+	"github.com/silinternational/personnel-sync/googlecontacts"
 	"github.com/silinternational/personnel-sync/googledest"
 	"github.com/silinternational/personnel-sync/restapi"
 	"github.com/silinternational/personnel-sync/webhelpdesk"
@@ -51,20 +52,19 @@ func handler(lambdaConfig LambdaConfig) error {
 	// Instantiate Destination
 	var destination personnel_sync.Destination
 	switch appConfig.Destination.Type {
+	case personnel_sync.DestinationTypeGoogleContacts:
+		destination, err = googlecontacts.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
-		if err != nil {
-			log.Println("Unable to load config, error: ", err.Error())
-			return err
-		}
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
-		if err != nil {
-			log.Println("Unable to load config, error: ", err.Error())
-			return err
-		}
 	default:
 		destination = &personnel_sync.EmptyDestination{}
+	}
+
+	if err != nil {
+		log.Println("Unable to load config, error: ", err.Error())
+		return err
 	}
 
 	// Iterate through SyncSets and process changes

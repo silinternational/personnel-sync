@@ -42,20 +42,19 @@ func main() {
 	// Instantiate Destination
 	var destination personnel_sync.Destination
 	switch appConfig.Destination.Type {
+	case personnel_sync.DestinationTypeGoogleContacts:
+		destination, err = googledest.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
-		if err != nil {
-			log.Println("Unable to load config, error: ", err.Error())
-			os.Exit(1)
-		}
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
-		if err != nil {
-			log.Println("Unable to load config, error: ", err.Error())
-			os.Exit(1)
-		}
 	default:
 		destination = &personnel_sync.EmptyDestination{}
+	}
+
+	if err != nil {
+		log.Println("Unable to load config, error: ", err.Error())
+		os.Exit(1)
 	}
 
 	// Iterate through SyncSets and process changes
