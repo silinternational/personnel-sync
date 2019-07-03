@@ -58,7 +58,7 @@ func handler(lambdaConfig LambdaConfig) error {
 			return err
 		}
 	case personnel_sync.DestinationTypeWebHelpDesk:
-		destination, err = webhelpdesk.NewWebHelpDeskDesination(appConfig.Destination)
+		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 		if err != nil {
 			log.Println("Unable to load config, error: ", err.Error())
 			return err

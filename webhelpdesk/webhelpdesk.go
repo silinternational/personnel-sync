@@ -35,7 +35,7 @@ type WebHelpDesk struct {
 	BatchSizePerMinute   int
 }
 
-func NewWebHelpDeskDesination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
 	var webHelpDesk WebHelpDesk
 
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &webHelpDesk)

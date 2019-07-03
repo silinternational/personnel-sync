@@ -232,7 +232,7 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w, err := NewWebHelpDeskDesination(tt.fields.DestinationConfig)
+			w, err := NewWebHelpDeskDestination(tt.fields.DestinationConfig)
 			if err != nil {
 				t.Error(err)
 				t.FailNow()
@@ -259,7 +259,7 @@ func TestCreateChangeSet(t *testing.T) {
 		t.FailNow()
 	}
 
-	whd, err := NewWebHelpDeskDesination(testConfig.Destination)
+	whd, err := NewWebHelpDeskDestination(testConfig.Destination)
 	if err != nil {
 		t.Errorf("Failed to get new whd client, error: %s", err.Error())
 		t.FailNow()
@@ -296,7 +296,7 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 		t.FailNow()
 	}
 
-	whd, err := NewWebHelpDeskDesination(testConfig.Destination)
+	whd, err := NewWebHelpDeskDestination(testConfig.Destination)
 	if err != nil {
 		t.Errorf("Failed to get new whd client, error: %s", err.Error())
 		t.FailNow()

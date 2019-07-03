@@ -49,7 +49,7 @@ func main() {
 			os.Exit(1)
 		}
 	case personnel_sync.DestinationTypeWebHelpDesk:
-		destination, err = webhelpdesk.NewWebHelpDeskDesination(appConfig.Destination)
+		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 		if err != nil {
 			log.Println("Unable to load config, error: ", err.Error())
 			os.Exit(1)
