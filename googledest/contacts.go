@@ -235,7 +235,7 @@ func (g *GoogleContacts) initGoogleClient() error {
 	return nil
 }
 
-func (g *GoogleContacts) createBody(person personnel_sync.Person) {
+func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 	bodyTemplate := `
 	   	<atom:entry xmlns:atom='http://www.w3.org/2005/Atom'
 	       xmlns:gd='http://schemas.google.com/g/2005'>
