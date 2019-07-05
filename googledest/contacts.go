@@ -38,6 +38,7 @@ type Entries struct {
 type Contact struct {
 	XMLName xml.Name `xml:"entry"`
 	ID      string   `xml:"id"`
+	Links   []Link   `xml:"link"`
 	Title   string   `xml:"title"`
 	Name    Name     `xml:"name"`
 	Emails  []Email  `xml:"email"`
@@ -54,6 +55,12 @@ type Name struct {
 	FullName   string   `xml:"fullName"`
 	GivenName  string   `xml:"givenName"`
 	FamilyName string   `xml:"familyName"`
+}
+
+type Link struct {
+	XMLName xml.Name `xml:"link"`
+	Rel     string   `xml:"rel,attr"`
+	Href    string   `xml:"href,attr"`
 }
 
 func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -150,9 +157,17 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 			}
 		}
 
+		var selfLink string
+		for j, l := range parsed.Entries[i].Links {
+			if l.Rel == "self" {
+				selfLink = parsed.Entries[i].Links[j].Href
+				break
+			}
+		}
+
 		persons[i] = personnel_sync.Person{
 			CompareValue: primaryEmail,
-			ID:           parsed.Entries[i].ID,
+			ID:           selfLink,
 			Attributes: map[string]string{
 				"email":    primaryEmail,
 				"fullName": parsed.Entries[i].Title,
