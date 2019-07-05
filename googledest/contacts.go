@@ -199,7 +199,7 @@ func (g *GoogleContacts) addContact(
 
 	body := g.createBody(person)
 
-	_, err := g.httpRequest("POST", href, body, map[string]string{"Content-Type", "application/atom+xml"})
+	_, err := g.httpRequest("POST", href, body, map[string]string{"Content-Type": "application/atom+xml"})
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
