@@ -113,7 +113,7 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("failed to read http response body: %s", err)
 	}
 	bodyString := string(bodyBytes)
 	log.Println(bodyString)
@@ -203,7 +203,7 @@ func (g *GoogleContacts) addContact(
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
-			Message: fmt.Sprintf("unable to insert %s in Google contacts: %s", person.CompareValue, err.Error())}
+			Message: fmt.Sprintf("unable to insert %s in Google contacts: %s", person.CompareValue, err)}
 		return
 	}
 
@@ -221,7 +221,7 @@ func (g *GoogleContacts) addContact(
 func (g *GoogleContacts) initGoogleClient() error {
 	googleAuthJson, err := json.Marshal(g.GoogleContactsConfig.GoogleAuth)
 	if err != nil {
-		return fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())
+		return fmt.Errorf("unable to marshal google auth data into json, error: %s", err)
 	}
 
 	config, err := google.JWTConfigFromJSON(googleAuthJson, "https://www.google.com/m8/feeds/contacts/")
