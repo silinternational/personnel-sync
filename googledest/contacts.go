@@ -196,21 +196,8 @@ func (g *GoogleContacts) addContact(
 
 	// href := "https://www.google.com/m8/feeds/contacts/default/full"
 	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full"
-	bodyTemplate := `
-	   	<atom:entry xmlns:atom='http://www.w3.org/2005/Atom'
-	       xmlns:gd='http://schemas.google.com/g/2005'>
-	     <atom:category scheme='http://schemas.google.com/g/2005#kind'
-	       term='http://schemas.google.com/contact/2008#contact' />
-	     <gd:name>
-	        <gd:fullName>%s</gd:fullName>
-	     </gd:name>
-	     <gd:email rel='http://schemas.google.com/g/2005#work'
-	       primary='true'
-		   address='%s'/>
-	   </atom:entry>
-	`
 
-	body := fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["email"])
+	body := g.createBody(person)
 
 	_, err := g.httpRequest("POST", href, body, map[string]string{"Content-Type", "application/atom+xml"})
 	if err != nil {
@@ -246,4 +233,21 @@ func (g *GoogleContacts) initGoogleClient() error {
 	g.Client = *config.Client(context.Background())
 
 	return nil
+}
+
+func (g *GoogleContacts) createBody(person personnel_sync.Person) {
+	bodyTemplate := `
+	   	<atom:entry xmlns:atom='http://www.w3.org/2005/Atom'
+	       xmlns:gd='http://schemas.google.com/g/2005'>
+	     <atom:category scheme='http://schemas.google.com/g/2005#kind'
+	       term='http://schemas.google.com/contact/2008#contact' />
+	     <gd:name>
+	        <gd:fullName>%s</gd:fullName>
+	     </gd:name>
+	     <gd:email rel='http://schemas.google.com/g/2005#work'
+	       primary='true'
+		   address='%s'/>
+	   </atom:entry>
+	`
+	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["email"])
 }
