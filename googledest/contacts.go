@@ -39,6 +39,7 @@ type Contact struct {
 	XMLName xml.Name `xml:"entry"`
 	ID      string   `xml:"id"`
 	Links   []Link   `xml:"link"`
+	Etag    string   `xml:"etag,attr"`
 	Title   string   `xml:"title"`
 	Name    Name     `xml:"name"`
 	Emails  []Email  `xml:"email"`
@@ -196,6 +197,12 @@ func (g *GoogleContacts) ApplyChangeSet(
 		batchTimer.WaitOnBatch()
 	}
 
+	for _, toUpdate := range changes.Update {
+		wg.Add(1)
+		go g.updateContact(toUpdate, &results.Updated, &wg, eventLog)
+		batchTimer.WaitOnBatch()
+	}
+
 	wg.Wait()
 
 	return results
@@ -265,4 +272,47 @@ func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 	   </atom:entry>
 	`
 	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["email"])
+}
+
+func (g *GoogleContacts) updateContact(
+	person personnel_sync.Person,
+	counter *uint64,
+	wg *sync.WaitGroup,
+	eventLog chan<- personnel_sync.EventLogItem) {
+
+	defer wg.Done()
+
+	// url := strings.Replace(person.ID, "base", "full", 1)
+	// url = strings.Replace(url, "http", "https", 1)
+	url := person.ID
+
+	existingContact, err := g.httpRequest("GET", url, "", map[string]string{})
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("failed retrieving user %s: %s", person.CompareValue, err)}
+		return
+	}
+
+	var parsedContact Contact
+	err = xml.Unmarshal([]byte(existingContact), &parsedContact)
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("failed to parse xml for user %s: %s", person.CompareValue, err)}
+		return
+	}
+
+	body := g.createBody(person)
+
+	_, err = g.httpRequest("PUT", url, body, map[string]string{
+		"If-Match":     parsedContact.Etag,
+		"Content-Type": "application/atom+xml",
+	})
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("updateUser failed updating user %s: %s", person.CompareValue, err)}
+		return
+	}
 }
