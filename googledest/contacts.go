@@ -87,7 +87,7 @@ func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleContacts) httpRequest(verb string, url string, body string) (string, error) {
+func (g *GoogleContacts) httpRequest(verb string, url string, body string, headers map[string]string) (string, error) {
 	var req *http.Request
 	var err error
 	if body == "" {
@@ -99,9 +99,11 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string) (stri
 		return "", err
 	}
 
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 	req.Header.Set("GData-Version", "3.0")
 	req.Header.Set("User-Agent", "personnel-sync")
-	req.Header.Set("Content-Type", "application/atom+xml")
 
 	resp, err := g.Client.Do(req)
 	if err != nil {
@@ -126,7 +128,7 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string) (stri
 
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full"
-	body, err := g.httpRequest("GET", href, "")
+	body, err := g.httpRequest("GET", href, "", map[string]string{})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
 	}
@@ -210,7 +212,7 @@ func (g *GoogleContacts) addContact(
 
 	body := fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["email"])
 
-	_, err := g.httpRequest("POST", href, body)
+	_, err := g.httpRequest("POST", href, body, map[string]string{"Content-Type", "application/atom+xml"})
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
