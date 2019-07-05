@@ -131,11 +131,9 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
 	}
 
-	bodyBytes := []byte(body)
-
 	var parsed Entries
 
-	err = xml.Unmarshal(bodyBytes, &parsed)
+	err = xml.Unmarshal([]byte(body), &parsed)
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
 	}
