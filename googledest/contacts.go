@@ -173,9 +173,9 @@ func (g *GoogleContacts) ApplyChangeSet(
 	// One minute per batch
 	batchTimer := personnel_sync.NewBatchTimer(g.BatchSizePerMinute, int(60))
 
-	for _, cp := range changes.Create {
+	for _, toCreate := range changes.Create {
 		wg.Add(1)
-		go g.addContact(cp, &results.Created, &wg, eventLog)
+		go g.addContact(toCreate, &results.Created, &wg, eventLog)
 		batchTimer.WaitOnBatch()
 	}
 
