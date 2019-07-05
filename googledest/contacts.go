@@ -128,30 +128,33 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full"
 	body, err := g.httpRequest("GET", href, "")
 	if err != nil {
-		log.Fatal(err)
+		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
 	}
 
 	bodyBytes := []byte(body)
 
 	var parsed Entries
 
-	xml.Unmarshal(bodyBytes, &parsed)
+	err = xml.Unmarshal(bodyBytes, &parsed)
+	if err != nil {
+		return []personnel_sync.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
+	}
 
 	persons := make([]personnel_sync.Person, len(parsed.Entries))
 	for i := 0; i < len(parsed.Entries); i++ {
-		var email string
+		var primaryEmail string
 		for j, e := range parsed.Entries[i].Emails {
 			if e.Primary {
-				email = parsed.Entries[i].Emails[j].Address
+				primaryEmail = parsed.Entries[i].Emails[j].Address
 				break
 			}
 		}
 
 		persons[i] = personnel_sync.Person{
-			CompareValue: email,
+			CompareValue: primaryEmail,
 			ID:           parsed.Entries[i].ID,
 			Attributes: map[string]string{
-				"email":    email,
+				"email":    primaryEmail,
 				"fullName": parsed.Entries[i].Title,
 			},
 		}
