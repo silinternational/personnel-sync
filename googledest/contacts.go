@@ -132,7 +132,7 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 }
 
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
-	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full"
+	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full?max-results=65535"
 	body, err := g.httpRequest("GET", href, "", map[string]string{})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
