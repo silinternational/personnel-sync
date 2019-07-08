@@ -90,7 +90,7 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 }
 
 func (g *GoogleContacts) GetIDField() string {
-	return "ID"
+	return "id"
 }
 
 func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {

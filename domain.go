@@ -166,7 +166,7 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []
 		}
 
 		if !personAttributesAreEqual(sp, destinationPerson, attributeMap) {
-			sp.ID = destinationPerson.Attributes["id"]
+			sp.ID = destinationPerson.ID
 			changeSet.Update = append(changeSet.Update, sp)
 			continue
 		}
