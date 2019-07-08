@@ -53,18 +53,15 @@ func handler(lambdaConfig LambdaConfig) error {
 	switch appConfig.Destination.Type {
 	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
-		if err != nil {
-			log.Println("Unable to load config, error: ", err.Error())
-			return err
-		}
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
-		if err != nil {
-			log.Println("Unable to load config, error: ", err.Error())
-			return err
-		}
 	default:
 		destination = &personnel_sync.EmptyDestination{}
+	}
+
+	if err != nil {
+		log.Println("Unable to load config, error: ", err.Error())
+		return err
 	}
 
 	// Iterate through SyncSets and process changes
