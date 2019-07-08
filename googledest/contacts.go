@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -124,8 +123,6 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 		return "", fmt.Errorf("failed to read http response body: %s", err)
 	}
 	bodyString := string(bodyBytes)
-	log.Println(bodyString)
-	log.Println(resp.Status)
 
 	if resp.StatusCode >= 400 {
 		return bodyString, errors.New(resp.Status)
@@ -175,8 +172,6 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 			},
 		}
 	}
-
-	fmt.Println(parsed.Entries[0].Title)
 
 	return persons, nil
 }
