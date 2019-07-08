@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/silinternational/personnel-sync"
-	"github.com/silinternational/personnel-sync/googlecontacts"
 	"github.com/silinternational/personnel-sync/googledest"
 	"github.com/silinternational/personnel-sync/restapi"
 	"github.com/silinternational/personnel-sync/webhelpdesk"
