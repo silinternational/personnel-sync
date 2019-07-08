@@ -284,31 +284,23 @@ func (g *GoogleContacts) updateContact(
 
 	defer wg.Done()
 
-	// url := strings.Replace(person.ID, "base", "full", 1)
-	// url = strings.Replace(url, "http", "https", 1)
 	url := person.ID
 
-	existingContact, err := g.httpRequest("GET", url, "", map[string]string{})
+	contact, err := g.getContact(url)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
-			Message: fmt.Sprintf("failed retrieving user %s: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
 		return
 	}
 
-	var parsedContact Contact
-	err = xml.Unmarshal([]byte(existingContact), &parsedContact)
-	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("failed to parse xml for user %s: %s", person.CompareValue, err)}
-		return
-	}
-
+	// Update all fields with data from the source -- note that this is a bit dangerous because any
+	// fields not included will be erased in Google. A safer solution would be to merge the data
+	// retrieved from Google with the data coming from the source.
 	body := g.createBody(person)
 
 	_, err = g.httpRequest("PUT", url, body, map[string]string{
-		"If-Match":     parsedContact.Etag,
+		"If-Match":     contact.Etag,
 		"Content-Type": "application/atom+xml",
 	})
 	if err != nil {
@@ -319,4 +311,19 @@ func (g *GoogleContacts) updateContact(
 	}
 
 	atomic.AddUint64(counter, 1)
+}
+
+func (g *GoogleContacts) getContact(url string) (Contact, error) {
+	existingContact, err := g.httpRequest("GET", url, "", map[string]string{})
+	if err != nil {
+		return Contact{}, fmt.Errorf("GET failed: %s", err)
+	}
+
+	var c Contact
+	err = xml.Unmarshal([]byte(existingContact), &c)
+	if err != nil {
+		return Contact{}, fmt.Errorf("failed to parse xml: %s", err)
+	}
+
+	return c, nil
 }
