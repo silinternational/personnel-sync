@@ -317,4 +317,6 @@ func (g *GoogleContacts) updateContact(
 			Message: fmt.Sprintf("updateUser failed updating user %s: %s", person.CompareValue, err)}
 		return
 	}
+
+	atomic.AddUint64(counter, 1)
 }
