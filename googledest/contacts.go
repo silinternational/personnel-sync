@@ -205,6 +205,12 @@ func (g *GoogleContacts) ApplyChangeSet(
 		batchTimer.WaitOnBatch()
 	}
 
+	for _, toUpdate := range changes.Delete {
+		wg.Add(1)
+		go g.deleteContact(toUpdate, &results.Deleted, &wg, eventLog)
+		batchTimer.WaitOnBatch()
+	}
+
 	wg.Wait()
 
 	return results
@@ -326,4 +332,35 @@ func (g *GoogleContacts) getContact(url string) (Contact, error) {
 	}
 
 	return c, nil
+}
+
+func (g *GoogleContacts) deleteContact(
+	person personnel_sync.Person,
+	counter *uint64,
+	wg *sync.WaitGroup,
+	eventLog chan<- personnel_sync.EventLogItem) {
+
+	defer wg.Done()
+
+	url := person.ID
+
+	contact, err := g.getContact(url)
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
+		return
+	}
+
+	_, err = g.httpRequest("DELETE", url, "", map[string]string{
+		"If-Match": contact.Etag,
+	})
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("deleteUser failed deleting user %s: %s", person.CompareValue, err)}
+		return
+	}
+
+	atomic.AddUint64(counter, 1)
 }
