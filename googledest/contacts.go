@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -15,6 +16,8 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 )
+
+const MaxQuerySize = 10000
 
 type GoogleContactsConfig struct {
 	DelegatedAdminEmail string
@@ -32,6 +35,7 @@ type GoogleContacts struct {
 type Entries struct {
 	XMLName xml.Name  `xml:"feed"`
 	Entries []Contact `xml:"entry"`
+	Total   int       `xml:"totalResults"`
 }
 
 type Contact struct {
@@ -132,7 +136,7 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 }
 
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
-	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full?max-results=65535"
+	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full?max-results=" + strconv.Itoa(MaxQuerySize)
 	body, err := g.httpRequest("GET", href, "", map[string]string{})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
@@ -143,6 +147,9 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	err = xml.Unmarshal([]byte(body), &parsed)
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
+	}
+	if parsed.Total >= MaxQuerySize {
+		return []personnel_sync.Person{}, fmt.Errorf("Google Contacts directory contains too many entries")
 	}
 
 	persons := make([]personnel_sync.Person, len(parsed.Entries))
