@@ -3,7 +3,6 @@ package googledest
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,8 +13,6 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 )
-
-const MaxQuerySize = 10000
 
 type GoogleUsersConfig struct {
 	DelegatedAdminEmail string
@@ -110,12 +107,6 @@ func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 				"fullName":   nextUser.Name.FullName,
 			},
 		})
-		log.Printf("destination user email: %s, familyName: %s, givenName: %s, fullName: %s",
-			strings.ToLower(nextUser.PrimaryEmail),
-			nextUser.Name.FamilyName,
-			nextUser.Name.GivenName,
-			nextUser.Name.FullName,
-		)
 	}
 
 	return users, nil
