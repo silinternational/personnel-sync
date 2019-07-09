@@ -204,7 +204,7 @@ In [Google Admin Security](https://admin.google.com/AdminHome?hl=en#SecuritySett
 * Under "Advanced Settings" add the appropriate API Scopes to the Service Account. Use the numeric `client_id`.
 * API Scopes required for Google Groups are: `https://www.googleapis.com/auth/admin.directory.group` and 
 `https://www.googleapis.com/auth/admin.directory.group.member`
-* The API Scope required for Google User Directory is: `https://www.googleapis.com/auth/admin.directory.user`
+* The API Scope required for Google Contacts is: `https://www.google.com/m8/feeds/contacts/`
 
 The sync job will need to use the Service Account credentials to impersonate another user that has
 appropriate domain privileges and who has logged in at least once into G Suite and
