@@ -31,7 +31,7 @@ func LoadConfig(configFile string) (AppConfig, error) {
 
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		log.Printf("unable to application config file %s, error: %s\n", configFile, err.Error())
+		log.Printf("unable to read application config file %s, error: %s\n", configFile, err.Error())
 		return AppConfig{}, err
 	}
 
