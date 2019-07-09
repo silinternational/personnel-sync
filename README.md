@@ -59,6 +59,49 @@ of the destination configuration required for Google Groups:
 }
 ```
 
+### Google Users
+This destination can update User records in the Google Directory. Presently, only the user's name is available
+for updating, but other fields may be added in the future. Following is an example configuration:
+
+```json
+  "Destination": {
+    "Type": "GoogleUsers",
+    "ExtraJSON": {
+      "BatchSizePerMinute": 50,
+      "DelegatedAdminEmail": "admin@example.com",
+      "GoogleAuth": {
+        "type": "service_account",
+        "project_id": "abc-theme-123456",
+        "private_key_id": "abc123",
+        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIabc...\nabc...\n...xyz\n-----END PRIVATE KEY-----\n",
+        "client_email": "my-sync-bot@abc-theme-123456.iam.gserviceaccount.com",
+        "client_id": "123456789012345678901",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com"
+      }            
+    }
+  },
+  "AttributeMap": [
+    {
+      "Source": "email",
+      "Destination": "email",
+      "required": true
+    },
+    {
+      "Source": "last_name",
+      "Destination": "familyName",
+      "required": true
+    },
+    {
+      "Source": "first_name",
+      "Destination": "givenName",
+      "required": true
+    }
+  ],
+```
+
 #### Google Service Account Configuration
 
 (see https://stackoverflow.com/questions/53808710/authenticate-to-google-admin-directory-api#answer-53808774 and
