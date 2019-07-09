@@ -3,6 +3,7 @@ package googledest
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,7 +23,6 @@ type GoogleUsersConfig struct {
 }
 
 type GoogleUsers struct {
-	DestinationConfig  personnel_sync.DestinationConfig
 	GoogleUsersConfig  GoogleUsersConfig
 	AdminService       admin.Service
 	BatchSizePerMinute int
@@ -110,6 +110,12 @@ func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 				"fullName":   nextUser.Name.FullName,
 			},
 		})
+		log.Printf("destination user email: %s, familyName: %s, givenName: %s, fullName: %s",
+			strings.ToLower(nextUser.PrimaryEmail),
+			nextUser.Name.FamilyName,
+			nextUser.Name.GivenName,
+			nextUser.Name.FullName,
+		)
 	}
 
 	return users, nil
