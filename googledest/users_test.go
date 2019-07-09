@@ -42,8 +42,8 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 					ID:           "",
 					Attributes: map[string]string{
 						"email":      "user_one@example.com",
-						"familyName": "two",
-						"fullName":   "user two",
+						"familyName": "one",
+						"fullName":   "user one",
 						"givenName":  "user",
 					},
 					DisableChanges: false,
