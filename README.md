@@ -9,19 +9,60 @@ documented below.
 ## Sources
 
 ### REST API
-Data sources coming from simple API calls can use the `RestAPI` source. Here is an example of how to configure it:
+Data sources coming from simple API calls can use the `RestAPI` source. Here are some examples of how to configure it:
 
+#### Basic Authentication
 ```json
 {
   "Source": {
     "Type": "RestAPI",
     "ExtraJSON": {
       "Method": "GET",
-      "URL": "https://someurl/path",
+      "BaseURL": "https://example.com",
+      "Path": "/path",
       "ResultsJSONContainer": "Results",
       "AuthType": "basic",
       "Username": "username",
       "Password": "password",
+      "CompareAttribute": "email"
+    }
+  }
+}
+```
+
+#### Bearer Token Authentication
+```json
+{
+  "Source": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "Method": "GET",
+      "BaseURL": "https://example.com",
+      "Path": "/path",
+      "ResultsJSONContainer": "Results",
+      "AuthType": "bearer",
+      "Password": "token",
+      "CompareAttribute": "email"
+    }
+  }
+}
+```
+
+#### Salesforce OAuth Authentication
+```json
+{
+  "Source": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "Method": "GET",
+      "BaseURL": "https://login.salesforce.com/services/oauth2/token",
+      "Path": "/services/data/v20.0/query/",
+      "ResultsJSONContainer": "records",
+      "AuthType": "SalesforceOauth",
+      "Username": "admin@example.com",
+      "Password": "LqznAW6N8.EenJVT",
+      "ClientID": "VczVNcM8xaDRB8bi_fLyn2BJzpG6bihUxNQGeV2BePM4FBT2VMeJfGnC38K46aqBRLTCJy.GJK2RmPUCVrm39",
+      "ClientSecret": "2CD6093EFA0DABCFABE3B7B78F951EFD1B59283E23D357EB458AE6852838C26C",
       "CompareAttribute": "email"
     }
   }
@@ -36,26 +77,56 @@ of the destination configuration required for Google Groups:
 
 ```json
 {
-  "Type": "GoogleGroups",
-  "URL": "notused",
-  "Username": "notused",
-  "Password": "notused",
-  "ExtraJSON": {
-    "DelegatedAdminEmail": "delegated-admin@domain.com",
-    "GroupEmail": "group1@groups.domain.com",
-    "GoogleAuth": {
-      "type": "service_account",
-      "project_id": "abc-theme-123456",
-      "private_key_id": "abc123",
-      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIabc...\nabc...\n...xyz\n-----END PRIVATE KEY-----\n",
-      "client_email": "my-sync-bot@abc-theme-123456.iam.gserviceaccount.com",
-      "client_id": "123456789012345678901",
-      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com"
+  "Destination": {
+    "Type": "GoogleGroups",
+    "ExtraJSON": {
+      "BatchSizePerMinute": 50,
+      "DelegatedAdminEmail": "delegated-admin@domain.com",
+      "GoogleAuth": {
+        "type": "service_account",
+        "project_id": "abc-theme-123456",
+        "private_key_id": "abc123",
+        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIabc...\nabc...\n...xyz\n-----END PRIVATE KEY-----\n",
+        "client_email": "my-sync-bot@abc-theme-123456.iam.gserviceaccount.com",
+        "client_id": "123456789012345678901",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com"
+      }
     }
-  }
+  },
+  "AttributeMap": [
+    {
+      "Source": "First_Name",
+      "Destination": "givenName",
+      "required": true
+    },
+    {
+      "Source": "Last_Name",
+      "Destination": "sn",
+      "required": true
+    },
+    {
+      "Source": "Email",
+      "Destination": "mail",
+      "required": true
+    }
+  ],
+  "SyncSets": [
+    {
+      "Name": "Sync from personnel to Google Groups",
+      "Source": {
+          "Path": "/user-report"
+      },
+      "Destination": {
+          "GroupEmail": "group1@groups.domain.com",
+          "Owners": ["person_a@domain.com","person_b@domain.com"],
+          "Managers": ["another_person@domain.com", "yet-another-person@domain.com"],
+          "ExtraOwners": ["google-admin@domain.com"]
+      }
+    }
+  ]
 }
 ```
 
@@ -107,23 +178,12 @@ for updating, but other fields may be added in the future. Following is an examp
 (see https://stackoverflow.com/questions/53808710/authenticate-to-google-admin-directory-api#answer-53808774 and
  https://developers.google.com/admin-sdk/reports/v1/guides/delegation)
 
-In the google developer console ...
-* Create a new Service Account and a corresponding JSON credential file.
-* Delegate Domain-Wide Authority to the Service Account.
-* The email address for this user should be stored in the `config.json` as the `GoogleDelegatedAdmin` value
-
-The JSON credential file should contain something like this ...
+In the [Google Developer Console](https://console.developers.google.com) ...
+* Enable the appropriate API for the Service Account.
+* Create a new Service Account and a corresponding JSON credential file, which should contain something like this:
 
 ```json
-{
-  "DestinationAttributeMap": [
-    {
-      "SourceName": "Email",
-      "DestinationName": "email",
-      "required": true
-    }
-  ],
-  "Destination": {
+  {
     "type": "service_account",
     "project_id": "abc-theme-123456",
     "private_key_id": "abc123",
@@ -135,56 +195,67 @@ The JSON credential file should contain something like this ...
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com"
   }
-}
 ```
 
 These contents will need to be copied into the `config.json` file as the value of the `GoogleAuth` key under 
 `Destination`/`ExtraJSON`.
 
+In [Google Admin Security](https://admin.google.com/AdminHome?hl=en#SecuritySettings:) ...
+* Under "Advanced Settings" add the appropriate API Scopes to the Service Account. Use the numeric `client_id`.
+* API Scopes required for Google Groups are: `https://www.googleapis.com/auth/admin.directory.group` and 
+`https://www.googleapis.com/auth/admin.directory.group.member`
+
 The sync job will need to use the Service Account credentials to impersonate another user that has
-domain superadmin privilege and who has logged in at least once into G Suite and
-accepted the terms and conditions.
+appropriate domain privileges and who has logged in at least once into G Suite and
+accepted the terms and conditions. The email address for this user should be stored in the `config.json`
+as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 
 ## SolarWinds WebHelpDesk
 
 
 ```json
 {
-  "DestinationAttributeMap": [
+  "AttributeMap": [
       {
-        "SourceName": "FIRST_NAME",
-        "DestinationName": "firstName",
-        "required": true
+        "Source": "FIRST_NAME",
+        "Destination": "firstName",
+        "required": true,
+        "CaseSensitive": true
       },
       {
-        "SourceName": "LAST_NAME",
-        "DestinationName": "lastName",
-        "required": true
+        "Source": "LAST_NAME",
+        "Destination": "lastName",
+        "required": true,
+        "CaseSensitive": true
       },
       {
-        "SourceName": "EMAIL",
-        "DestinationName": "email",
-        "required": true
+        "Source": "EMAIL",
+        "Destination": "email",
+        "required": true,
+        "CaseSensitive": false
       },
       {
-        "SourceName": "USER_NAME",
-        "DestinationName": "username",
-        "required": true
+        "Source": "USER_NAME",
+        "Destination": "username",
+        "required": true,
+        "CaseSensitive": false
       },
       {
-        "SourceName": "Staff_ID",
-        "DestinationName": "employmentStatus"
+        "Source": "Staff_ID",
+        "Destination": "employmentStatus"
       }
   ],
   "Destination": {
     "Type": "WebHelpDesk",
-    "URL": "https://whd.mycompany.com/helpdesk/WebObjects/Helpdesk.woa",
-    "Username": "syncuser",
-    "Password": "apitoken",
     "ExtraJSON": {
-      "AccountID": "do we need this for a hosted install?",
-      "ListClientsPageLimit": 100
+      "URL": "https://whd.mycompany.com/helpdesk/WebObjects/Helpdesk.woa",
+      "Username": "syncuser",
+      "Password": "apitoken",
+      "ListClientsPageLimit": 100,
+      "BatchSizePerMinute": 50
     }
   }
 }
 ```
+
+`ListClientsPageLimit` and `BatchSizePerMinute` are optional. Their defaults are as shown in the example config.
