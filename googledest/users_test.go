@@ -1,7 +1,6 @@
 package googledest
 
 import (
-	"encoding/json"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -10,117 +9,6 @@ import (
 	personnel_sync "github.com/silinternational/personnel-sync"
 	admin "google.golang.org/api/admin/directory/v1"
 )
-
-func TestNewGoogleUsersDestination(t *testing.T) {
-	type args struct {
-		destinationConfig personnel_sync.DestinationConfig
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    personnel_sync.Destination
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewGoogleUsersDestination(tt.args.destinationConfig)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewGoogleUsersDestination() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewGoogleUsersDestination() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGoogleUsers_initGoogleAdminService(t *testing.T) {
-	type fields struct {
-		GoogleUsersConfig  GoogleUsersConfig
-		AdminService       admin.Service
-		BatchSizePerMinute int
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := &GoogleUsers{
-				GoogleUsersConfig:  tt.fields.GoogleUsersConfig,
-				AdminService:       tt.fields.AdminService,
-				BatchSizePerMinute: tt.fields.BatchSizePerMinute,
-			}
-			if err := g.initGoogleAdminService(); (err != nil) != tt.wantErr {
-				t.Errorf("GoogleUsers.initGoogleAdminService() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestGoogleUsers_GetIDField(t *testing.T) {
-	type fields struct {
-		GoogleUsersConfig  GoogleUsersConfig
-		AdminService       admin.Service
-		BatchSizePerMinute int
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   string
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := &GoogleUsers{
-				GoogleUsersConfig:  tt.fields.GoogleUsersConfig,
-				AdminService:       tt.fields.AdminService,
-				BatchSizePerMinute: tt.fields.BatchSizePerMinute,
-			}
-			if got := g.GetIDField(); got != tt.want {
-				t.Errorf("GoogleUsers.GetIDField() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGoogleUsers_ForSet(t *testing.T) {
-	type fields struct {
-		GoogleUsersConfig  GoogleUsersConfig
-		AdminService       admin.Service
-		BatchSizePerMinute int
-	}
-	type args struct {
-		syncSetJson json.RawMessage
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := &GoogleUsers{
-				GoogleUsersConfig:  tt.fields.GoogleUsersConfig,
-				AdminService:       tt.fields.AdminService,
-				BatchSizePerMinute: tt.fields.BatchSizePerMinute,
-			}
-			if err := g.ForSet(tt.args.syncSetJson); (err != nil) != tt.wantErr {
-				t.Errorf("GoogleUsers.ForSet() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
 
 func TestGoogleUsers_ListUsers(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
