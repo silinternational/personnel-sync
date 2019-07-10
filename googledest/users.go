@@ -46,7 +46,7 @@ func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfi
 
 	return &googleUsers, nil
 }
-
+//TODO At some point consider factoring out the code here as well as the same code in google_groups.go
 // GetGoogleAdminService authenticates with the Google API and returns an admin.Service
 //  that has the scopes to manage Users
 //  Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
