@@ -55,6 +55,8 @@ func handler(lambdaConfig LambdaConfig) error {
 		destination, err = googlecontacts.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
+	case personnel_sync.DestinationTypeGoogleUsers:
+		destination, err = googledest.NewGoogleUsersDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 	default:
