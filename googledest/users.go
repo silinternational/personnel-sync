@@ -161,7 +161,7 @@ func (g *GoogleUsers) updateUser(
 	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "AddMember",
+		Event:   "UpdateUser",
 		Message: email,
 	}
 
