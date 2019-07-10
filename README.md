@@ -135,6 +135,7 @@ This destination can update User records in the Google Directory. Presently, onl
 for updating, but other fields may be added in the future. Following is an example configuration:
 
 ```json
+{
   "Destination": {
     "Type": "GoogleUsers",
     "ExtraJSON": {
@@ -170,7 +171,8 @@ for updating, but other fields may be added in the future. Following is an examp
       "Destination": "givenName",
       "required": true
     }
-  ],
+  ]
+}
 ```
 
 #### Google Service Account Configuration
