@@ -98,7 +98,7 @@ func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 	var users []personnel_sync.Person
 
 	for _, nextUser := range usersList {
-		users = append(users, personnel_sync.Person{
+		newPerson := personnel_sync.Person{
 			CompareValue: nextUser.PrimaryEmail,
 			Attributes: map[string]string{
 				"email":      strings.ToLower(nextUser.PrimaryEmail),
@@ -106,7 +106,9 @@ func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 				"givenName":  nextUser.Name.GivenName,
 				"fullName":   nextUser.Name.FullName,
 			},
-		})
+		}
+
+		users = append(users, newPerson)
 	}
 
 	return users, nil
