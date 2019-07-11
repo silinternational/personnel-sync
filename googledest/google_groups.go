@@ -11,7 +11,6 @@ import (
 
 	personnel_sync "github.com/silinternational/personnel-sync"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2/google"
 )
 
 const DefaultBatchSizePerMinute = 50
@@ -22,19 +21,6 @@ const RoleManager = "MANAGER"
 type GoogleGroupsConfig struct {
 	DelegatedAdminEmail string
 	GoogleAuth          GoogleAuth
-}
-
-type GoogleAuth struct {
-	Type                    string `json:"type"`
-	ProjectID               string `json:"project_id"`
-	PrivateKeyID            string `json:"private_key_id"`
-	PrivateKey              string `json:"private_key"`
-	ClientEmail             string `json:"client_email"`
-	ClientID                string `json:"client_id"`
-	AuthURI                 string `json:"auth_uri"`
-	TokenURI                string `json:"token_uri"`
-	AuthProviderX509CertURL string `json:"auth_provider_x509_cert_url"`
-	ClientX509CertURL       string `json:"client_x509_cert_url"`
 }
 
 type GoogleGroups struct {
@@ -66,7 +52,12 @@ func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConf
 	}
 
 	// Initialize AdminService object
-	err = googleGroups.initGoogleAdminService()
+	googleGroups.AdminService, err = initGoogleAdminService(
+		googleGroups.GoogleGroupsConfig.GoogleAuth,
+		googleGroups.GoogleGroupsConfig.DelegatedAdminEmail,
+		admin.AdminDirectoryGroupScope,
+		admin.AdminDirectoryGroupMemberScope,
+	)
 	if err != nil {
 		return &GoogleGroups{}, err
 	}
@@ -230,31 +221,4 @@ func (g *GoogleGroups) removeMember(
 	}
 
 	atomic.AddUint64(counter, 1)
-}
-
-// GetGoogleAdminService authenticates with the Google API and returns an admin.Service
-//  that has the scopes for Group and GroupMember
-//  Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
-func (g *GoogleGroups) initGoogleAdminService() error {
-	googleAuthJson, err := json.Marshal(g.GoogleGroupsConfig.GoogleAuth)
-	if err != nil {
-		return fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())
-	}
-
-	config, err := google.JWTConfigFromJSON(googleAuthJson, admin.AdminDirectoryGroupScope, admin.AdminDirectoryGroupMemberScope)
-	if err != nil {
-		return fmt.Errorf("unable to parse client secret file to config: %s", err)
-	}
-
-	config.Subject = g.GoogleGroupsConfig.DelegatedAdminEmail
-	client := config.Client(context.Background())
-
-	adminService, err := admin.New(client)
-	if err != nil {
-		return fmt.Errorf("unable to retrieve directory Service: %s", err)
-	}
-
-	g.AdminService = *adminService
-
-	return nil
 }
