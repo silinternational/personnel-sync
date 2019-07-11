@@ -11,7 +11,6 @@ import (
 
 	personnel_sync "github.com/silinternational/personnel-sync"
 	"golang.org/x/net/context"
-	"golang.org/x/oauth2/google"
 )
 
 type GoogleUsersConfig struct {
@@ -39,39 +38,16 @@ func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfi
 	}
 
 	// Initialize AdminService object
-	err = googleUsers.initGoogleAdminService()
+	googleUsers.AdminService, err = initGoogleAdminService(
+		googleUsers.GoogleUsersConfig.GoogleAuth,
+		googleUsers.GoogleUsersConfig.DelegatedAdminEmail,
+		admin.AdminDirectoryUserScope,
+	)
 	if err != nil {
 		return &GoogleUsers{}, err
 	}
 
 	return &googleUsers, nil
-}
-//TODO At some point consider factoring out the code here as well as the same code in google_groups.go
-// GetGoogleAdminService authenticates with the Google API and returns an admin.Service
-//  that has the scopes to manage Users
-//  Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
-func (g *GoogleUsers) initGoogleAdminService() error {
-	googleAuthJson, err := json.Marshal(g.GoogleUsersConfig.GoogleAuth)
-	if err != nil {
-		return fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())
-	}
-
-	config, err := google.JWTConfigFromJSON(googleAuthJson, admin.AdminDirectoryUserScope)
-	if err != nil {
-		return fmt.Errorf("unable to parse client secret file to config: %s", err)
-	}
-
-	config.Subject = g.GoogleUsersConfig.DelegatedAdminEmail
-	client := config.Client(context.Background())
-
-	adminService, err := admin.New(client)
-	if err != nil {
-		return fmt.Errorf("unable to retrieve directory Service: %s", err)
-	}
-
-	g.AdminService = *adminService
-
-	return nil
 }
 
 func (g *GoogleUsers) GetIDField() string {
