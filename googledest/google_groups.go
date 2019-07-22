@@ -32,10 +32,11 @@ type GoogleGroups struct {
 }
 
 type GroupSyncSet struct {
-	GroupEmail  string
-	Owners      []string
-	Managers    []string
-	ExtraOwners []string
+	GroupEmail    string
+	Owners        []string
+	ExtraOwners   []string
+	Managers      []string
+	ExtraManagers []string
 }
 
 func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -99,7 +100,10 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 	var members []personnel_sync.Person
 
 	for _, nextMember := range membersList {
-		// Do not include ExtraOwners in list to prevent inclusion in delete list
+		// Do not include Extra Managers or ExtraOwners in list to prevent inclusion in delete list
+		if isExtraManager, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraManagers); isExtraManager {
+			continue
+		}
 		if isExtraOwner, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraOwners); isExtraOwner {
 			continue
 		}
@@ -140,7 +144,10 @@ func (g *GoogleGroups) ApplyChangeSet(
 		}
 	}
 
-	// Add any ExtraOwners to Create list since they are not in the source people
+	// Add any ExtraManagers and ExtraOwners to Create list since they are not in the source people
+	for _, manager := range g.GroupSyncSet.ExtraManagers {
+		toBeCreated[manager] = RoleManager
+	}
 	for _, owner := range g.GroupSyncSet.ExtraOwners {
 		toBeCreated[owner] = RoleOwner
 	}
@@ -155,7 +162,10 @@ func (g *GoogleGroups) ApplyChangeSet(
 	}
 
 	for _, dp := range changes.Delete {
-		// Do not delete ExtraOwners
+		// Do not delete ExtraManagers or ExtraOwners
+		if isExtraManager, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraManagers); isExtraManager {
+			continue
+		}
 		if isExtraOwner, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
 			continue
 		}
