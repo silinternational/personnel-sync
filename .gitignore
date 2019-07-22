@@ -13,7 +13,10 @@ vendor
 aws.env
 *.aes
 config.json
+config.whd.json
+config.google.json
 
 # dev tools metadata
 .idea/
 node_modules/
+.vscode

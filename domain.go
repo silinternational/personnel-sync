@@ -2,19 +2,23 @@ package personnel_sync
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"reflect"
-
-	"github.com/Jeffail/gabs"
+	"strings"
+	"time"
 )
 
 const DefaultConfigFile = "./config.json"
 const DestinationTypeGoogleGroups = "GoogleGroups"
+const DestinationTypeGoogleUsers = "GoogleUsers"
+const DestinationTypeWebHelpDesk = "WebHelpDesk"
+const SourceTypeRestAPI = "RestAPI"
 
+// LoadConfig looks for a config file if one is provided. Otherwise, it looks for
+// a config file based on the CONFIG_PATH env var.  If that is not set, it gets
+// the default config file ("./config.json").
 func LoadConfig(configFile string) (AppConfig, error) {
 
 	if configFile == "" {
@@ -28,7 +32,7 @@ func LoadConfig(configFile string) (AppConfig, error) {
 
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		log.Printf("unable to application config file %s, error: %s\n", configFile, err.Error())
+		log.Printf("unable to read application config file %s, error: %s\n", configFile, err.Error())
 		return AppConfig{}, err
 	}
 
@@ -39,197 +43,237 @@ func LoadConfig(configFile string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
-	log.Printf("Configuration loaded. Source URL: %s, Destination type: %s", config.Source.URL, config.Destination.Type)
+	if config.Source.Type == "" {
+		log.Printf("configuration appears to be missing a Source configuration")
+		return AppConfig{}, err
+	}
+
+	if config.Destination.Type == "" {
+		log.Printf("configuration appears to be missing a Destination configuration")
+		return AppConfig{}, err
+	}
+
+	if len(config.AttributeMap) == 0 {
+		log.Printf("configuration appears to be missing an AttributeMap")
+		return AppConfig{}, err
+	}
+
+	log.Printf("Configuration loaded. Source type: %s, Destination type: %s\n", config.Source.Type, config.Destination.Type)
+	log.Printf("%v Sync sets found:\n", len(config.SyncSets))
+
+	for i, syncSet := range config.SyncSets {
+		log.Printf("  %v) %s\n", i+1, syncSet.Name)
+	}
 
 	return config, nil
 }
 
-func GetPersonsFromSource(config AppConfig) ([]Person, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", config.Source.URL, nil)
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
-	req.SetBasicAuth(config.Source.Username, config.Source.Password)
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
+// RemapToDestinationAttributes returns a slice of Person instances that each have
+// only the desired attributes based on the destination attribute keys.
+// If a required attribute is missing for a Person, then their disableChanges
+// value is set to true.
+func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []AttributeMap) ([]Person, error) {
+	var peopleForDestination []Person
 
-	bodyText, err := ioutil.ReadAll(resp.Body)
-	jsonParsed, err := gabs.ParseJSON(bodyText)
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
+	for _, person := range sourcePersons {
+		attrs := map[string]string{}
 
-	// sourcePeople will hold array of Person(s) from source API
-	var sourcePeople []Person
-
-	// Get children records based on ResultsJSONContainer from config
-	peopleList, err := jsonParsed.S(config.Source.ResultsJSONContainer).Children()
-	if err != nil {
-		log.Println(err)
-		return []Person{}, err
-	}
-
-	// Iterate through people in list from source to convert to Persons
-	for _, person := range peopleList {
-
-		personAttributes, err := person.ChildrenMap()
-		if err != nil {
-			log.Println(err)
-			return []Person{}, err
-		}
-
-		attrs, err := FilterMappedAttributes(personAttributes, config.DestinationAttributeMap)
-		if err != nil {
-			log.Println(err)
-			if config.Runtime.FailIfSinglePersonMissingRequiredAttribute {
-				return []Person{}, err
+		// Build attrs with only attributes from destination map, disable changes on person missing a required attribute
+		disableChanges := false
+		for _, attrMap := range attributeMap {
+			if value, ok := person.Attributes[attrMap.Source]; ok {
+				attrs[attrMap.Destination] = value
+			} else if attrMap.Required {
+				jsonAttrs, _ := json.Marshal(attrs)
+				log.Printf("user missing attribute %s. Rest of data: %s", attrMap.Source, jsonAttrs)
+				disableChanges = true
 			}
-		} else {
-			personId, err := GetPersonIDFromAttributes(config.Source.IDAttribute, attrs)
-			if err != nil {
-				return []Person{}, err
-			}
-			// Append person to sourcePeople array to be returned from function
-			sourcePeople = append(sourcePeople, Person{
-				ID:         personId,
-				Attributes: attrs,
-			})
 		}
+
+		peopleForDestination = append(peopleForDestination, Person{
+			CompareValue:   person.CompareValue,
+			Attributes:     attrs,
+			DisableChanges: disableChanges,
+		})
+
 	}
 
-	return sourcePeople, nil
+	return peopleForDestination, nil
 }
 
-func FilterMappedAttributes(personAttributes map[string]*gabs.Container, attributeMap []DestinationAttributeMap) ([]PersonAttribute, error) {
-	var attrs []PersonAttribute
-	var attrNames []string
+// getPersonFromList returns the person if found in peopleList otherwise an empty Person{}
+func getPersonFromList(compareValue string, peopleList []Person) Person {
+	lowerCompareValue := strings.ToLower(compareValue)
 
-	// Get simple one-dimensional array of destination attribute names
-	desiredAttrs := GetDesiredAttributeNames(attributeMap)
-
-	// Iterate through attributes of person and build []PersonAttribute with only attributes wanted in destination
-	for name, value := range personAttributes {
-		if ok, _ := InArray(name, desiredAttrs); ok {
-			attrs = append(attrs, PersonAttribute{Name: name, Value: value.Data().(string)})
-			attrNames = append(attrNames, name)
-		}
-	}
-
-	// Get simple array of resulting attribute names
-
-	// Check if all required attributes are present in results
-	requiredAttrs := GetRequiredAttributeNames(attributeMap)
-	for _, reqAttr := range requiredAttrs {
-		if ok, _ := InArray(reqAttr, attrNames); !ok {
-			jsonAttrs, _ := json.Marshal(attrs)
-			return []PersonAttribute{}, fmt.Errorf("user missing attribute %s. Rest of data: %s", reqAttr, jsonAttrs)
-		}
-	}
-
-	return attrs, nil
-}
-
-func GetDesiredAttributeNames(attributeMap []DestinationAttributeMap) []string {
-	var attrs []string
-
-	for _, attr := range attributeMap {
-		attrs = append(attrs, attr.SourceName)
-	}
-
-	return attrs
-}
-
-func GetRequiredAttributeNames(attributeMap []DestinationAttributeMap) []string {
-	var attrs []string
-
-	for _, attr := range attributeMap {
-		if attr.Required {
-			attrs = append(attrs, attr.SourceName)
-		}
-	}
-
-	return attrs
-}
-
-func GetPersonIDFromAttributes(idAttributeName string, personAttributes []PersonAttribute) (string, error) {
-	for _, personAttr := range personAttributes {
-		if personAttr.Name == idAttributeName {
-			return personAttr.Value, nil
-		}
-	}
-
-	jsonAttrs, _ := json.Marshal(personAttributes)
-	return "", fmt.Errorf("person id attribute (%s) not found, have attributes: %s", idAttributeName, jsonAttrs)
-}
-
-// func GetDestinationInstance(config DestinationConfig) (Destination, error) {
-// 	if config.Type == DestinationTypeGoogleGroups {
-// 		return &googledest.GoogleGroups{
-// 			DestinationConfig: config,
-// 		}, nil
-// 	}
-//
-// 	return &EmptyDestination{}, fmt.Errorf("invalid destination config type: %s", config.Type)
-// }
-
-func IsPersonInList(id string, peopleList []Person) bool {
 	for _, person := range peopleList {
-		if person.ID == id {
-			return true
+		if strings.ToLower(person.CompareValue) == lowerCompareValue {
+			return person
 		}
 	}
 
-	return false
+	return Person{}
 }
 
-func GenerateChangeSet(sourcePeople, destinationPeople []Person) ChangeSet {
+func personAttributesAreEqual(sp, dp Person, attributeMap []AttributeMap) bool {
+	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
+	for key, val := range sp.Attributes {
+		if !stringsAreEqual(val, dp.Attributes[key], caseSensitivityList[key]) {
+			log.Printf("Attribute %s not equal for user %s. Case Sensitive: %v, Source: %s, Destination: %s \n",
+				key, sp.CompareValue, caseSensitivityList[key], val, dp.Attributes[key])
+			return false
+		}
+	}
+
+	return true
+}
+
+func stringsAreEqual(val1, val2 string, caseSensitive bool) bool {
+	if caseSensitive {
+		return val1 == val2
+	}
+
+	return strings.ToLower(val1) == strings.ToLower(val2)
+}
+
+func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[string]bool {
+	results := map[string]bool{}
+
+	for _, attrMap := range attributeMap {
+		results[attrMap.Destination] = attrMap.CaseSensitive
+	}
+
+	return results
+}
+
+// GenerateChangeSet builds the three slice attributes of a ChangeSet
+// (Create, Update and Delete) based on whether they are in the slice
+//  of destination Person instances.
+// It skips all source Person instances that have DisableChanges set to true
+func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []AttributeMap, idField string) ChangeSet {
 	var changeSet ChangeSet
 
-	// Find users who need to be created
+	// Find users who need to be created or updated
 	for _, sp := range sourcePeople {
-		if !IsPersonInList(sp.ID, destinationPeople) {
+		// If user was missing a required attribute, don't change their record
+		if sp.DisableChanges {
+			continue
+		}
+
+		destinationPerson := getPersonFromList(sp.CompareValue, destinationPeople)
+		if destinationPerson.CompareValue == "" {
 			changeSet.Create = append(changeSet.Create, sp)
+			continue
+		}
+
+		if !personAttributesAreEqual(sp, destinationPerson, attributeMap) {
+			sp.ID = destinationPerson.Attributes["id"]
+			changeSet.Update = append(changeSet.Update, sp)
+			continue
 		}
 	}
 
 	// Find users who need to be deleted
-	for _, sp := range destinationPeople {
-		if !IsPersonInList(sp.ID, sourcePeople) {
-			changeSet.Delete = append(changeSet.Delete, sp)
+	for _, dp := range destinationPeople {
+		sourcePerson := getPersonFromList(dp.CompareValue, sourcePeople)
+		if sourcePerson.CompareValue == "" {
+			changeSet.Delete = append(changeSet.Delete, dp)
 		}
 	}
 
 	return changeSet
 }
 
-func SyncPeople(config AppConfig, destination Destination) ChangeResults {
-	sourcePeople, err := GetPersonsFromSource(config)
+// SyncPeople calls a number of functions to do the following ...
+//  - it gets the list of people from the source
+//  - it remaps their attributes to match the keys used in the destination
+//  - it gets the list of people from the destination
+//  - it generates the lists of people to change, update and delete
+//  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
+func SyncPeople(source Source, destination Destination, attributeMap []AttributeMap, dryRun bool) ChangeResults {
+	desiredAttrs := GetDesiredAttributes(attributeMap)
+	sourcePeople, err := source.ListUsers(desiredAttrs)
 	if err != nil {
 		return ChangeResults{
-			Errors: []string{
-				err.Error(),
-			},
+			Errors: []string{err.Error()},
+		}
+	}
+	log.Printf("    Found %v people in source", len(sourcePeople))
+
+	// remap source people to destination attributes for comparison
+	sourcePeople, err = RemapToDestinationAttributes(sourcePeople, attributeMap)
+	if err != nil {
+		return ChangeResults{
+			Errors: []string{err.Error()},
 		}
 	}
 
 	destinationPeople, err := destination.ListUsers()
 	if err != nil {
 		return ChangeResults{
-			Errors: []string{
-				err.Error(),
-			},
+			Errors: []string{err.Error()},
+		}
+	}
+	log.Printf("    Found %v people in destination", len(destinationPeople))
+
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap, destination.GetIDField())
+
+	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
+	if dryRun {
+		printChangeSet(changeSet)
+		return ChangeResults{
+			Created: uint64(len(changeSet.Create)),
+			Updated: uint64(len(changeSet.Update)),
+			Deleted: uint64(len(changeSet.Delete)),
 		}
 	}
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople)
+	// Create a channel to pass activity logs for printing
+	eventLog := make(chan EventLogItem, 50)
+	go processEventLog(eventLog)
 
-	return destination.ApplyChangeSet(changeSet)
+	results := destination.ApplyChangeSet(changeSet, eventLog)
+	close(eventLog)
+
+	return results
+}
+
+func GetDesiredAttributes(attrMap []AttributeMap) []string {
+	var keys []string
+	for _, attrMap := range attrMap {
+		keys = append(keys, attrMap.Source)
+	}
+
+	return keys
+}
+
+type EventLogItem struct {
+	Event   string
+	Message string
+}
+
+func processEventLog(eventLog <-chan EventLogItem) {
+	for msg := range eventLog {
+		log.Printf("%s %s\n", msg.Event, msg.Message)
+	}
+}
+
+func printChangeSet(changeSet ChangeSet) {
+	log.Printf("ChangeSet Plans: Create %v, Update %v, Delete %v\n", len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
+
+	log.Println("Users to be created...")
+	for i, user := range changeSet.Create {
+		log.Printf("  %v) %s", i+1, user.CompareValue)
+	}
+
+	log.Println("Users to be updated...")
+	for i, user := range changeSet.Update {
+		log.Printf("  %v) %s", i+1, user.CompareValue)
+	}
+
+	log.Println("Users to be deleted...")
+	for i, user := range changeSet.Delete {
+		log.Printf("  %v) %s", i+1, user.CompareValue)
+	}
 }
 
 // This function will search element inside array with any type.
@@ -245,7 +289,7 @@ func InArray(needle interface{}, haystack interface{}) (exists bool, index int) 
 		s := reflect.ValueOf(haystack)
 
 		for i := 0; i < s.Len(); i++ {
-			if reflect.DeepEqual(needle, s.Index(i).Interface()) == true {
+			if reflect.DeepEqual(needle, s.Index(i).Interface()) {
 				index = i
 				exists = true
 				return
@@ -258,16 +302,86 @@ func InArray(needle interface{}, haystack interface{}) (exists bool, index int) 
 
 type EmptyDestination struct{}
 
+func (e *EmptyDestination) GetIDField() string {
+	return "id"
+}
+
+func (e *EmptyDestination) ForSet(syncSetJson json.RawMessage) error {
+	return nil
+}
+
 func (e *EmptyDestination) ListUsers() ([]Person, error) {
 	return []Person{}, nil
 }
 
-func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet) ChangeResults {
+func (e *EmptyDestination) ApplyChangeSet(changes ChangeSet, eventLog chan<- EventLogItem) ChangeResults {
 	return ChangeResults{}
 }
 
-// todo
-// create interface for destinations
-// get destination user list
-// calculate change set (create/update/delete)
-// apply change set (goroutines?)
+type EmptySource struct{}
+
+func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
+	return nil
+}
+
+func (e *EmptySource) ListUsers(desiredAttrs []string) ([]Person, error) {
+	return []Person{}, nil
+}
+
+// Init sets the startTime to the current time,
+//    sets the endTime based on secondsPerBatch into the future
+func NewBatchTimer(batchSize, secondsPerBatch int) BatchTimer {
+	b := BatchTimer{}
+	b.Init(batchSize, secondsPerBatch)
+	return b
+}
+
+// BatchTimer is intended as a time limited batch enforcer
+// To create one, call its Init method.
+// Then, to use it call its WaitOnBatch method after every call to
+//  the associated go routine
+type BatchTimer struct {
+	startTime       time.Time
+	endTime         time.Time
+	Counter         int
+	SecondsPerBatch int
+	BatchSize       int
+}
+
+// Init sets the startTime to the current time,
+//    sets the endTime based on secondsPerBatch into the future
+func (b *BatchTimer) Init(batchSize, secondsPerBatch int) {
+	b.startTime = time.Now()
+	b.setEndTime()
+	b.SecondsPerBatch = secondsPerBatch
+	b.BatchSize = batchSize
+	b.Counter = 0
+}
+
+func (b *BatchTimer) setEndTime() {
+	var emptyTime time.Time
+	if b.startTime == emptyTime {
+		b.startTime = time.Now()
+	}
+	b.endTime = b.startTime.Add(time.Second * time.Duration(b.SecondsPerBatch))
+}
+
+// WaitOnBatch increments the Counter and then
+//   if fewer than BatchSize have been dealt with, just returns without doing anything
+//   Otherwise, sleeps until the batch time has expired (i.e. current time is past endTime).
+//   If this last process occurs, then it ends by resetting the batch's times and counter.
+func (b *BatchTimer) WaitOnBatch() {
+	b.Counter++
+	if b.Counter < b.BatchSize {
+		return
+	}
+
+	for {
+		currTime := time.Now()
+		if currTime.After(b.endTime) {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	b.Init(b.BatchSize, b.SecondsPerBatch)
+}

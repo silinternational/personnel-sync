@@ -5,25 +5,34 @@ import (
 	"os"
 	"time"
 
+	"github.com/silinternational/personnel-sync"
+	"github.com/silinternational/personnel-sync/googledest"
 	"github.com/silinternational/personnel-sync/restapi"
-
 	"github.com/silinternational/personnel-sync/webhelpdesk"
 
-	"github.com/silinternational/personnel-sync/googledest"
-
-	"github.com/silinternational/personnel-sync"
+	"github.com/aws/aws-lambda-go/lambda"
 )
 
+type LambdaConfig struct {
+	ConfigPath string
+}
+
 func main() {
+	lambda.Start(handler)
+}
+
+func handler(lambdaConfig LambdaConfig) error {
+	// Log to stdout and remove leading date/time stamps from each log entry (Cloudwatch Logs will add these)
 	log.SetOutput(os.Stdout)
 	log.SetFlags(0)
+
 	now := time.Now().UTC()
 	log.Printf("Personnel sync started at %s", now.Format(time.RFC1123Z))
 
-	appConfig, err := personnel_sync.LoadConfig("")
+	appConfig, err := personnel_sync.LoadConfig(lambdaConfig.ConfigPath)
 	if err != nil {
 		log.Println("Unable to load config, error: ", err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	// Instantiate Source
@@ -33,7 +42,7 @@ func main() {
 		source, err = restapi.NewRestAPISource(appConfig.Source)
 		if err != nil {
 			log.Println("Unable to initialize RestAPI source, error: ", err.Error())
-			os.Exit(1)
+			return err
 		}
 	default:
 		source = &personnel_sync.EmptySource{}
@@ -54,12 +63,12 @@ func main() {
 
 	if err != nil {
 		log.Println("Unable to load config, error: ", err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	// Iterate through SyncSets and process changes
 	for i, syncSet := range appConfig.SyncSets {
-		log.Printf("\n\n%v/%v: Beginning sync set: %s\n", i+1, len(appConfig.SyncSets), syncSet.Name)
+		log.Printf("%v/%v: Beginning sync set: %s\n", i+1, len(appConfig.SyncSets), syncSet.Name)
 
 		// Apply SyncSet configs (excluding source/destination as appropriate)
 		err = source.ForSet(syncSet.Source)
@@ -83,9 +92,9 @@ func main() {
 			for _, msg := range changeResults.Errors {
 				log.Printf("  %s\n", msg)
 			}
-			os.Exit(1)
+			return err
 		}
 	}
 
-	os.Exit(0)
+	return nil
 }

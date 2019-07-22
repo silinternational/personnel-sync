@@ -1,106 +1,10 @@
 package personnel_sync
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 )
-
-func TestGetPersonsFromSource(t *testing.T) {
-	expectedResultsJson := `{
-  "Report_Entry": [
-    {
-      "Employee_Number": "10013",
-      "First_Name": "Mickey",
-      "Last_Name": "Mouse",
-      "Display_Name": "Mickey Mouse",
-      "Username": "MICKEY_MOUSE",
-      "Email": "mickey_mouse@acme.com",
-      "Personal_Email": "mickey_mouse@mousemail.com",
-      "Account_Locked__Disabled_or_Expired": "0",
-      "requireMfa": "0",
-      "Company": "Disney"
-    },
-	{
-      "Employee_Number": "10011",
-      "First_Name": "Donald",
-      "Last_Name": "Duck",
-      "Display_Name": "Donald Duck",
-      "Username": "DONALD_DUCK",
-      "Email": "donald_duck@acme.com",
-      "Personal_Email": "donald_duck@duckmail.com",
-      "Account_Locked__Disabled_or_Expired": "0",
-      "requireMfa": "0",
-      "Company": "Disney"
-    },
-	{
-      "First_Name": "Missing",
-      "Last_Name": "Email Field",
-      "Username": "MISSING_EMAIL_FIELD"
-    }
-  ]
-}`
-
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-
-	mux.HandleFunc("/people", func(w http.ResponseWriter, req *http.Request) {
-		w.WriteHeader(200)
-		w.Header().Set("content-type", "application/json")
-		_, _ = fmt.Fprintf(w, expectedResultsJson)
-	})
-
-	sourceConfig := SourceConfig{
-		URL:                  server.URL + "/people",
-		Username:             "test",
-		Password:             "test",
-		Method:               "GET",
-		ResultsJSONContainer: "Report_Entry",
-		IDAttribute:          "Email",
-	}
-
-	appConfig := AppConfig{
-		Runtime: RuntimeConfig{
-			FailIfSinglePersonMissingRequiredAttribute: false,
-		},
-		Source:      sourceConfig,
-		Destination: DestinationConfig{},
-		DestinationAttributeMap: []DestinationAttributeMap{
-			{
-				SourceName:      "First_Name",
-				DestinationName: "givenName",
-				Required:        true,
-			},
-			{
-				SourceName:      "Last_Name",
-				DestinationName: "sn",
-				Required:        true,
-			},
-			{
-				SourceName:      "Email",
-				DestinationName: "mail",
-				Required:        true,
-			},
-		},
-	}
-
-	people, err := GetPersonsFromSource(appConfig)
-	if err != nil {
-		t.Errorf("Unable to get people from source, error: %s", err.Error())
-	}
-
-	validPeopleInTestData := 2
-	if len(people) != validPeopleInTestData {
-		t.Errorf("Did not get expected number of results. Expected %v, got %v. Results: %v", validPeopleInTestData, len(people), people)
-	}
-
-	jsonResults, _ := json.Marshal(people)
-
-	fmt.Println(string(jsonResults))
-}
 
 func TestGenerateChangeSet(t *testing.T) {
 	type args struct {
@@ -113,50 +17,208 @@ func TestGenerateChangeSet(t *testing.T) {
 		want ChangeSet
 	}{
 		{
-			name: "creates two, deletes one",
+			name: "creates two, deletes one, updates one",
 			want: ChangeSet{
 				Create: []Person{
 					{
-						ID: "1",
+						CompareValue: "1",
 					},
 					{
-						ID: "2",
+						CompareValue: "2",
 					},
 				},
 				Delete: []Person{
 					{
-						ID: "3",
+						CompareValue: "3",
+					},
+				},
+				Update: []Person{
+					{
+						CompareValue: "5",
+						Attributes: map[string]string{
+							"name": "case sensitive",
+						},
 					},
 				},
 			},
 			args: args{
 				sourcePeople: []Person{
 					{
-						ID: "1",
+						CompareValue: "1",
 					},
 					{
-						ID: "2",
+						CompareValue: "2",
 					},
 					{
-						ID: "4",
+						CompareValue: "4",
+						Attributes: map[string]string{
+							"school": "harvard",
+						},
+					},
+					{
+						CompareValue: "5",
+						Attributes: map[string]string{
+							"name": "case sensitive",
+						},
+					},
+					{
+						CompareValue:   "6",
+						DisableChanges: true,
 					},
 				},
 				destinationPeople: []Person{
 					{
-						ID: "3",
+						CompareValue: "3",
 					},
 					{
-						ID: "4",
+						CompareValue: "4",
+						Attributes: map[string]string{
+							"school": "HARVARD",
+						},
+					},
+					{
+						CompareValue: "5",
+						Attributes: map[string]string{
+							"name": "CASE SENSITIVE",
+						},
 					},
 				},
 			},
 		},
 	}
+
+	attrMaps := []AttributeMap{
+		{
+			Source:        "name",
+			Destination:   "name",
+			CaseSensitive: true,
+		},
+		{
+			Source:        "school",
+			Destination:   "school",
+			CaseSensitive: false,
+		},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople); !reflect.DeepEqual(got, tt.want) {
+			if got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople, attrMaps, ""); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GenerateChangeSet() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func DoNothing() {}
+
+func TestBatchTimer(t *testing.T) {
+
+	type testData struct {
+		batchSize              int
+		secondsPerBatch        int
+		numberOfCalls          int
+		expectedDelayInSeconds int
+	}
+
+	testRuns := []testData{
+		{
+			batchSize:              1,
+			secondsPerBatch:        1,
+			numberOfCalls:          2,
+			expectedDelayInSeconds: 1,
+		},
+		{
+			batchSize:              5,
+			secondsPerBatch:        1,
+			numberOfCalls:          5,
+			expectedDelayInSeconds: 0,
+		},
+	}
+
+	for _, testRun := range testRuns {
+		bTimer := NewBatchTimer(testRun.batchSize, testRun.secondsPerBatch)
+		startTime := time.Now()
+
+		for i := 0; i < testRun.numberOfCalls; i++ {
+			DoNothing()
+			bTimer.WaitOnBatch()
+		}
+
+		elapsedTime := time.Since(startTime)
+
+		results := int(elapsedTime.Seconds())
+		expected := testRun.expectedDelayInSeconds
+
+		if results != expected {
+			t.Errorf("BatchTimer should have taken %v second(s) to complete. Instead, it took %v seconds", expected, results)
+		}
+	}
+}
+
+func TestIDSetForUpdate(t *testing.T) {
+	sourcePeople := []Person{
+		{
+			CompareValue: "user1@domain.com",
+			Attributes: map[string]string{
+				"email": "user1@domain.com",
+				"name":  "before",
+			},
+		},
+		{
+			CompareValue: "user2@domain.com",
+			Attributes: map[string]string{
+				"email": "user2@domain.com",
+				"name":  "before",
+			},
+		},
+		{
+			CompareValue: "user3@domain.com",
+			Attributes: map[string]string{
+				"email": "user3@domain.com",
+			},
+		},
+	}
+
+	destinationPeople := []Person{
+		{
+			CompareValue: "user1@domain.com",
+			Attributes: map[string]string{
+				"id":    "1",
+				"email": "user1@domain.com",
+				"name":  "after",
+			},
+		},
+		{
+			CompareValue: "user2@domain.com",
+			Attributes: map[string]string{
+				"id":    "2",
+				"email": "user2@domain.com",
+				"name":  "after",
+			},
+		},
+	}
+
+	attributeMap := []AttributeMap{
+		{
+			Source:        "email",
+			Destination:   "email",
+			Required:      true,
+			CaseSensitive: false,
+		},
+	}
+
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap, "id")
+	if len(changeSet.Create) != 1 {
+		t.Error("Change set should include one person to be created.")
+	}
+	if changeSet.Create[0].ID != "" {
+		t.Error("The user to be created has an ID but shouldn't")
+	}
+	if len(changeSet.Update) != 2 {
+		t.Error("Change set should include two people to be updated")
+	}
+	for _, person := range changeSet.Update {
+		if person.ID == "" {
+			t.Errorf("Users to be updated should have an ID set, got: %v", person)
+		}
 	}
 }

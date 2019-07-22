@@ -10,8 +10,6 @@
       "Method": "GET",
       "Username": "testuser",
       "Password": "testpass",
-      "ClientID": "UsedForSalesforceOauth",
-      "ClientSecret": "UsedForSalesforceOauth",
       "ResultsJSONContainer": "ReportEntry",
       "IDAttribute": "Email"
     }
@@ -37,18 +35,18 @@
   },
   "AttributeMap": [
     {
-      "Source": "First_Name",
-      "Destination": "givenName",
+      "SourceName": "First_Name",
+      "DestinationName": "givenName",
       "required": true
     },
     {
-      "Source": "Last_Name",
-      "Destination": "sn",
+      "SourceName": "Last_Name",
+      "DestinationName": "sn",
       "required": true
     },
     {
-      "Source": "Email",
-      "Destination": "mail",
+      "SourceName": "Email",
+      "DestinationName": "mail",
       "required": true
     }
   ],
@@ -60,20 +58,11 @@
       },
       "Destination": {
         "GroupEmail": "group1@groups.domain.com",
-        "Owners": [
-          "person_a@domain.com",
-          "person_b@domain.com"
-        ],
-        "ExtraOwners": [
-          "google-admin@domain.com"
-        ],
-        "Managers": [
-          "another_person@domain.com",
-          "yet-another-person@domain.com"
-        ],
-        "ExtraManagers": [
-          "new-manager@domain.com"
-        ]
+        "Owners": ["person_a@domain.com","person_b@domain.com"],
+        "ExtraOwners": ["google-admin@domain.com"],
+        "Managers": ["another_person@domain.com", "yet-another-person@domain.com"],
+        "ExtraManagers": ["new_manager@domain.com"]
+
       }
     }
   ]

@@ -3,47 +3,45 @@ package personnel_sync
 import "encoding/json"
 
 type Person struct {
-	ID         string
-	Attributes []PersonAttribute
+	CompareValue   string
+	ID             string
+	Attributes     map[string]string
+	DisableChanges bool
 }
 
-type PersonAttribute struct {
-	Name  string
-	Value string
-}
-
-type DestinationAttributeMap struct {
-	SourceName      string
-	DestinationName string
-	Required        bool
+type AttributeMap struct {
+	Source        string
+	Destination   string
+	Required      bool
+	CaseSensitive bool
 }
 
 type SourceConfig struct {
-	URL                  string
-	Method               string
-	Username             string
-	Password             string
-	ResultsJSONContainer string
-	IDAttribute          string
+	Type      string
+	ExtraJSON json.RawMessage
 }
 
 type DestinationConfig struct {
 	Type      string
-	URL       string
-	Username  string
-	Password  string
 	ExtraJSON json.RawMessage
 }
 
 type RuntimeConfig struct {
-	FailIfSinglePersonMissingRequiredAttribute bool
+	DryRunMode bool
 }
 
 type AppConfig struct {
-	Runtime                 RuntimeConfig
-	Source                  SourceConfig
-	Destination             DestinationConfig
-	DestinationAttributeMap []DestinationAttributeMap
+	Runtime      RuntimeConfig
+	Source       SourceConfig
+	Destination  DestinationConfig
+	AttributeMap []AttributeMap
+	SyncSets     []SyncSet
+}
+
+type SyncSet struct {
+	Name        string
+	Source      json.RawMessage
+	Destination json.RawMessage
 }
 
 type ChangeSet struct {
@@ -60,6 +58,13 @@ type ChangeResults struct {
 }
 
 type Destination interface {
+	GetIDField() string
+	ForSet(syncSetJson json.RawMessage) error
 	ListUsers() ([]Person, error)
-	ApplyChangeSet(changes ChangeSet) ChangeResults
+	ApplyChangeSet(changes ChangeSet, activityLog chan<- EventLogItem) ChangeResults
+}
+
+type Source interface {
+	ForSet(syncSetJson json.RawMessage) error
+	ListUsers(desiredAttrs []string) ([]Person, error)
 }

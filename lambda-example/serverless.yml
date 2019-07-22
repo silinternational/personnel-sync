@@ -1,0 +1,37 @@
+# For full config options, check the docs:
+#    docs.serverless.com
+
+service: personnel-sync
+
+provider:
+  name: aws
+  runtime: go1.x
+  timeout: 240
+  versionFunctions: false
+  memorySize: 128
+
+  # you can overwrite defaults here
+  #  stage: dev
+  region: us-east-1
+
+  # you can define service wide environment variables here
+  environment:
+    stage: ${self:custom.stage}
+    region: ${self:custom.region}
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  region: ${opt:region, self:provider.region}
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+    - ./config.json
+
+functions:
+  cron:
+    handler: bin/personnelsync
+    events:
+      - schedule: cron(10 * * * ? *) # every hour at 10 minutes after the hour

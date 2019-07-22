@@ -9,7 +9,10 @@ import (
 )
 
 func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
-	testConfig, err := personnel_sync.LoadConfig("")
+	t.Skip("Skipping test because it requires integration with Google")
+	t.SkipNow()
+
+	testConfig, err := personnel_sync.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
@@ -46,20 +49,25 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, err := NewGoogleGroupsDesination(tt.fields.DestinationConfig)
+			g, err := NewGoogleGroupsDestination(tt.fields.DestinationConfig)
 			if err != nil {
 				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			if got := g.ApplyChangeSet(tt.args.changes); !reflect.DeepEqual(got, tt.want) {
+			eventLog := make(chan personnel_sync.EventLogItem, 50)
+			if got := g.ApplyChangeSet(tt.args.changes, eventLog); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GoogleGroups.ApplyChangeSet() = %v, want %v", got, tt.want)
 			}
+			close(eventLog)
 		})
 	}
 }
 
 func TestGoogleGroups_ListUsers(t *testing.T) {
-	testConfig, err := personnel_sync.LoadConfig("")
+	t.Skip("Skipping test because it requires integration with Google")
+	t.SkipNow()
+
+	testConfig, err := personnel_sync.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
@@ -87,7 +95,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, err := NewGoogleGroupsDesination(tt.fields.DestinationConfig)
+			g, err := NewGoogleGroupsDestination(tt.fields.DestinationConfig)
 			if err != nil {
 				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
 				t.FailNow()

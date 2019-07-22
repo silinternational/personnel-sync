@@ -1,0 +1,4 @@
+- name: deploy_prod
+  service: app
+  tag: master
+  command: bash -c "./build.sh && serverless deploy -v --stage prod"
