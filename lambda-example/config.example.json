@@ -54,7 +54,7 @@
     {
       "Name": "Sync from personnel to Google Groups",
       "Source": {
-        "Path": "/user-report"
+        "Paths": ["/user-report"]
       },
       "Destination": {
         "GroupEmail": "group1@groups.domain.com",
