@@ -140,8 +140,7 @@ func (r *RestAPI) listUsersForPath(
 	switch r.AuthType {
 	case AuthTypeBasic:
 		req.SetBasicAuth(r.Username, r.Password)
-	case AuthTypeBearer:
-	case AuthTypeSalesforceOauth:
+	case AuthTypeBearer, AuthTypeSalesforceOauth:
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
 	}
 
