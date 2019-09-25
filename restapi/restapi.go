@@ -46,6 +46,16 @@ func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.
 		return &RestAPI{}, err
 	}
 
+	if restAPI.AuthType == AuthTypeSalesforceOauth {
+		token, err := restAPI.getSalesforceOauthToken()
+		if err != nil {
+			log.Println(err)
+			return &RestAPI{}, err
+		}
+
+		restAPI.Password = token
+	}
+
 	return &restAPI, nil
 }
 
@@ -131,20 +141,8 @@ func (r *RestAPI) listUsersForPath(
 	case AuthTypeBasic:
 		req.SetBasicAuth(r.Username, r.Password)
 	case AuthTypeBearer:
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
 	case AuthTypeSalesforceOauth:
-		token, err := r.getSalesforceOauthToken()
-		if err != nil {
-			log.Println(err)
-			errLog <- err.Error()
-		}
-		newApiUrl := fmt.Sprintf("%s%s", r.BaseURL, path)
-		req.URL, err = url.Parse(newApiUrl)
-		if err != nil {
-			log.Println(err)
-			errLog <- err.Error()
-		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
 	}
 
 	resp, err := client.Do(req)
