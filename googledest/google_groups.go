@@ -37,6 +37,7 @@ type GroupSyncSet struct {
 	ExtraOwners   []string
 	Managers      []string
 	ExtraManagers []string
+	ExtraMembers  []string
 }
 
 func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -107,6 +108,9 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 		if isExtraOwner, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraOwners); isExtraOwner {
 			continue
 		}
+		if isExtraMember, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraMembers); isExtraMember {
+			continue
+		}
 
 		members = append(members, personnel_sync.Person{
 			CompareValue: nextMember.Email,
@@ -144,12 +148,15 @@ func (g *GoogleGroups) ApplyChangeSet(
 		}
 	}
 
-	// Add any ExtraManagers and ExtraOwners to Create list since they are not in the source people
+	// Add any ExtraManagers, ExtraOwners, and ExtraMembers to Create list since they are not in the source people
 	for _, manager := range g.GroupSyncSet.ExtraManagers {
 		toBeCreated[manager] = RoleManager
 	}
 	for _, owner := range g.GroupSyncSet.ExtraOwners {
 		toBeCreated[owner] = RoleOwner
+	}
+	for _, member := range g.GroupSyncSet.ExtraMembers {
+		toBeCreated[member] = RoleMember
 	}
 
 	// One minute per batch
@@ -162,11 +169,14 @@ func (g *GoogleGroups) ApplyChangeSet(
 	}
 
 	for _, dp := range changes.Delete {
-		// Do not delete ExtraManagers or ExtraOwners
+		// Do not delete ExtraManagers, ExtraOwners, or ExtraMembers
 		if isExtraManager, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraManagers); isExtraManager {
 			continue
 		}
 		if isExtraOwner, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
+			continue
+		}
+		if isExtraMember, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraMembers); isExtraMember {
 			continue
 		}
 

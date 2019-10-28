@@ -60,9 +60,9 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
       "ResultsJSONContainer": "records",
       "AuthType": "SalesforceOauth",
       "Username": "admin@example.com",
-      "Password": "LqznAW6N8.EenJVT",
-      "ClientID": "VczVNcM8xaDRB8bi_fLyn2BJzpG6bihUxNQGeV2BePM4FBT2VMeJfGnC38K46aqBRLTCJy.GJK2RmPUCVrm39",
-      "ClientSecret": "2CD6093EFA0DABCFABE3B7B78F951EFD1B59283E23D357EB458AE6852838C26C",
+      "Password": "abc123def.ghiJKL",
+      "ClientID": "ABCD1234abcd56789_ABCD1234abcd5678ABCD1234abcd5678ABCD1234abcd5678ABCD1.234abcd5678ABC",
+      "ClientSecret": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
       "CompareAttribute": "email"
     }
   }

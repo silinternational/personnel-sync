@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"google.golang.org/api/option"
+
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
@@ -35,10 +37,11 @@ func initGoogleAdminService(auth GoogleAuth, adminEmail string, scopes ...string
 		return admin.Service{}, fmt.Errorf("unable to parse client secret file to config: %s", err)
 	}
 
+	ctx := context.TODO()
 	config.Subject = adminEmail
-	client := config.Client(context.Background())
+	client := config.Client(ctx)
 
-	adminService, err := admin.New(client)
+	adminService, err := admin.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return admin.Service{}, fmt.Errorf("unable to retrieve directory Service: %s", err)
 	}
