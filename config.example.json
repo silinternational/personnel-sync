@@ -73,6 +73,9 @@
         ],
         "ExtraManagers": [
           "new-manager@domain.com"
+        ],
+        "ExtraMembers":  [
+          "not-in-report@domain.com"
         ]
       }
     }
