@@ -191,8 +191,40 @@ func (g *GoogleUsers) updateUser(
 		FamilyName: person.Attributes["familyName"],
 	}
 
+	id := admin.UserExternalId{
+		Type:  "organization",
+		Value: person.Attributes["id"],
+	}
+
+	location := admin.UserLocation{
+		Type:       "desk",
+		Area:       person.Attributes["area"],
+		BuildingId: person.Attributes["building"],
+	}
+
+	organization := admin.UserOrganization{
+		CostCenter: person.Attributes["costCenter"],
+		Department: person.Attributes["department"],
+		Title:      person.Attributes["title"],
+	}
+
+	phone := admin.UserPhone{
+		Type:  "work",
+		Value: person.Attributes["phone"],
+	}
+
+	relation := admin.UserRelation{
+		Type:  "manager",
+		Value: person.Attributes["manager"],
+	}
+
 	newUser := admin.User{
-		Name: &newName,
+		Name:          &newName,
+		ExternalIds:   []admin.UserExternalId{id},
+		Locations:     []admin.UserLocation{location},
+		Organizations: []admin.UserOrganization{organization},
+		Phones:        []admin.UserPhone{phone},
+		Relations:     []admin.UserRelation{relation},
 	}
 
 	email := person.Attributes["email"]
