@@ -59,6 +59,88 @@ func (g *GoogleUsers) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
+func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
+	var id string
+	if externalIDs, ok := user.ExternalIds.([]interface{}); ok && len(externalIDs) > 0 {
+		if id0, ok := externalIDs[0].(map[string]interface{}); ok {
+			if value, ok := id0["value"].(string); ok {
+				id = value
+			}
+		}
+	}
+
+	var area, building string
+	if locations, ok := user.Locations.([]interface{}); ok && len(locations) > 0 {
+		if loc0, ok := locations[0].(map[string]interface{}); ok {
+			if a, ok := loc0["area"].(string); ok {
+				area = a
+			}
+			if b, ok := loc0["buildingId"].(string); ok {
+				building = b
+			}
+		}
+	}
+
+	var costCenter, department, title string
+	if organizations, ok := user.Organizations.([]interface{}); ok && len(organizations) > 0 {
+		if org0, ok := organizations[0].(map[string]interface{}); ok {
+			if c, ok := org0["costCenter"].(string); ok {
+				costCenter = c
+			}
+			if d, ok := org0["department"].(string); ok {
+				department = d
+			}
+			if t, ok := org0["title"].(string); ok {
+				title = t
+			}
+		}
+	}
+
+	var phone string
+	if phones, ok := user.Phones.([]interface{}); ok && len(phones) > 0 {
+		// should we take only a certain type of phone? (home, work?)
+		if phone0, ok := phones[0].(map[string]interface{}); ok {
+			if value, ok := phone0["value"].(string); ok {
+				phone = value
+			}
+		}
+	}
+
+	var manager string
+	if relations, ok := user.Relations.([]interface{}); ok && len(relations) > 0 {
+		for i := range relations {
+			if mgr, ok := relations[i].(map[string]interface{}); ok {
+				if t, ok := mgr["type"].(string); ok && t == "manager" {
+					if value, ok := mgr["value"].(string); ok {
+						manager = value
+						break
+					}
+				}
+			}
+		}
+	}
+
+	newPerson := personnel_sync.Person{
+		CompareValue: user.PrimaryEmail,
+		Attributes: map[string]string{
+			"email":      strings.ToLower(user.PrimaryEmail),
+			"familyName": user.Name.FamilyName,
+			"givenName":  user.Name.GivenName,
+			"fullName":   user.Name.FullName,
+			"id":         id,
+			"area":       area,
+			"building":   building,
+			"costCenter": costCenter,
+			"department": department,
+			"title":      title,
+			"phone":      phone,
+			"manager":    manager,
+		},
+	}
+
+	return newPerson
+}
+
 func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 	var usersList []*admin.User
 	usersListCall := g.AdminService.Users.List()
@@ -68,93 +150,16 @@ func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 		return nil
 	})
 	if err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("unable to get users: %s", err)
+		return nil, fmt.Errorf("unable to get users: %s", err)
 	}
 
-	var users []personnel_sync.Person
-
+	var people []personnel_sync.Person
 	for _, nextUser := range usersList {
-		var id string
-		if externalIDs, ok := nextUser.ExternalIds.([]interface{}); ok && len(externalIDs) > 0 {
-			if id0, ok := externalIDs[0].(map[string]interface{}); ok {
-				if value, ok := id0["value"].(string); ok {
-					id = value
-				}
-			}
+		if nextUser != nil {
+			people = append(people, g.extractData(*nextUser))
 		}
-
-		var area, building string
-		if locations, ok := nextUser.Locations.([]interface{}); ok && len(locations) > 0 {
-			if loc0, ok := locations[0].(map[string]interface{}); ok {
-				if a, ok := loc0["area"].(string); ok {
-					area = a
-				}
-				if b, ok := loc0["buildingId"].(string); ok {
-					building = b
-				}
-			}
-		}
-
-		var costCenter, department, title string
-		if organizations, ok := nextUser.Organizations.([]interface{}); ok && len(organizations) > 0 {
-			if org0, ok := organizations[0].(map[string]interface{}); ok {
-				if c, ok := org0["costCenter"].(string); ok {
-					costCenter = c
-				}
-				if d, ok := org0["department"].(string); ok {
-					department = d
-				}
-				if t, ok := org0["title"].(string); ok {
-					title = t
-				}
-			}
-		}
-
-		var phone string
-		if phones, ok := nextUser.Phones.([]interface{}); ok && len(phones) > 0 {
-			// should we take only a certain type of phone? (home, work?)
-			if phone0, ok := phones[0].(map[string]interface{}); ok {
-				if value, ok := phone0["value"].(string); ok {
-					phone = value
-				}
-			}
-		}
-
-		var manager string
-		if relations, ok := nextUser.Relations.([]interface{}); ok && len(relations) > 0 {
-			for i := range relations {
-				if mgr, ok := relations[i].(map[string]interface{}); ok {
-					if t, ok := mgr["type"].(string); ok && t == "manager" {
-						if value, ok := mgr["value"].(string); ok {
-							manager = value
-						}
-					}
-				}
-			}
-		}
-
-		newPerson := personnel_sync.Person{
-			CompareValue: nextUser.PrimaryEmail,
-			Attributes: map[string]string{
-				"email":      strings.ToLower(nextUser.PrimaryEmail),
-				"familyName": nextUser.Name.FamilyName,
-				"givenName":  nextUser.Name.GivenName,
-				"fullName":   nextUser.Name.FullName,
-				"id":         id,
-				"area":       area,
-				"building":   building,
-				"costCenter": costCenter,
-				"department": department,
-				"title":      title,
-				"phone":      phone,
-				"manager":    manager,
-			},
-		}
-
-		users = append(users, newPerson)
 	}
-
-	return users, nil
+	return people, nil
 }
 
 func (g *GoogleUsers) ApplyChangeSet(
