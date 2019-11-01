@@ -163,14 +163,7 @@ func (g *GoogleUsers) ApplyChangeSet(
 	return results
 }
 
-func (g *GoogleUsers) updateUser(
-	person personnel_sync.Person,
-	counter *uint64,
-	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
-
-	defer wg.Done()
-
+func newUserForUpdate(person personnel_sync.Person) admin.User {
 	newName := admin.UserName{
 		GivenName:  person.Attributes["givenName"],
 		FamilyName: person.Attributes["familyName"],
@@ -203,7 +196,7 @@ func (g *GoogleUsers) updateUser(
 		Value: person.Attributes["manager"],
 	}
 
-	newUser := admin.User{
+	return admin.User{
 		Name:          &newName,
 		ExternalIds:   []admin.UserExternalId{id},
 		Locations:     []admin.UserLocation{location},
@@ -211,6 +204,17 @@ func (g *GoogleUsers) updateUser(
 		Phones:        []admin.UserPhone{phone},
 		Relations:     []admin.UserRelation{relation},
 	}
+}
+
+func (g *GoogleUsers) updateUser(
+	person personnel_sync.Person,
+	counter *uint64,
+	wg *sync.WaitGroup,
+	eventLog chan<- personnel_sync.EventLogItem) {
+
+	defer wg.Done()
+
+	newUser := newUserForUpdate(person)
 
 	email := person.Attributes["email"]
 
