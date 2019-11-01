@@ -118,8 +118,6 @@ func extractData(user admin.User) personnel_sync.Person {
 		newPerson.Attributes["givenName"] = user.Name.GivenName
 	}
 
-	log.Printf("\n'Google user'=%#v\n", user)
-	log.Printf("\n'newPerson'=%#v\n", newPerson)
 	return newPerson
 }
 
