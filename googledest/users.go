@@ -60,59 +60,72 @@ func (g *GoogleUsers) ForSet(syncSetJson json.RawMessage) error {
 }
 
 func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
-	var id string
+	newPerson := personnel_sync.Person{
+		CompareValue: user.PrimaryEmail,
+		Attributes: map[string]string{
+			"email": strings.ToLower(user.PrimaryEmail),
+		},
+	}
+
 	if externalIDs, ok := user.ExternalIds.([]interface{}); ok && len(externalIDs) > 0 {
-		if id0, ok := externalIDs[0].(map[string]interface{}); ok {
-			if value, ok := id0["value"].(string); ok {
-				id = value
+		for i := range externalIDs {
+			if id, ok := externalIDs[i].(map[string]interface{}); ok {
+				if t, ok := id["type"].(string); ok && t == "organization" {
+					if value, ok := id["value"].(string); ok {
+						newPerson.Attributes["id"] = value
+					}
+				}
 			}
 		}
 	}
 
-	var area, building string
 	if locations, ok := user.Locations.([]interface{}); ok && len(locations) > 0 {
-		if loc0, ok := locations[0].(map[string]interface{}); ok {
-			if a, ok := loc0["area"].(string); ok {
-				area = a
-			}
-			if b, ok := loc0["buildingId"].(string); ok {
-				building = b
+		for i := range locations {
+			if loc, ok := locations[i].(map[string]interface{}); ok {
+				if t, ok := loc["type"].(string); ok && t == "desk" {
+					if a, ok := loc["area"].(string); ok {
+						newPerson.Attributes["area"] = a
+					}
+					if b, ok := loc["buildingId"].(string); ok {
+						newPerson.Attributes["building"] = b
+					}
+				}
 			}
 		}
 	}
 
-	var costCenter, department, title string
 	if organizations, ok := user.Organizations.([]interface{}); ok && len(organizations) > 0 {
 		if org0, ok := organizations[0].(map[string]interface{}); ok {
 			if c, ok := org0["costCenter"].(string); ok {
-				costCenter = c
+				newPerson.Attributes["costCenter"] = c
 			}
 			if d, ok := org0["department"].(string); ok {
-				department = d
+				newPerson.Attributes["department"] = d
 			}
 			if t, ok := org0["title"].(string); ok {
-				title = t
+				newPerson.Attributes["title"] = t
 			}
 		}
 	}
 
-	var phone string
 	if phones, ok := user.Phones.([]interface{}); ok && len(phones) > 0 {
-		// should we take only a certain type of phone? (home, work?)
-		if phone0, ok := phones[0].(map[string]interface{}); ok {
-			if value, ok := phone0["value"].(string); ok {
-				phone = value
+		for i := range phones {
+			if phone, ok := phones[i].(map[string]interface{}); ok {
+				if t, ok := phone["type"].(string); ok && t == "work" {
+					if value, ok := phone["value"].(string); ok {
+						newPerson.Attributes["phone"] = value
+					}
+				}
 			}
 		}
 	}
 
-	var manager string
 	if relations, ok := user.Relations.([]interface{}); ok && len(relations) > 0 {
 		for i := range relations {
 			if mgr, ok := relations[i].(map[string]interface{}); ok {
 				if t, ok := mgr["type"].(string); ok && t == "manager" {
 					if value, ok := mgr["value"].(string); ok {
-						manager = value
+						newPerson.Attributes["manager"] = value
 						break
 					}
 				}
@@ -120,27 +133,9 @@ func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
 		}
 	}
 
-	var familyName, givenName string
 	if user.Name != nil {
-		familyName = user.Name.FamilyName
-		givenName = user.Name.GivenName
-	}
-
-	newPerson := personnel_sync.Person{
-		CompareValue: user.PrimaryEmail,
-		Attributes: map[string]string{
-			"email":      strings.ToLower(user.PrimaryEmail),
-			"familyName": familyName,
-			"givenName":  givenName,
-			"id":         id,
-			"area":       area,
-			"building":   building,
-			"costCenter": costCenter,
-			"department": department,
-			"title":      title,
-			"phone":      phone,
-			"manager":    manager,
-		},
+		newPerson.Attributes["familyName"] = user.Name.FamilyName
+		newPerson.Attributes["givenName"] = user.Name.GivenName
 	}
 
 	return newPerson
