@@ -59,6 +59,26 @@ func (g *GoogleUsers) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
+// getStringFromInterface gets a string from an interface{}, and assigns it to a map
+func getStringFromInterface(i interface{}, m map[string]string, key string) {
+	if value, ok := i.(string); ok {
+		m[key] = value
+	}
+}
+
+// findFirstMatchingType iterates through a slice of interfaces until it finds a matching key. The underlying type
+// of the given slice must be `[]map[string]interface{}`
+func findFirstMatchingType(in []interface{}, findType string) map[string]interface{} {
+	for _, i := range in {
+		if m, ok := i.(map[string]interface{}); ok {
+			if dataType, ok := m["type"].(string); ok && dataType == findType {
+				return m
+			}
+		}
+	}
+	return nil
+}
+
 func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
 	newPerson := personnel_sync.Person{
 		CompareValue: user.PrimaryEmail,
@@ -67,69 +87,36 @@ func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
 		},
 	}
 
-	if externalIDs, ok := user.ExternalIds.([]interface{}); ok && len(externalIDs) > 0 {
-		for i := range externalIDs {
-			if id, ok := externalIDs[i].(map[string]interface{}); ok {
-				if t, ok := id["type"].(string); ok && t == "organization" {
-					if value, ok := id["value"].(string); ok {
-						newPerson.Attributes["id"] = value
-					}
-				}
-			}
+	if externalIDs, ok := user.ExternalIds.([]interface{}); ok {
+		if found := findFirstMatchingType(externalIDs, "organization"); found != nil {
+			getStringFromInterface(found["value"], newPerson.Attributes, "id")
 		}
 	}
 
-	if locations, ok := user.Locations.([]interface{}); ok && len(locations) > 0 {
-		for i := range locations {
-			if loc, ok := locations[i].(map[string]interface{}); ok {
-				if t, ok := loc["type"].(string); ok && t == "desk" {
-					if a, ok := loc["area"].(string); ok {
-						newPerson.Attributes["area"] = a
-					}
-					if b, ok := loc["buildingId"].(string); ok {
-						newPerson.Attributes["building"] = b
-					}
-				}
-			}
+	if locations, ok := user.Locations.([]interface{}); ok {
+		if found := findFirstMatchingType(locations, "desk"); found != nil {
+			getStringFromInterface(found["area"], newPerson.Attributes, "area")
+			getStringFromInterface(found["buildingId"], newPerson.Attributes, "building")
 		}
 	}
 
 	if organizations, ok := user.Organizations.([]interface{}); ok && len(organizations) > 0 {
 		if org0, ok := organizations[0].(map[string]interface{}); ok {
-			if c, ok := org0["costCenter"].(string); ok {
-				newPerson.Attributes["costCenter"] = c
-			}
-			if d, ok := org0["department"].(string); ok {
-				newPerson.Attributes["department"] = d
-			}
-			if t, ok := org0["title"].(string); ok {
-				newPerson.Attributes["title"] = t
-			}
+			getStringFromInterface(org0["costCenter"], newPerson.Attributes, "costCenter")
+			getStringFromInterface(org0["department"], newPerson.Attributes, "department")
+			getStringFromInterface(org0["title"], newPerson.Attributes, "title")
 		}
 	}
 
-	if phones, ok := user.Phones.([]interface{}); ok && len(phones) > 0 {
-		for i := range phones {
-			if phone, ok := phones[i].(map[string]interface{}); ok {
-				if t, ok := phone["type"].(string); ok && t == "work" {
-					if value, ok := phone["value"].(string); ok {
-						newPerson.Attributes["phone"] = value
-					}
-				}
-			}
+	if phones, ok := user.Phones.([]interface{}); ok {
+		if found := findFirstMatchingType(phones, "work"); found != nil {
+			getStringFromInterface(found["value"], newPerson.Attributes, "phone")
 		}
 	}
 
-	if relations, ok := user.Relations.([]interface{}); ok && len(relations) > 0 {
-		for i := range relations {
-			if mgr, ok := relations[i].(map[string]interface{}); ok {
-				if t, ok := mgr["type"].(string); ok && t == "manager" {
-					if value, ok := mgr["value"].(string); ok {
-						newPerson.Attributes["manager"] = value
-						break
-					}
-				}
-			}
+	if relations, ok := user.Relations.([]interface{}); ok {
+		if found := findFirstMatchingType(relations, "manager"); found != nil {
+			getStringFromInterface(found["value"], newPerson.Attributes, "manager")
 		}
 	}
 
