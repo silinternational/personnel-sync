@@ -149,3 +149,157 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 		})
 	}
 }
+
+func TestGoogleUsers_extractData(t *testing.T) {
+	tests := []struct {
+		name string
+		user admin.User
+		want personnel_sync.Person
+	}{
+		{
+			name: "minimum",
+			user: admin.User{
+				ExternalIds:   nil,
+				Locations:     nil,
+				Name:          nil,
+				Organizations: nil,
+				Phones:        nil,
+				PrimaryEmail:  "email@example.com",
+				Relations:     nil,
+			},
+			want: personnel_sync.Person{
+				CompareValue: "email@example.com",
+				Attributes:   map[string]string{"email": "email@example.com"},
+			},
+		},
+		{
+			name: "all supported fields",
+			user: admin.User{
+				ExternalIds: []interface{}{map[string]interface{}{
+					"type":  "organization",
+					"value": "12345",
+				}},
+				Locations: []interface{}{map[string]interface{}{
+					"area":       "An area",
+					"buildingId": "A building",
+					"type":       "desk",
+				}},
+				Name: &admin.UserName{
+					FamilyName: "Jones",
+					FullName:   "John Jones",
+					GivenName:  "John",
+				},
+				Organizations: []interface{}{map[string]interface{}{
+					"costCenter": "A cost center",
+					"department": "A department",
+					"title":      "A title",
+				}},
+				Phones: []interface{}{map[string]interface{}{
+					"type":  "work",
+					"value": "555-1212",
+				}},
+				PrimaryEmail: "email@example.com",
+				Relations: []interface{}{map[string]interface{}{
+					"type":  "manager",
+					"value": "manager@example.com",
+				}},
+			},
+			want: personnel_sync.Person{
+				CompareValue: "email@example.com",
+				Attributes: map[string]string{
+					"email":      "email@example.com",
+					"familyName": "Jones",
+					"givenName":  "John",
+					"id":         "12345",
+					"area":       "An area",
+					"building":   "A building",
+					"costCenter": "A cost center",
+					"department": "A department",
+					"title":      "A title",
+					"phone":      "555-1212",
+					"manager":    "manager@example.com",
+				},
+			},
+		},
+		{
+			name: `only "organization" externalIDs`,
+			user: admin.User{
+				ExternalIds: []interface{}{
+					map[string]interface{}{
+						"type":  "custom",
+						"value": "abc123",
+					},
+					map[string]interface{}{
+						"type":  "organization",
+						"value": "12345",
+					},
+				},
+				PrimaryEmail: "email@example.com",
+			},
+			want: personnel_sync.Person{
+				CompareValue: "email@example.com",
+				Attributes: map[string]string{
+					"email": "email@example.com",
+					"id":    "12345",
+				},
+			},
+		},
+		{
+			name: `only "work" phones`,
+			user: admin.User{
+				PrimaryEmail: "email@example.com",
+				Phones: []interface{}{
+					map[string]interface{}{
+						"type":  "home",
+						"value": "555-1212",
+					},
+					map[string]interface{}{
+						"type":  "work",
+						"value": "888-5555",
+					},
+				},
+			},
+			want: personnel_sync.Person{
+				CompareValue: "email@example.com",
+				Attributes: map[string]string{
+					"email": "email@example.com",
+					"phone": "888-5555",
+				},
+			},
+		},
+		{
+			name: `only "desk" locations`,
+			user: admin.User{
+				PrimaryEmail: "email@example.com",
+				Locations: []interface{}{
+					map[string]interface{}{
+						"area":       "Custom area",
+						"buildingId": "Custom building",
+						"type":       "custom",
+					},
+					map[string]interface{}{
+						"area":       "An area",
+						"buildingId": "A building",
+						"type":       "desk",
+					},
+				},
+			},
+			want: personnel_sync.Person{
+				CompareValue: "email@example.com",
+				Attributes: map[string]string{
+					"email":    "email@example.com",
+					"area":     "An area",
+					"building": "A building",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := GoogleUsers{}
+			if got := g.extractData(tt.user); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("extractData() = %#v\nwant: %#v", got, tt.want)
+			}
+		})
+	}
+}
