@@ -70,12 +70,17 @@ func getStringFromInterface(i interface{}, m map[string]string, key string) {
 // of the given interface must be `[]map[string]interface{}`. If `findType` is empty, the first element in the
 // slice is returned.
 func findFirstMatchingType(in interface{}, findType string) map[string]interface{} {
-	if sliceOfInterfaces, ok := in.([]interface{}); ok {
-		for _, i := range sliceOfInterfaces {
-			if m, ok := i.(map[string]interface{}); ok {
-				if dataType, ok := m["type"].(string); findType == "" || (ok && dataType == findType) {
-					return m
-				}
+	sliceOfInterfaces, ok := in.([]interface{})
+	if !ok {
+		return nil
+	}
+	for _, i := range sliceOfInterfaces {
+		if m, ok := i.(map[string]interface{}); ok {
+			if findType == "" {
+				return m
+			}
+			if recordType, ok := m["type"].(string); ok && recordType == findType {
+				return m
 			}
 		}
 	}
