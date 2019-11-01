@@ -67,12 +67,15 @@ func getStringFromInterface(i interface{}, m map[string]string, key string) {
 }
 
 // findFirstMatchingType iterates through a slice of interfaces until it finds a matching key. The underlying type
-// of the given slice must be `[]map[string]interface{}`
-func findFirstMatchingType(in []interface{}, findType string) map[string]interface{} {
-	for _, i := range in {
-		if m, ok := i.(map[string]interface{}); ok {
-			if dataType, ok := m["type"].(string); ok && dataType == findType {
-				return m
+// of the given interface must be `[]map[string]interface{}`. If `findType` is empty, the first element in the
+// slice is returned.
+func findFirstMatchingType(in interface{}, findType string) map[string]interface{} {
+	if sliceOfInterfaces, ok := in.([]interface{}); ok {
+		for _, i := range sliceOfInterfaces {
+			if m, ok := i.(map[string]interface{}); ok {
+				if dataType, ok := m["type"].(string); findType == "" || (ok && dataType == findType) {
+					return m
+				}
 			}
 		}
 	}
@@ -87,37 +90,27 @@ func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
 		},
 	}
 
-	if externalIDs, ok := user.ExternalIds.([]interface{}); ok {
-		if found := findFirstMatchingType(externalIDs, "organization"); found != nil {
-			getStringFromInterface(found["value"], newPerson.Attributes, "id")
-		}
+	if found := findFirstMatchingType(user.ExternalIds, "organization"); found != nil {
+		getStringFromInterface(found["value"], newPerson.Attributes, "id")
 	}
 
-	if locations, ok := user.Locations.([]interface{}); ok {
-		if found := findFirstMatchingType(locations, "desk"); found != nil {
-			getStringFromInterface(found["area"], newPerson.Attributes, "area")
-			getStringFromInterface(found["buildingId"], newPerson.Attributes, "building")
-		}
+	if found := findFirstMatchingType(user.Locations, "desk"); found != nil {
+		getStringFromInterface(found["area"], newPerson.Attributes, "area")
+		getStringFromInterface(found["buildingId"], newPerson.Attributes, "building")
 	}
 
-	if organizations, ok := user.Organizations.([]interface{}); ok && len(organizations) > 0 {
-		if org0, ok := organizations[0].(map[string]interface{}); ok {
-			getStringFromInterface(org0["costCenter"], newPerson.Attributes, "costCenter")
-			getStringFromInterface(org0["department"], newPerson.Attributes, "department")
-			getStringFromInterface(org0["title"], newPerson.Attributes, "title")
-		}
+	if found := findFirstMatchingType(user.Organizations, ""); found != nil {
+		getStringFromInterface(found["costCenter"], newPerson.Attributes, "costCenter")
+		getStringFromInterface(found["department"], newPerson.Attributes, "department")
+		getStringFromInterface(found["title"], newPerson.Attributes, "title")
 	}
 
-	if phones, ok := user.Phones.([]interface{}); ok {
-		if found := findFirstMatchingType(phones, "work"); found != nil {
-			getStringFromInterface(found["value"], newPerson.Attributes, "phone")
-		}
+	if found := findFirstMatchingType(user.Phones, "work"); found != nil {
+		getStringFromInterface(found["value"], newPerson.Attributes, "phone")
 	}
 
-	if relations, ok := user.Relations.([]interface{}); ok {
-		if found := findFirstMatchingType(relations, "manager"); found != nil {
-			getStringFromInterface(found["value"], newPerson.Attributes, "manager")
-		}
+	if found := findFirstMatchingType(user.Relations, "manager"); found != nil {
+		getStringFromInterface(found["value"], newPerson.Attributes, "manager")
 	}
 
 	if user.Name != nil {
@@ -125,6 +118,8 @@ func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
 		newPerson.Attributes["givenName"] = user.Name.GivenName
 	}
 
+	log.Printf("\n'Google user'=%#v\n", user)
+	log.Printf("\n'newPerson'=%#v\n", newPerson)
 	return newPerson
 }
 
