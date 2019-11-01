@@ -293,6 +293,40 @@ func TestGoogleUsers_extractData(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "invalid data types",
+			user: admin.User{
+				ExternalIds: []interface{}{map[string]interface{}{
+					"type":  "organization",
+					"value": 12345,
+				}},
+				Locations: []interface{}{map[string]interface{}{
+					"type":       "desk",
+					"area":       1.0,
+					"buildingId": 1,
+				}},
+				Organizations: []interface{}{map[string]interface{}{
+					"costCenter": []string{"A cost center"},
+					"department": true,
+					"title":      map[string]string{"key": "value"},
+				}},
+				Phones: []interface{}{map[string]interface{}{
+					"type":  "work",
+					"value": 5551212,
+				}},
+				PrimaryEmail: "email@example.com",
+				Relations: []interface{}{map[string]interface{}{
+					"type":  "manager",
+					"value": []string{"manager@example.com"},
+				}},
+			},
+			want: personnel_sync.Person{
+				CompareValue: "email@example.com",
+				Attributes: map[string]string{
+					"email": "email@example.com",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
