@@ -209,6 +209,10 @@ func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, des
 			case []interface{}:
 				if len(val.([]interface{})) > 0 {
 					firstValue := val.([]interface{})[0]
+					if firstValue == nil {
+						continue
+					}
+
 					var ok bool
 					if peep.Attributes[sourceKey], ok = firstValue.(string); !ok {
 						log.Printf("not a string, sourceKey=%s: %+v, type %T", sourceKey, firstValue, firstValue)
