@@ -330,8 +330,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := GoogleUsers{}
-			if got := g.extractData(tt.user); !reflect.DeepEqual(got, tt.want) {
+			if got := extractData(tt.user); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("extractData() = %#v\nwant: %#v", got, tt.want)
 			}
 		})

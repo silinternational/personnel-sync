@@ -82,7 +82,7 @@ func findFirstMatchingType(in interface{}, findType string) map[string]interface
 	return nil
 }
 
-func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
+func extractData(user admin.User) personnel_sync.Person {
 	newPerson := personnel_sync.Person{
 		CompareValue: user.PrimaryEmail,
 		Attributes: map[string]string{
@@ -138,7 +138,7 @@ func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 	var people []personnel_sync.Person
 	for _, nextUser := range usersList {
 		if nextUser != nil {
-			people = append(people, g.extractData(*nextUser))
+			people = append(people, extractData(*nextUser))
 		}
 	}
 	return people, nil
