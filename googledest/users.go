@@ -120,13 +120,18 @@ func (g *GoogleUsers) extractData(user admin.User) personnel_sync.Person {
 		}
 	}
 
+	var familyName, givenName string
+	if user.Name != nil {
+		familyName = user.Name.FamilyName
+		givenName = user.Name.GivenName
+	}
+
 	newPerson := personnel_sync.Person{
 		CompareValue: user.PrimaryEmail,
 		Attributes: map[string]string{
 			"email":      strings.ToLower(user.PrimaryEmail),
-			"familyName": user.Name.FamilyName,
-			"givenName":  user.Name.GivenName,
-			"fullName":   user.Name.FullName,
+			"familyName": familyName,
+			"givenName":  givenName,
 			"id":         id,
 			"area":       area,
 			"building":   building,
