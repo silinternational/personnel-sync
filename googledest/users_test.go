@@ -336,3 +336,66 @@ func TestGoogleUsers_extractData(t *testing.T) {
 		})
 	}
 }
+
+func Test_newUserForUpdate(t *testing.T) {
+	tests := []struct {
+		name   string
+		person personnel_sync.Person
+		want   admin.User
+	}{
+		{
+			name: "basic",
+			person: personnel_sync.Person{
+				CompareValue: "email@example.com",
+				Attributes: map[string]string{
+					"email":      "email@example.com",
+					"familyName": "Jones",
+					"givenName":  "John",
+					"id":         "12345",
+					"area":       "An area",
+					"building":   "A building",
+					"costCenter": "A cost center",
+					"department": "A department",
+					"title":      "A title",
+					"phone":      "555-1212",
+					"manager":    "manager@example.com",
+				},
+			},
+			want: admin.User{
+				ExternalIds: []admin.UserExternalId{{
+					Type:  "organization",
+					Value: "12345",
+				}},
+				Locations: []admin.UserLocation{{
+					Area:       "An area",
+					BuildingId: "A building",
+					Type:       "desk",
+				}},
+				Name: &admin.UserName{
+					FamilyName: "Jones",
+					GivenName:  "John",
+				},
+				Organizations: []admin.UserOrganization{{
+					CostCenter: "A cost center",
+					Department: "A department",
+					Title:      "A title",
+				}},
+				Phones: []admin.UserPhone{{
+					Type:  "work",
+					Value: "555-1212",
+				}},
+				Relations: []admin.UserRelation{{
+					Type:  "manager",
+					Value: "manager@example.com",
+				}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := newUserForUpdate(tt.person); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("newUserForUpdate() = %#v\nwant: %#v", got, tt.want)
+			}
+		})
+	}
+}
