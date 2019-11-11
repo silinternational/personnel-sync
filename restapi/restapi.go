@@ -198,7 +198,30 @@ func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, des
 				continue
 			}
 
-			peep.Attributes[sourceKey] = person.Path(sourceKey).Data().(string)
+			val := person.Path(sourceKey).Data()
+			if val == nil {
+				continue
+			}
+
+			switch val.(type) {
+			case string:
+				peep.Attributes[sourceKey] = val.(string)
+			case []interface{}:
+				if len(val.([]interface{})) > 0 {
+					firstValue := val.([]interface{})[0]
+					if firstValue == nil {
+						continue
+					}
+
+					var ok bool
+					if peep.Attributes[sourceKey], ok = firstValue.(string); !ok {
+						log.Printf("not a string, sourceKey=%s: %+v, type %T", sourceKey, firstValue, firstValue)
+					}
+				}
+			default:
+				log.Printf("unsupported data type, sourceKey=%s, type %T", sourceKey, val)
+			}
+
 			if sourceKey == compareAttr {
 				peep.CompareValue = person.Path(sourceKey).Data().(string)
 			}
