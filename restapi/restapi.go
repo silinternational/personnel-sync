@@ -13,7 +13,7 @@ import (
 
 	"github.com/Jeffail/gabs"
 
-	"github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync"
 )
 
 const AuthTypeBasic = "basic"

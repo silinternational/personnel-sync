@@ -11,7 +11,7 @@ import (
 
 	"github.com/silinternational/personnel-sync/googledest"
 
-	"github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync"
 )
 
 func main() {

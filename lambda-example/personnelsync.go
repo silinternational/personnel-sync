@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync"
 	"github.com/silinternational/personnel-sync/googledest"
 	"github.com/silinternational/personnel-sync/restapi"
 	"github.com/silinternational/personnel-sync/webhelpdesk"
