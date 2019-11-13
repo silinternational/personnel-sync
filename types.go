@@ -27,8 +27,9 @@ type DestinationConfig struct {
 }
 
 const (
-	VerbosityLow  = 0
-	VerbosityHigh = 10
+	VerbosityLow    = 0
+	VerbosityMedium = 5
+	VerbosityHigh   = 10
 )
 
 type RuntimeConfig struct {

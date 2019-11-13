@@ -126,7 +126,7 @@ func personAttributesAreEqual(sp, dp Person, config AppConfig) bool {
 	equal := true
 	for key, val := range sp.Attributes {
 		if !stringsAreEqual(val, dp.Attributes[key], caseSensitivityList[key]) {
-			if config.Runtime.Verbosity >= 5 {
+			if config.Runtime.Verbosity >= VerbosityMedium {
 				log.Printf(`User: "%s", "%s" not equal, CaseSensitive: "%t", Source: "%s", Dest: "%s"`+"\n",
 					sp.CompareValue, key, caseSensitivityList[key], val, dp.Attributes[key])
 				equal = false
