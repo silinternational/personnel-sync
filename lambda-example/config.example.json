@@ -1,7 +1,7 @@
 {
   "Runtime": {
-    "FailIfSinglePersonMissingCompareValue": false,
-    "DryRunMode": false
+    "DryRunMode": false,
+    "Verbosity": 1
   },
   "Source": {
     "Type": "RestAPI",

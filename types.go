@@ -26,8 +26,14 @@ type DestinationConfig struct {
 	ExtraJSON json.RawMessage
 }
 
+const (
+	VerbosityLow  = 0
+	VerbosityHigh = 10
+)
+
 type RuntimeConfig struct {
 	DryRunMode bool
+	Verbosity  int
 }
 
 type AppConfig struct {
