@@ -287,7 +287,7 @@ func updateIDs(newID string, oldIDs interface{}) ([]admin.UserExternalId, error)
 
 	interfaces, ok := oldIDs.([]interface{})
 	if !ok {
-		return nil, errors.New("unexpected data in Google API ID list")
+		return nil, errors.New("no slice in Google API ExternalIDs")
 	}
 
 	for i := range interfaces {
@@ -301,15 +301,17 @@ func updateIDs(newID string, oldIDs interface{}) ([]admin.UserExternalId, error)
 			return nil, errors.New("unexpected data in Google API ID list entry")
 		}
 
-		if thisType != "organization" {
-			value, _ := IDMap["value"].(string)
-			customType, _ := IDMap["customType"].(string)
-			IDs = append(IDs, admin.UserExternalId{
-				Type:       thisType,
-				CustomType: customType,
-				Value:      value,
-			})
+		if thisType == "organization" {
+			continue
 		}
+
+		value, _ := IDMap["value"].(string)
+		customType, _ := IDMap["customType"].(string)
+		IDs = append(IDs, admin.UserExternalId{
+			Type:       thisType,
+			CustomType: customType,
+			Value:      value,
+		})
 	}
 
 	return IDs, nil
@@ -328,7 +330,7 @@ func updateLocations(newArea, newBuilding string, oldLocations interface{}) ([]a
 
 	interfaces, ok := oldLocations.([]interface{})
 	if !ok {
-		return nil, errors.New("unexpected data in Google API location list")
+		return nil, errors.New("no slice in Google API Locations")
 	}
 
 	for i := range interfaces {
@@ -342,23 +344,25 @@ func updateLocations(newArea, newBuilding string, oldLocations interface{}) ([]a
 			return nil, errors.New("unexpected data in Google API location list entry")
 		}
 
-		if thisType != "desk" {
-			area, _ := locationMap["area"].(string)
-			buildingId, _ := locationMap["buildingId"].(string)
-			customType, _ := locationMap["customType"].(string)
-			deskCode, _ := locationMap["deskCode"].(string)
-			floorName, _ := locationMap["floorName"].(string)
-			floorSection, _ := locationMap["floorSection"].(string)
-			locations = append(locations, admin.UserLocation{
-				Type:         thisType,
-				Area:         area,
-				BuildingId:   buildingId,
-				CustomType:   customType,
-				DeskCode:     deskCode,
-				FloorName:    floorName,
-				FloorSection: floorSection,
-			})
+		if thisType == "desk" {
+			continue
 		}
+
+		area, _ := locationMap["area"].(string)
+		buildingId, _ := locationMap["buildingId"].(string)
+		customType, _ := locationMap["customType"].(string)
+		deskCode, _ := locationMap["deskCode"].(string)
+		floorName, _ := locationMap["floorName"].(string)
+		floorSection, _ := locationMap["floorSection"].(string)
+		locations = append(locations, admin.UserLocation{
+			Type:         thisType,
+			Area:         area,
+			BuildingId:   buildingId,
+			CustomType:   customType,
+			DeskCode:     deskCode,
+			FloorName:    floorName,
+			FloorSection: floorSection,
+		})
 	}
 
 	return locations, nil
@@ -373,7 +377,7 @@ func updatePhones(newPhone string, oldPhones interface{}) ([]admin.UserPhone, er
 
 	interfaces, ok := oldPhones.([]interface{})
 	if !ok {
-		return nil, errors.New("unexpected data in Google API phone list")
+		return nil, errors.New("no slice in Google API Phones")
 	}
 
 	for i := range interfaces {
@@ -387,17 +391,19 @@ func updatePhones(newPhone string, oldPhones interface{}) ([]admin.UserPhone, er
 			return nil, errors.New("unexpected data in Google API phone list entry")
 		}
 
-		if thisType != "work" {
-			value, _ := phoneMap["value"].(string)
-			customType, _ := phoneMap["customType"].(string)
-			primary, _ := phoneMap["primary"].(bool)
-			phones = append(phones, admin.UserPhone{
-				Type:       thisType,
-				Value:      value,
-				CustomType: customType,
-				Primary:    primary,
-			})
+		if thisType == "work" {
+			continue
 		}
+
+		value, _ := phoneMap["value"].(string)
+		customType, _ := phoneMap["customType"].(string)
+		primary, _ := phoneMap["primary"].(bool)
+		phones = append(phones, admin.UserPhone{
+			Type:       thisType,
+			Value:      value,
+			CustomType: customType,
+			Primary:    primary,
+		})
 	}
 
 	return phones, nil
@@ -412,7 +418,7 @@ func updateRelations(newRelation string, oldRelations interface{}) ([]admin.User
 
 	interfaces, ok := oldRelations.([]interface{})
 	if !ok {
-		return nil, errors.New("unexpected data in Google API relation list")
+		return nil, errors.New("no slice in Google API Relations")
 	}
 
 	for i := range interfaces {
@@ -426,15 +432,17 @@ func updateRelations(newRelation string, oldRelations interface{}) ([]admin.User
 			return nil, errors.New("unexpected data in Google API relation list entry")
 		}
 
-		if thisType != "manager" {
-			value, _ := relationMap["value"].(string)
-			customType, _ := relationMap["customType"].(string)
-			relations = append(relations, admin.UserRelation{
-				Type:       thisType,
-				Value:      value,
-				CustomType: customType,
-			})
+		if thisType == "manager" {
+			continue
 		}
+
+		value, _ := relationMap["value"].(string)
+		customType, _ := relationMap["customType"].(string)
+		relations = append(relations, admin.UserRelation{
+			Type:       thisType,
+			Value:      value,
+			CustomType: customType,
+		})
 	}
 
 	return relations, nil
