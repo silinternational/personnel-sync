@@ -393,8 +393,371 @@ func Test_newUserForUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newUserForUpdate(tt.person); !reflect.DeepEqual(got, tt.want) {
+			if got, err := newUserForUpdate(tt.person, admin.User{}); err != nil {
+				t.Errorf("newUserForUpdate() error: %s", err)
+			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("newUserForUpdate() = %#v\nwant: %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_updateIDs(t *testing.T) {
+	tests := []struct {
+		name   string
+		newID  string
+		oldIDs interface{}
+		want   []admin.UserExternalId
+	}{
+		{
+			name:  "organization and custom",
+			newID: "12345",
+			oldIDs: []interface{}{
+				map[string]interface{}{
+					"type":  "organization",
+					"value": "00000",
+				},
+				map[string]interface{}{
+					"type":       "custom",
+					"customType": "foo",
+					"value":      "abcdef",
+				},
+			},
+			want: []admin.UserExternalId{
+				{
+					Type:  "organization",
+					Value: "12345",
+				},
+				{
+					Type:       "custom",
+					Value:      "abcdef",
+					CustomType: "foo",
+				},
+			},
+		},
+		{
+			name:  "organization only",
+			newID: "12345",
+			oldIDs: []interface{}{
+				map[string]interface{}{
+					"type":  "organization",
+					"value": "00000",
+				},
+			},
+			want: []admin.UserExternalId{
+				{
+					Type:  "organization",
+					Value: "12345",
+				},
+			},
+		},
+		{
+			name:  "custom only",
+			newID: "12345",
+			oldIDs: []interface{}{
+				map[string]interface{}{
+					"type":       "custom",
+					"customType": "foo",
+					"value":      "abcdef",
+				},
+			},
+			want: []admin.UserExternalId{
+				{
+					Type:  "organization",
+					Value: "12345",
+				},
+				{
+					Type:       "custom",
+					Value:      "abcdef",
+					CustomType: "foo",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, err := updateIDs(tt.newID, tt.oldIDs); err != nil {
+				t.Errorf("updateIDs() error: %s", err)
+			} else if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("updateIDs():\n%+v\nwant:\n%+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_updateLocations(t *testing.T) {
+	tests := []struct {
+		name         string
+		newArea      string
+		newBuilding  string
+		oldLocations interface{}
+		want         []admin.UserLocation
+	}{
+		{
+			name:        "desk and custom",
+			newArea:     "Area 2",
+			newBuilding: "Bldg 2",
+			oldLocations: []interface{}{
+				map[string]interface{}{
+					"type":       "desk",
+					"area":       "Area 1",
+					"buildingId": "Bldg 1",
+				},
+				map[string]interface{}{
+					"type":         "custom",
+					"customType":   "foo",
+					"area":         "Area A",
+					"buildingId":   "Bldg B",
+					"deskCode":     "deskCode",
+					"floorName":    "floorName",
+					"floorSection": "floorSection",
+				},
+			},
+			want: []admin.UserLocation{
+				{
+					Type:       "desk",
+					Area:       "Area 2",
+					BuildingId: "Bldg 2",
+				},
+				{
+					Type:         "custom",
+					CustomType:   "foo",
+					Area:         "Area A",
+					BuildingId:   "Bldg B",
+					DeskCode:     "deskCode",
+					FloorName:    "floorName",
+					FloorSection: "floorSection",
+				},
+			},
+		},
+		{
+			name:        "desk only",
+			newArea:     "Area 2",
+			newBuilding: "Bldg 2",
+			oldLocations: []interface{}{
+				map[string]interface{}{
+					"type":       "desk",
+					"area":       "Area 1",
+					"buildingId": "Bldg 1",
+				},
+			},
+			want: []admin.UserLocation{
+				{
+					Type:       "desk",
+					Area:       "Area 2",
+					BuildingId: "Bldg 2",
+				},
+			},
+		},
+		{
+			name:        "custom only",
+			newArea:     "Area 2",
+			newBuilding: "Bldg 2",
+			oldLocations: []interface{}{
+				map[string]interface{}{
+					"type":         "custom",
+					"customType":   "foo",
+					"area":         "Area A",
+					"buildingId":   "Bldg B",
+					"deskCode":     "deskCode",
+					"floorName":    "floorName",
+					"floorSection": "floorSection",
+				},
+			},
+			want: []admin.UserLocation{
+				{
+					Type:       "desk",
+					Area:       "Area 2",
+					BuildingId: "Bldg 2",
+				},
+				{
+					Type:         "custom",
+					CustomType:   "foo",
+					Area:         "Area A",
+					BuildingId:   "Bldg B",
+					DeskCode:     "deskCode",
+					FloorName:    "floorName",
+					FloorSection: "floorSection",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, err := updateLocations(tt.newArea, tt.newBuilding, tt.oldLocations); err != nil {
+				t.Errorf("updateLocations() error: %s", err)
+			} else if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("updateLocations():\n%+v\nwant:\n%+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_updatePhones(t *testing.T) {
+	tests := []struct {
+		name      string
+		newPhone  string
+		oldPhones interface{}
+		want      []admin.UserPhone
+	}{
+		{
+			name:     "work and custom",
+			newPhone: "555-1212",
+			oldPhones: []interface{}{
+				map[string]interface{}{
+					"type":  "work",
+					"value": "222-333-4444",
+				},
+				map[string]interface{}{
+					"type":       "custom",
+					"customType": "foo",
+					"value":      "999-111-2222",
+					"primary":    true,
+				},
+			},
+			want: []admin.UserPhone{
+				{
+					Type:  "work",
+					Value: "555-1212",
+				},
+				{
+					Type:       "custom",
+					CustomType: "foo",
+					Value:      "999-111-2222",
+					Primary:    true,
+				},
+			},
+		},
+		{
+			name:     "work only",
+			newPhone: "555-1212",
+			oldPhones: []interface{}{
+				map[string]interface{}{
+					"type":  "work",
+					"value": "222-333-4444",
+				},
+			},
+			want: []admin.UserPhone{
+				{
+					Type:  "work",
+					Value: "555-1212",
+				},
+			},
+		},
+		{
+			name:     "custom only",
+			newPhone: "555-1212",
+			oldPhones: []interface{}{
+				map[string]interface{}{
+					"type":       "custom",
+					"customType": "foo",
+					"value":      "999-111-2222",
+					"primary":    true,
+				},
+			},
+			want: []admin.UserPhone{
+				{
+					Type:  "work",
+					Value: "555-1212",
+				},
+				{
+					Type:       "custom",
+					CustomType: "foo",
+					Value:      "999-111-2222",
+					Primary:    true,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, err := updatePhones(tt.newPhone, tt.oldPhones); err != nil {
+				t.Errorf("updatePhones() error: %s", err)
+			} else if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("updatePhones():\n%+v\nwant:\n%+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_updateRelations(t *testing.T) {
+	tests := []struct {
+		name         string
+		newRelation  string
+		oldRelations interface{}
+		want         []admin.UserRelation
+	}{
+		{
+			name:        "manager and custom",
+			newRelation: "new_manager@example.com",
+			oldRelations: []interface{}{
+				map[string]interface{}{
+					"type":  "manager",
+					"value": "old_manager@example.com",
+				},
+				map[string]interface{}{
+					"type":       "custom",
+					"customType": "foo",
+					"value":      "other@example.com",
+				},
+			},
+			want: []admin.UserRelation{
+				{
+					Type:  "manager",
+					Value: "new_manager@example.com",
+				},
+				{
+					Type:       "custom",
+					CustomType: "foo",
+					Value:      "other@example.com",
+				},
+			},
+		},
+		{
+			name:        "manager only",
+			newRelation: "new_manager@example.com",
+			oldRelations: []interface{}{
+				map[string]interface{}{
+					"type":  "manager",
+					"value": "old_manager@example.com",
+				},
+			},
+			want: []admin.UserRelation{
+				{
+					Type:  "manager",
+					Value: "new_manager@example.com",
+				},
+			},
+		},
+		{
+			name:        "custom only",
+			newRelation: "new_manager@example.com",
+			oldRelations: []interface{}{
+				map[string]interface{}{
+					"type":       "custom",
+					"customType": "foo",
+					"value":      "other@example.com",
+				},
+			},
+			want: []admin.UserRelation{
+				{
+					Type:  "manager",
+					Value: "new_manager@example.com",
+				},
+				{
+					Type:       "custom",
+					CustomType: "foo",
+					Value:      "other@example.com",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, err := updateRelations(tt.newRelation, tt.oldRelations); err != nil {
+				t.Errorf("updateRelations() error: %s", err)
+			} else if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("updateRelations():\n%+v\nwant:\n%+v", got, tt.want)
 			}
 		})
 	}

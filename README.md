@@ -131,8 +131,24 @@ of the destination configuration required for Google Groups:
 ```
 
 ### Google Users
-This destination can update User records in the Google Directory. Presently, only the user's name is available
-for updating, but other fields may be added in the future. Following is an example configuration:
+This destination can update User records in the Google Directory. The compare
+attribute is `primaryEmail`. A limited subset of user properties are available
+to be updated. 
+
+| property   | Google property | Google sub-property | Google type  |
+|------------|-----------------|---------------------|--------------|
+| id         | externalIds     | value               | organization | 
+| area       | locations       | area                | desk         |
+| building   | locations       | buildingId          | desk         |
+| costCenter | organizations   | costCenter          | (not set)    |
+| department | organizations   | department          | (not set)    |
+| title      | organizations   | title               | (not set)    |
+| phone      | phones          | value               | work         |
+| manager    | relations       | value               | manager      |
+| familyName | name            | familyName          | n/a          |
+| givenName  | name            | givenName           | n/a          |
+             
+Following is an example configuration listing all available fields:
 
 ```json
 {
@@ -170,6 +186,46 @@ for updating, but other fields may be added in the future. Following is an examp
       "Source": "first_name",
       "Destination": "givenName",
       "required": true
+    },
+    {
+      "Source": "id",
+      "Destination": "id",
+      "required": false
+    },
+    {
+      "Source": "phone",
+      "Destination": "phone",
+      "required": false
+    },
+    {
+      "Source": "area",
+      "Destination": "area",
+      "required": false
+    },
+    {
+      "Source": "building",
+      "Destination": "building",
+      "required": false
+    },
+    {
+      "Source": "cost_center",
+      "Destination": "costCenter",
+      "required": false
+    },
+    {
+      "Source": "department",
+      "Destination": "department",
+      "required": false
+    },
+    {
+      "Source": "title",
+      "Destination": "title",
+      "required": false
+    },
+    {
+      "Source": "manager",
+      "Destination": "manager",
+      "required": false
     }
   ]
 }

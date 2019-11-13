@@ -2,6 +2,7 @@ package googledest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -177,47 +178,50 @@ func (g *GoogleUsers) ApplyChangeSet(
 	return results
 }
 
-func newUserForUpdate(person personnel_sync.Person) admin.User {
+func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.User, error) {
+	user := admin.User{}
+	var err error
+
 	newName := admin.UserName{
 		GivenName:  person.Attributes["givenName"],
 		FamilyName: person.Attributes["familyName"],
 	}
+	user.Name = &newName
 
-	id := admin.UserExternalId{
-		Type:  "organization",
-		Value: person.Attributes["id"],
+	if person.Attributes["id"] != "" {
+		user.ExternalIds, err = updateIDs(person.Attributes["id"], oldUser.ExternalIds)
+		if err != nil {
+			return admin.User{}, err
+		}
 	}
 
-	location := admin.UserLocation{
-		Type:       "desk",
-		Area:       person.Attributes["area"],
-		BuildingId: person.Attributes["building"],
+	user.Locations, err = updateLocations(person.Attributes["area"], person.Attributes["building"], oldUser.Locations)
+	if err != nil {
+		return admin.User{}, err
 	}
 
-	organization := admin.UserOrganization{
+	// NOTICE: this will overwrite any and all existing Organizations
+	user.Organizations = []admin.UserOrganization{{
 		CostCenter: person.Attributes["costCenter"],
 		Department: person.Attributes["department"],
 		Title:      person.Attributes["title"],
+	}}
+
+	if person.Attributes["phone"] != "" {
+		user.Phones, err = updatePhones(person.Attributes["phone"], oldUser.Phones)
+		if err != nil {
+			return admin.User{}, err
+		}
 	}
 
-	phone := admin.UserPhone{
-		Type:  "work",
-		Value: person.Attributes["phone"],
+	if person.Attributes["manager"] != "" {
+		user.Relations, err = updateRelations(person.Attributes["manager"], oldUser.Relations)
+		if err != nil {
+			return admin.User{}, err
+		}
 	}
 
-	relation := admin.UserRelation{
-		Type:  "manager",
-		Value: person.Attributes["manager"],
-	}
-
-	return admin.User{
-		Name:          &newName,
-		ExternalIds:   []admin.UserExternalId{id},
-		Locations:     []admin.UserLocation{location},
-		Organizations: []admin.UserOrganization{organization},
-		Phones:        []admin.UserPhone{phone},
-		Relations:     []admin.UserRelation{relation},
-	}
+	return user, nil
 }
 
 func (g *GoogleUsers) updateUser(
@@ -228,15 +232,29 @@ func (g *GoogleUsers) updateUser(
 
 	defer wg.Done()
 
-	newUser := newUserForUpdate(person)
-
 	email := person.Attributes["email"]
 
-	_, err := g.AdminService.Users.Update(email, &newUser).Do()
+	oldUser, err := g.getUser(person.CompareValue)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
-			Message: fmt.Sprintf("unable to update %s in Users: %s", email, err.Error())}
+			Message: fmt.Sprintf("unable to get old user %s, %s", email, err.Error())}
+		return
+	}
+
+	newUser, err2 := newUserForUpdate(person, oldUser)
+	if err2 != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to prepare update for %s in Users: %s", email, err2.Error())}
+		return
+	}
+
+	_, err3 := g.AdminService.Users.Update(email, &newUser).Do()
+	if err3 != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to update %s in Users: %s", email, err3.Error())}
 		return
 	}
 
@@ -246,4 +264,186 @@ func (g *GoogleUsers) updateUser(
 	}
 
 	atomic.AddUint64(counter, 1)
+}
+
+func (g *GoogleUsers) getUser(email string) (admin.User, error) {
+	userCall := g.AdminService.Users.Get(email)
+	user, err := userCall.Do()
+	if err != nil || user == nil {
+		return admin.User{}, err
+	}
+	return *user, nil
+}
+
+func updateIDs(newID string, oldIDs interface{}) ([]admin.UserExternalId, error) {
+	IDs := []admin.UserExternalId{{
+		Type:  "organization",
+		Value: newID,
+	}}
+
+	if oldIDs == nil {
+		return IDs, nil
+	}
+
+	interfaces, ok := oldIDs.([]interface{})
+	if !ok {
+		return nil, errors.New("no slice in Google API ExternalIDs")
+	}
+
+	for i := range interfaces {
+		IDMap, ok := interfaces[i].(map[string]interface{})
+		if !ok {
+			return nil, errors.New("unexpected data in Google API ID list")
+		}
+
+		thisType, ok := IDMap["type"].(string)
+		if !ok {
+			return nil, errors.New("unexpected data in Google API ID list entry")
+		}
+
+		if thisType == "organization" {
+			continue
+		}
+
+		value, _ := IDMap["value"].(string)
+		customType, _ := IDMap["customType"].(string)
+		IDs = append(IDs, admin.UserExternalId{
+			Type:       thisType,
+			CustomType: customType,
+			Value:      value,
+		})
+	}
+
+	return IDs, nil
+}
+
+func updateLocations(newArea, newBuilding string, oldLocations interface{}) ([]admin.UserLocation, error) {
+	locations := []admin.UserLocation{{
+		Type:       "desk",
+		Area:       newArea,
+		BuildingId: newBuilding,
+	}}
+
+	if oldLocations == nil {
+		return locations, nil
+	}
+
+	interfaces, ok := oldLocations.([]interface{})
+	if !ok {
+		return nil, errors.New("no slice in Google API Locations")
+	}
+
+	for i := range interfaces {
+		locationMap, ok := interfaces[i].(map[string]interface{})
+		if !ok {
+			return nil, errors.New("unexpected data in Google API location list")
+		}
+
+		thisType, ok := locationMap["type"].(string)
+		if !ok {
+			return nil, errors.New("unexpected data in Google API location list entry")
+		}
+
+		if thisType == "desk" {
+			continue
+		}
+
+		area, _ := locationMap["area"].(string)
+		buildingId, _ := locationMap["buildingId"].(string)
+		customType, _ := locationMap["customType"].(string)
+		deskCode, _ := locationMap["deskCode"].(string)
+		floorName, _ := locationMap["floorName"].(string)
+		floorSection, _ := locationMap["floorSection"].(string)
+		locations = append(locations, admin.UserLocation{
+			Type:         thisType,
+			Area:         area,
+			BuildingId:   buildingId,
+			CustomType:   customType,
+			DeskCode:     deskCode,
+			FloorName:    floorName,
+			FloorSection: floorSection,
+		})
+	}
+
+	return locations, nil
+}
+
+func updatePhones(newPhone string, oldPhones interface{}) ([]admin.UserPhone, error) {
+	phones := []admin.UserPhone{{Type: "work", Value: newPhone}}
+
+	if oldPhones == nil {
+		return phones, nil
+	}
+
+	interfaces, ok := oldPhones.([]interface{})
+	if !ok {
+		return nil, errors.New("no slice in Google API Phones")
+	}
+
+	for i := range interfaces {
+		phoneMap, ok := interfaces[i].(map[string]interface{})
+		if !ok {
+			return nil, errors.New("unexpected data in Google API phone list")
+		}
+
+		thisType, ok := phoneMap["type"].(string)
+		if !ok {
+			return nil, errors.New("unexpected data in Google API phone list entry")
+		}
+
+		if thisType == "work" {
+			continue
+		}
+
+		value, _ := phoneMap["value"].(string)
+		customType, _ := phoneMap["customType"].(string)
+		primary, _ := phoneMap["primary"].(bool)
+		phones = append(phones, admin.UserPhone{
+			Type:       thisType,
+			Value:      value,
+			CustomType: customType,
+			Primary:    primary,
+		})
+	}
+
+	return phones, nil
+}
+
+func updateRelations(newRelation string, oldRelations interface{}) ([]admin.UserRelation, error) {
+	relations := []admin.UserRelation{{Type: "manager", Value: newRelation}}
+
+	if oldRelations == nil {
+		return relations, nil
+	}
+
+	interfaces, ok := oldRelations.([]interface{})
+	if !ok {
+		return nil, errors.New("no slice in Google API Relations")
+	}
+
+	for i := range interfaces {
+		relationMap, ok := interfaces[i].(map[string]interface{})
+		if !ok {
+			return nil, errors.New("unexpected data in Google API relation list")
+		}
+
+		thisType, ok := relationMap["type"].(string)
+		if !ok {
+			return nil, errors.New("unexpected data in Google API relation list entry")
+		}
+
+		if thisType == "manager" {
+			continue
+		}
+
+		value, _ := relationMap["value"].(string)
+		customType, _ := relationMap["customType"].(string)
+		relations = append(relations, admin.UserRelation{
+			Type:       thisType,
+			Value:      value,
+			CustomType: customType,
+		})
+	}
+
+	return relations, nil
 }
