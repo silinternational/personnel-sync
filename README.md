@@ -318,3 +318,25 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 ```
 
 `ListClientsPageLimit` and `BatchSizePerMinute` are optional. Their defaults are as shown in the example config.
+
+### Exporting logs from CloudWatch
+
+The log messages in CloudWatch can be viewed on the AWS Management Console. If
+an exported text or json file is needed, the AWS CLI tool can be used as
+follows:
+
+```shell script
+aws configure
+aws logs get-log-events \
+   --log-group-name "/aws/lambda/lambda-name" \
+   --log-stream-name '2019/11/14/[$LATEST]0123456789abcdef0123456789abcdef' \
+   --output text \
+   --query 'events[*].message'
+```
+
+Replace `/aws/lambda/lambda-name` with the actual log group name and 
+`2019/11/14/[$LATEST]0123456789abcdef0123456789abcdef` with the actual log
+stream. Note the single quotes around the log stream name to prevent the shell
+from interpreting the `$` character. `--output text` can be changed to 
+`--output json` if desired. Timestamps are available if needed, but omitted
+in this example by the `--query` string.
