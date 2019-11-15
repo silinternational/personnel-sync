@@ -8,10 +8,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	admin "google.golang.org/api/admin/directory/v1"
-
 	personnel_sync "github.com/silinternational/personnel-sync"
 	"golang.org/x/net/context"
+	admin "google.golang.org/api/admin/directory/v1"
+	"google.golang.org/api/googleapi"
 )
 
 type GoogleUsersConfig struct {
@@ -95,6 +95,14 @@ func extractData(user admin.User) personnel_sync.Person {
 		newPerson.Attributes["givenName"] = user.Name.GivenName
 	}
 
+	if customLocation, ok := user.CustomSchemas["Location"]; ok {
+		var loc map[string]string
+		_ = json.Unmarshal(customLocation, &loc)
+		if building, ok := loc["Building"]; ok {
+			newPerson.Attributes["building"] = building
+		}
+	}
+
 	return newPerson
 }
 
@@ -138,7 +146,8 @@ func setStringFromInterface(i interface{}, m map[string]string, key string) {
 func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
 	var usersList []*admin.User
 	usersListCall := g.AdminService.Users.List()
-	usersListCall.Customer("my_customer")
+	usersListCall.Customer("my_customer") // query all domains in this GSuite
+	usersListCall.Projection("full")      // include custom fields
 	err := usersListCall.Pages(context.TODO(), func(users *admin.Users) error {
 		usersList = append(usersList, users.Users...)
 		return nil
@@ -217,6 +226,17 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 		user.Relations, err = updateRelations(person.Attributes["manager"], oldUser.Relations)
 		if err != nil {
 			return admin.User{}, err
+		}
+	}
+
+	if building, ok := person.Attributes["building"]; ok {
+		j, err := json.Marshal(&map[string]string{"Building": building})
+		if err != nil {
+			return admin.User{}, fmt.Errorf("error marshaling location, %s", err)
+		}
+
+		user.CustomSchemas = map[string]googleapi.RawMessage{
+			"Location": j,
 		}
 	}
 

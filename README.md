@@ -139,7 +139,7 @@ to be updated.
 |------------|-----------------|---------------------|--------------|
 | id         | externalIds     | value               | organization | 
 | area       | locations       | area                | desk         |
-| building   | locations       | buildingId          | desk         |
+| building   | customSchemas   | Location*           | Building*    |
 | costCenter | organizations   | costCenter          | (not set)    |
 | department | organizations   | department          | (not set)    |
 | title      | organizations   | title               | (not set)    |
@@ -147,6 +147,9 @@ to be updated.
 | manager    | relations       | value               | manager      |
 | familyName | name            | familyName          | n/a          |
 | givenName  | name            | givenName           | n/a          |
+
+\* The `building` property is a custom property with Field name "Building" in
+the custom schema "Location".
              
 Following is an example configuration listing all available fields:
 

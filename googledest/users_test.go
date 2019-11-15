@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"testing"
 
+	"google.golang.org/api/googleapi"
+
 	personnel_sync "github.com/silinternational/personnel-sync"
 	admin "google.golang.org/api/admin/directory/v1"
 )
@@ -202,6 +204,9 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"type":  "manager",
 					"value": "manager@example.com",
 				}},
+				CustomSchemas: map[string]googleapi.RawMessage{
+					"Location": []byte(`{"Building":"A building"}`),
+				},
 			},
 			want: personnel_sync.Person{
 				CompareValue: "email@example.com",
@@ -216,6 +221,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"title":      "A title",
 					"phone":      "555-1212",
 					"manager":    "manager@example.com",
+					"building":   "A building",
 				},
 			},
 		},
@@ -352,6 +358,7 @@ func Test_newUserForUpdate(t *testing.T) {
 					"title":      "A title",
 					"phone":      "555-1212",
 					"manager":    "manager@example.com",
+					"building":   "A building",
 				},
 			},
 			want: admin.User{
@@ -380,6 +387,9 @@ func Test_newUserForUpdate(t *testing.T) {
 					Type:  "manager",
 					Value: "manager@example.com",
 				}},
+				CustomSchemas: map[string]googleapi.RawMessage{
+					"Location": []byte(`{"Building":"A building"}`),
+				},
 			},
 		},
 	}
