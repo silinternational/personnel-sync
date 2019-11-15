@@ -180,9 +180,8 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"value": "12345",
 				}},
 				Locations: []interface{}{map[string]interface{}{
-					"area":       "An area",
-					"buildingId": "A building",
-					"type":       "desk",
+					"area": "An area",
+					"type": "desk",
 				}},
 				Name: &admin.UserName{
 					FamilyName: "Jones",
@@ -212,7 +211,6 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"givenName":  "John",
 					"id":         "12345",
 					"area":       "An area",
-					"building":   "A building",
 					"costCenter": "A cost center",
 					"department": "A department",
 					"title":      "A title",
@@ -273,23 +271,20 @@ func TestGoogleUsers_extractData(t *testing.T) {
 				PrimaryEmail: "email@example.com",
 				Locations: []interface{}{
 					map[string]interface{}{
-						"area":       "Custom area",
-						"buildingId": "Custom building",
-						"type":       "custom",
+						"area": "Custom area",
+						"type": "custom",
 					},
 					map[string]interface{}{
-						"area":       "An area",
-						"buildingId": "A building",
-						"type":       "desk",
+						"area": "An area",
+						"type": "desk",
 					},
 				},
 			},
 			want: personnel_sync.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email":    "email@example.com",
-					"area":     "An area",
-					"building": "A building",
+					"email": "email@example.com",
+					"area":  "An area",
 				},
 			},
 		},
@@ -301,9 +296,8 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"value": 12345,
 				}},
 				Locations: []interface{}{map[string]interface{}{
-					"type":       "desk",
-					"area":       1.0,
-					"buildingId": 1,
+					"type": "desk",
+					"area": 1.0,
 				}},
 				Organizations: []interface{}{map[string]interface{}{
 					"costCenter": []string{"A cost center"},
@@ -353,7 +347,6 @@ func Test_newUserForUpdate(t *testing.T) {
 					"givenName":  "John",
 					"id":         "12345",
 					"area":       "An area",
-					"building":   "A building",
 					"costCenter": "A cost center",
 					"department": "A department",
 					"title":      "A title",
@@ -367,9 +360,8 @@ func Test_newUserForUpdate(t *testing.T) {
 					Value: "12345",
 				}},
 				Locations: []admin.UserLocation{{
-					Area:       "An area",
-					BuildingId: "A building",
-					Type:       "desk",
+					Area: "An area",
+					Type: "desk",
 				}},
 				Name: &admin.UserName{
 					FamilyName: "Jones",
@@ -489,19 +481,16 @@ func Test_updateLocations(t *testing.T) {
 	tests := []struct {
 		name         string
 		newArea      string
-		newBuilding  string
 		oldLocations interface{}
 		want         []admin.UserLocation
 	}{
 		{
-			name:        "desk and custom",
-			newArea:     "Area 2",
-			newBuilding: "Bldg 2",
+			name:    "desk and custom",
+			newArea: "Area 2",
 			oldLocations: []interface{}{
 				map[string]interface{}{
-					"type":       "desk",
-					"area":       "Area 1",
-					"buildingId": "Bldg 1",
+					"type": "desk",
+					"area": "Area 1",
 				},
 				map[string]interface{}{
 					"type":         "custom",
@@ -515,9 +504,8 @@ func Test_updateLocations(t *testing.T) {
 			},
 			want: []admin.UserLocation{
 				{
-					Type:       "desk",
-					Area:       "Area 2",
-					BuildingId: "Bldg 2",
+					Type: "desk",
+					Area: "Area 2",
 				},
 				{
 					Type:         "custom",
@@ -531,28 +519,24 @@ func Test_updateLocations(t *testing.T) {
 			},
 		},
 		{
-			name:        "desk only",
-			newArea:     "Area 2",
-			newBuilding: "Bldg 2",
+			name:    "desk only",
+			newArea: "Area 2",
 			oldLocations: []interface{}{
 				map[string]interface{}{
-					"type":       "desk",
-					"area":       "Area 1",
-					"buildingId": "Bldg 1",
+					"type": "desk",
+					"area": "Area 1",
 				},
 			},
 			want: []admin.UserLocation{
 				{
-					Type:       "desk",
-					Area:       "Area 2",
-					BuildingId: "Bldg 2",
+					Type: "desk",
+					Area: "Area 2",
 				},
 			},
 		},
 		{
-			name:        "custom only",
-			newArea:     "Area 2",
-			newBuilding: "Bldg 2",
+			name:    "custom only",
+			newArea: "Area 2",
 			oldLocations: []interface{}{
 				map[string]interface{}{
 					"type":         "custom",
@@ -566,9 +550,8 @@ func Test_updateLocations(t *testing.T) {
 			},
 			want: []admin.UserLocation{
 				{
-					Type:       "desk",
-					Area:       "Area 2",
-					BuildingId: "Bldg 2",
+					Type: "desk",
+					Area: "Area 2",
 				},
 				{
 					Type:         "custom",
@@ -584,7 +567,7 @@ func Test_updateLocations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updateLocations(tt.newArea, tt.newBuilding, tt.oldLocations); err != nil {
+			if got, err := updateLocations(tt.newArea, tt.oldLocations); err != nil {
 				t.Errorf("updateLocations() error: %s", err)
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("updateLocations():\n%+v\nwant:\n%+v", got, tt.want)

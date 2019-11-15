@@ -74,7 +74,6 @@ func extractData(user admin.User) personnel_sync.Person {
 
 	if found := findFirstMatchingType(user.Locations, "desk"); found != nil {
 		setStringFromInterface(found["area"], newPerson.Attributes, "area")
-		setStringFromInterface(found["buildingId"], newPerson.Attributes, "building")
 	}
 
 	if found := findFirstMatchingType(user.Organizations, ""); found != nil {
@@ -195,7 +194,7 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 		}
 	}
 
-	user.Locations, err = updateLocations(person.Attributes["area"], person.Attributes["building"], oldUser.Locations)
+	user.Locations, err = updateLocations(person.Attributes["area"], oldUser.Locations)
 	if err != nil {
 		return admin.User{}, err
 	}
@@ -317,11 +316,10 @@ func updateIDs(newID string, oldIDs interface{}) ([]admin.UserExternalId, error)
 	return IDs, nil
 }
 
-func updateLocations(newArea, newBuilding string, oldLocations interface{}) ([]admin.UserLocation, error) {
+func updateLocations(newArea string, oldLocations interface{}) ([]admin.UserLocation, error) {
 	locations := []admin.UserLocation{{
-		Type:       "desk",
-		Area:       newArea,
-		BuildingId: newBuilding,
+		Type: "desk",
+		Area: newArea,
 	}}
 
 	if oldLocations == nil {
