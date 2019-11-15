@@ -236,6 +236,7 @@
     "golang.org/x/net/context",
     "golang.org/x/oauth2/google",
     "google.golang.org/api/admin/directory/v1",
+    "google.golang.org/api/option",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
