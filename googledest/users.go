@@ -196,16 +196,18 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 	}
 	user.Name = &newName
 
-	if person.Attributes["id"] != "" {
-		user.ExternalIds, err = updateIDs(person.Attributes["id"], oldUser.ExternalIds)
+	if id, ok := person.Attributes["id"]; ok {
+		user.ExternalIds, err = updateIDs(id, oldUser.ExternalIds)
 		if err != nil {
 			return admin.User{}, err
 		}
 	}
 
-	user.Locations, err = updateLocations(person.Attributes["area"], oldUser.Locations)
-	if err != nil {
-		return admin.User{}, err
+	if area, ok := person.Attributes["area"]; ok {
+		user.Locations, err = updateLocations(area, oldUser.Locations)
+		if err != nil {
+			return admin.User{}, err
+		}
 	}
 
 	// NOTICE: this will overwrite any and all existing Organizations
@@ -215,15 +217,15 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 		Title:      person.Attributes["title"],
 	}}
 
-	if person.Attributes["phone"] != "" {
-		user.Phones, err = updatePhones(person.Attributes["phone"], oldUser.Phones)
+	if phone, ok := person.Attributes["phone"]; ok {
+		user.Phones, err = updatePhones(phone, oldUser.Phones)
 		if err != nil {
 			return admin.User{}, err
 		}
 	}
 
-	if person.Attributes["manager"] != "" {
-		user.Relations, err = updateRelations(person.Attributes["manager"], oldUser.Relations)
+	if manager, ok := person.Attributes["manager"]; ok {
+		user.Relations, err = updateRelations(manager, oldUser.Relations)
 		if err != nil {
 			return admin.User{}, err
 		}
