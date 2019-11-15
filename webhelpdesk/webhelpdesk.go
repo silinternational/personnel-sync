@@ -14,7 +14,8 @@ import (
 	personnel_sync "github.com/silinternational/personnel-sync"
 )
 
-const DefaultBatchSizePerMinute = 50
+const DefaultBatchSize = 50
+const DefaultBatchDelay = 60
 const DefaultListClientsPageLimit = 100
 const ClientsAPIPath = "/ra/Clients"
 
@@ -32,7 +33,8 @@ type WebHelpDesk struct {
 	Username             string
 	Password             string
 	ListClientsPageLimit int
-	BatchSizePerMinute   int
+	BatchSize            int
+	BatchDelay           int
 }
 
 func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -44,8 +46,11 @@ func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfi
 	}
 
 	// Set defaults for batch size per minute and page limit if not provided in ExtraJSON
-	if webHelpDesk.BatchSizePerMinute <= 0 {
-		webHelpDesk.BatchSizePerMinute = DefaultBatchSizePerMinute
+	if webHelpDesk.BatchSize <= 0 {
+		webHelpDesk.BatchSize = DefaultBatchSize
+	}
+	if webHelpDesk.BatchDelay <= 0 {
+		webHelpDesk.BatchDelay = DefaultBatchDelay
 	}
 
 	if webHelpDesk.ListClientsPageLimit == 0 {
@@ -121,7 +126,7 @@ func (w *WebHelpDesk) ApplyChangeSet(
 	var wg sync.WaitGroup
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(w.BatchSizePerMinute, int(60))
+	batchTimer := personnel_sync.NewBatchTimer(w.BatchSize, w.BatchDelay)
 
 	for _, cp := range changes.Create {
 		wg.Add(1)
