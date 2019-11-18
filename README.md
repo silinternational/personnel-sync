@@ -139,9 +139,9 @@ to be updated.
 |------------|-----------------|---------------------|--------------|
 | id         | externalIds     | value               | organization | 
 | area       | locations       | area                | desk         |
-| costCenter | organizations   | costCenter          | (not set)    |
-| department | organizations   | department          | (not set)    |
-| title      | organizations   | title               | (not set)    |
+| costCenter | organizations*  | costCenter          | (not set)    |
+| department | organizations*  | department          | (not set)    |
+| title      | organizations*  | title               | (not set)    |
 | phone      | phones          | value               | work         |
 | manager    | relations       | value               | manager      |
 | familyName | name            | familyName          | n/a          |
@@ -150,6 +150,9 @@ to be updated.
 Custom schema properties can be added using dot notation. For example, a
 custom property with Field name `Building` in the custom schema `Location`
 is represented as `Location.Building`.
+             
+__\* CAUTION:__ updating any field in `organizations` will overwrite all
+existing organizations
              
 Following is an example configuration listing all available fields:
 
