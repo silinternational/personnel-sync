@@ -189,7 +189,8 @@ func (g *GoogleUsers) ApplyChangeSet(
 func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.User, error) {
 	user := admin.User{}
 	var err error
-	var organization *admin.UserOrganization
+	var organization admin.UserOrganization
+	isOrgModified := false
 
 	for key, val := range person.Attributes {
 		switch key {
@@ -220,25 +221,16 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 			}
 
 		case "costCenter":
-			if organization == nil {
-				organization = &admin.UserOrganization{CostCenter: val}
-			} else {
-				organization.CostCenter = val
-			}
+			organization.CostCenter = val
+			isOrgModified = true
 
 		case "department":
-			if organization == nil {
-				organization = &admin.UserOrganization{Department: val}
-			} else {
-				organization.Department = val
-			}
+			organization.Department = val
+			isOrgModified = true
 
 		case "title":
-			if organization == nil {
-				organization = &admin.UserOrganization{Title: val}
-			} else {
-				organization.Title = val
-			}
+			organization.Title = val
+			isOrgModified = true
 
 		case "phone":
 			user.Phones, err = updatePhones(val, oldUser.Phones)
@@ -260,7 +252,7 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 
 			j, err := json.Marshal(&map[string]string{keys[1]: val})
 			if err != nil {
-				return admin.User{}, fmt.Errorf("error marshaling location, %s", err)
+				return admin.User{}, fmt.Errorf("error marshaling custom schema, %s", err)
 			}
 
 			user.CustomSchemas = map[string]googleapi.RawMessage{
@@ -269,9 +261,9 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 		}
 	}
 
-	if organization != nil {
+	if isOrgModified {
 		// NOTICE: this will overwrite any and all existing Organizations
-		user.Organizations = []admin.UserOrganization{*organization}
+		user.Organizations = []admin.UserOrganization{organization}
 	}
 
 	return user, nil
