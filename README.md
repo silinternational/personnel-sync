@@ -139,7 +139,6 @@ to be updated.
 |------------|-----------------|---------------------|--------------|
 | id         | externalIds     | value               | organization | 
 | area       | locations       | area                | desk         |
-| building   | customSchemas   | Location*           | Building*    |
 | costCenter | organizations   | costCenter          | (not set)    |
 | department | organizations   | department          | (not set)    |
 | title      | organizations   | title               | (not set)    |
@@ -148,8 +147,9 @@ to be updated.
 | familyName | name            | familyName          | n/a          |
 | givenName  | name            | givenName           | n/a          |
 
-\* The `building` property is a custom property with Field name "Building" in
-the custom schema "Location".
+Custom schema properties can be added using dot notation. For example, a
+custom property with Field name `Building` in the custom schema `Location`
+is represented as `Location.Building`.
              
 Following is an example configuration listing all available fields:
 
@@ -207,7 +207,7 @@ Following is an example configuration listing all available fields:
     },
     {
       "Source": "building",
-      "Destination": "building",
+      "Destination": "Location.Building",
       "required": false
     },
     {

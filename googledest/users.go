@@ -95,11 +95,11 @@ func extractData(user admin.User) personnel_sync.Person {
 		newPerson.Attributes["givenName"] = user.Name.GivenName
 	}
 
-	if customLocation, ok := user.CustomSchemas["Location"]; ok {
-		var loc map[string]string
-		_ = json.Unmarshal(customLocation, &loc)
-		if building, ok := loc["Building"]; ok {
-			newPerson.Attributes["building"] = building
+	for schemaKey, schemaVal := range user.CustomSchemas {
+		var schema map[string]string
+		_ = json.Unmarshal(schemaVal, &schema)
+		for propertyKey, propertyVal := range schema {
+			newPerson.Attributes[schemaKey+"."+propertyKey] = propertyVal
 		}
 	}
 
@@ -189,57 +189,89 @@ func (g *GoogleUsers) ApplyChangeSet(
 func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.User, error) {
 	user := admin.User{}
 	var err error
+	var organization *admin.UserOrganization
 
-	newName := admin.UserName{
-		GivenName:  person.Attributes["givenName"],
-		FamilyName: person.Attributes["familyName"],
-	}
-	user.Name = &newName
+	for key, val := range person.Attributes {
+		switch key {
+		case "givenName":
+			if user.Name == nil {
+				user.Name = &admin.UserName{GivenName: val}
+			} else {
+				user.Name.GivenName = val
+			}
 
-	if id, ok := person.Attributes["id"]; ok {
-		user.ExternalIds, err = updateIDs(id, oldUser.ExternalIds)
-		if err != nil {
-			return admin.User{}, err
+		case "familyName":
+			if user.Name == nil {
+				user.Name = &admin.UserName{FamilyName: val}
+			} else {
+				user.Name.FamilyName = val
+			}
+
+		case "id":
+			user.ExternalIds, err = updateIDs(val, oldUser.ExternalIds)
+			if err != nil {
+				return admin.User{}, err
+			}
+
+		case "area":
+			user.Locations, err = updateLocations(val, oldUser.Locations)
+			if err != nil {
+				return admin.User{}, err
+			}
+
+		case "costCenter":
+			if organization == nil {
+				organization = &admin.UserOrganization{CostCenter: val}
+			} else {
+				organization.CostCenter = val
+			}
+
+		case "department":
+			if organization == nil {
+				organization = &admin.UserOrganization{Department: val}
+			} else {
+				organization.Department = val
+			}
+
+		case "title":
+			if organization == nil {
+				organization = &admin.UserOrganization{Title: val}
+			} else {
+				organization.Title = val
+			}
+
+		case "phone":
+			user.Phones, err = updatePhones(val, oldUser.Phones)
+			if err != nil {
+				return admin.User{}, err
+			}
+
+		case "manager":
+			user.Relations, err = updateRelations(val, oldUser.Relations)
+			if err != nil {
+				return admin.User{}, err
+			}
+
+		default:
+			keys := strings.SplitN(key, ".", 2)
+			if len(keys) < 2 {
+				continue
+			}
+
+			j, err := json.Marshal(&map[string]string{keys[1]: val})
+			if err != nil {
+				return admin.User{}, fmt.Errorf("error marshaling location, %s", err)
+			}
+
+			user.CustomSchemas = map[string]googleapi.RawMessage{
+				keys[0]: j,
+			}
 		}
 	}
 
-	if area, ok := person.Attributes["area"]; ok {
-		user.Locations, err = updateLocations(area, oldUser.Locations)
-		if err != nil {
-			return admin.User{}, err
-		}
-	}
-
-	// NOTICE: this will overwrite any and all existing Organizations
-	user.Organizations = []admin.UserOrganization{{
-		CostCenter: person.Attributes["costCenter"],
-		Department: person.Attributes["department"],
-		Title:      person.Attributes["title"],
-	}}
-
-	if phone, ok := person.Attributes["phone"]; ok {
-		user.Phones, err = updatePhones(phone, oldUser.Phones)
-		if err != nil {
-			return admin.User{}, err
-		}
-	}
-
-	if manager, ok := person.Attributes["manager"]; ok {
-		user.Relations, err = updateRelations(manager, oldUser.Relations)
-		if err != nil {
-			return admin.User{}, err
-		}
-	}
-
-	if building, ok := person.Attributes["building"]; ok {
-		j, err := json.Marshal(&map[string]string{"Building": building})
-		if err != nil {
-			return admin.User{}, fmt.Errorf("error marshaling location, %s", err)
-		}
-
-		user.CustomSchemas = map[string]googleapi.RawMessage{
-			"Location": j,
-		}
+	if organization != nil {
+		// NOTICE: this will overwrite any and all existing Organizations
+		user.Organizations = []admin.UserOrganization{*organization}
 	}
 
 	return user, nil
