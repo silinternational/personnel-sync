@@ -22,8 +22,11 @@ type SourceConfig struct {
 }
 
 type DestinationConfig struct {
-	Type      string
-	ExtraJSON json.RawMessage
+	Type          string
+	ExtraJSON     json.RawMessage
+	DisableAdd    bool
+	DisableUpdate bool
+	DisableDelete bool
 }
 
 const (

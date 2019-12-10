@@ -80,7 +80,8 @@ of the destination configuration required for Google Groups:
   "Destination": {
     "Type": "GoogleGroups",
     "ExtraJSON": {
-      "BatchSizePerMinute": 50,
+      "BatchSize": 10,
+      "BatchDelay": 3,
       "DelegatedAdminEmail": "delegated-admin@domain.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -123,12 +124,17 @@ of the destination configuration required for Google Groups:
           "GroupEmail": "group1@groups.domain.com",
           "Owners": ["person_a@domain.com","person_b@domain.com"],
           "Managers": ["another_person@domain.com", "yet-another-person@domain.com"],
-          "ExtraOwners": ["google-admin@domain.com"]
+          "ExtraOwners": ["google-admin@domain.com"],
+          "DisableAdd": false,
+          "DisableUpdate": false,
+          "DisableDelete": false
       }
     }
   ]
 }
 ```
+
+Configurations for `BatchSize`, `BatchDelay`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all option with defaults as shown in example.
 
 ### Google Users
 This destination can update User records in the Google Directory. The compare
@@ -161,7 +167,8 @@ Following is an example configuration listing all available fields:
   "Destination": {
     "Type": "GoogleUsers",
     "ExtraJSON": {
-      "BatchSizePerMinute": 50,
+      "BatchSize": 10,
+      "BatchDelay": 3,
       "DelegatedAdminEmail": "admin@example.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -317,13 +324,14 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
       "Username": "syncuser",
       "Password": "apitoken",
       "ListClientsPageLimit": 100,
-      "BatchSizePerMinute": 50
+      "BatchSize": 50,
+      "BatchDelay": 60
     }
   }
 }
 ```
 
-`ListClientsPageLimit` and `BatchSizePerMinute` are optional. Their defaults are as shown in the example config.
+`ListClientsPageLimit`, `BatchSize` and `BatchDelay` are optional. Their defaults are as shown in the example config.
 
 ### Exporting logs from CloudWatch
 
@@ -346,3 +354,4 @@ stream. Note the single quotes around the log stream name to prevent the shell
 from interpreting the `$` character. `--output text` can be changed to 
 `--output json` if desired. Timestamps are available if needed, but omitted
 in this example by the `--query` string.
+
