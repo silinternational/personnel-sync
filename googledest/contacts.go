@@ -176,6 +176,7 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 			Attributes: map[string]string{
 				"email":    primaryEmail,
 				"fullName": parsed.Entries[i].Title,
+				"id":       selfLink,
 			},
 		}
 	}

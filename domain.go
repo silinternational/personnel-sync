@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	DefaultConfigFile           = "./config.json"
-	DefaultVerbosity            = 5
-const DestinationTypeGoogleContacts = "GoogleContacts"
-	DestinationTypeGoogleGroups = "GoogleGroups"
-	DestinationTypeGoogleUsers  = "GoogleUsers"
-	DestinationTypeWebHelpDesk  = "WebHelpDesk"
-	SourceTypeRestAPI           = "RestAPI"
+	DefaultConfigFile             = "./config.json"
+	DefaultVerbosity              = 5
+	DestinationTypeGoogleContacts = "GoogleContacts"
+	DestinationTypeGoogleGroups   = "GoogleGroups"
+	DestinationTypeGoogleUsers    = "GoogleUsers"
+	DestinationTypeWebHelpDesk    = "WebHelpDesk"
+	SourceTypeRestAPI             = "RestAPI"
 )
 
 // LoadConfig looks for a config file if one is provided. Otherwise, it looks for
