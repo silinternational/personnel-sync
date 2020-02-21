@@ -60,9 +60,9 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
       "ResultsJSONContainer": "records",
       "AuthType": "SalesforceOauth",
       "Username": "admin@example.com",
-      "Password": "LqznAW6N8.EenJVT",
-      "ClientID": "VczVNcM8xaDRB8bi_fLyn2BJzpG6bihUxNQGeV2BePM4FBT2VMeJfGnC38K46aqBRLTCJy.GJK2RmPUCVrm39",
-      "ClientSecret": "2CD6093EFA0DABCFABE3B7B78F951EFD1B59283E23D357EB458AE6852838C26C",
+      "Password": "abc123def.ghiJKL",
+      "ClientID": "ABCD1234abcd56789_ABCD1234abcd5678ABCD1234abcd5678ABCD1234abcd5678ABCD1.234abcd5678ABC",
+      "ClientSecret": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
       "CompareAttribute": "email"
     }
   }
@@ -123,7 +123,8 @@ of the destination configuration required for Google Groups:
   "Destination": {
     "Type": "GoogleGroups",
     "ExtraJSON": {
-      "BatchSizePerMinute": 50,
+      "BatchSize": 10,
+      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "delegated-admin@domain.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -166,23 +167,51 @@ of the destination configuration required for Google Groups:
           "GroupEmail": "group1@groups.domain.com",
           "Owners": ["person_a@domain.com","person_b@domain.com"],
           "Managers": ["another_person@domain.com", "yet-another-person@domain.com"],
-          "ExtraOwners": ["google-admin@domain.com"]
+          "ExtraOwners": ["google-admin@domain.com"],
+          "DisableAdd": false,
+          "DisableUpdate": false,
+          "DisableDelete": false
       }
     }
   ]
 }
 ```
 
+Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all option with defaults as shown in example.
+
 ### Google Users
-This destination can update User records in the Google Directory. Presently, only the user's name is available
-for updating, but other fields may be added in the future. Following is an example configuration:
+This destination can update User records in the Google Directory. The compare
+attribute is `primaryEmail`. A limited subset of user properties are available
+to be updated. 
+
+| property   | Google property | Google sub-property | Google type  |
+|------------|-----------------|---------------------|--------------|
+| id         | externalIds     | value               | organization | 
+| area       | locations       | area                | desk         |
+| costCenter | organizations*  | costCenter          | (not set)    |
+| department | organizations*  | department          | (not set)    |
+| title      | organizations*  | title               | (not set)    |
+| phone      | phones          | value               | work         |
+| manager    | relations       | value               | manager      |
+| familyName | name            | familyName          | n/a          |
+| givenName  | name            | givenName           | n/a          |
+
+Custom schema properties can be added using dot notation. For example, a
+custom property with Field name `Building` in the custom schema `Location`
+is represented as `Location.Building`.
+             
+__\* CAUTION:__ updating any field in `organizations` will overwrite all
+existing organizations
+             
+Following is an example configuration listing all available fields:
 
 ```json
 {
   "Destination": {
     "Type": "GoogleUsers",
     "ExtraJSON": {
-      "BatchSizePerMinute": 50,
+      "BatchSize": 10,
+      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "admin@example.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -213,6 +242,46 @@ for updating, but other fields may be added in the future. Following is an examp
       "Source": "first_name",
       "Destination": "givenName",
       "required": true
+    },
+    {
+      "Source": "id",
+      "Destination": "id",
+      "required": false
+    },
+    {
+      "Source": "phone",
+      "Destination": "phone",
+      "required": false
+    },
+    {
+      "Source": "area",
+      "Destination": "area",
+      "required": false
+    },
+    {
+      "Source": "building",
+      "Destination": "Location.Building",
+      "required": false
+    },
+    {
+      "Source": "cost_center",
+      "Destination": "costCenter",
+      "required": false
+    },
+    {
+      "Source": "department",
+      "Destination": "department",
+      "required": false
+    },
+    {
+      "Source": "title",
+      "Destination": "title",
+      "required": false
+    },
+    {
+      "Source": "manager",
+      "Destination": "manager",
+      "required": false
     }
   ]
 }
@@ -299,10 +368,34 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
       "Username": "syncuser",
       "Password": "apitoken",
       "ListClientsPageLimit": 100,
-      "BatchSizePerMinute": 50
+      "BatchSize": 50,
+      "BatchDelaySeconds": 60
     }
   }
 }
 ```
 
-`ListClientsPageLimit` and `BatchSizePerMinute` are optional. Their defaults are as shown in the example config.
+`ListClientsPageLimit`, `BatchSize` and `BatchDelaySeconds` are optional. Their defaults are as shown in the example config.
+
+### Exporting logs from CloudWatch
+
+The log messages in CloudWatch can be viewed on the AWS Management Console. If
+an exported text or json file is needed, the AWS CLI tool can be used as
+follows:
+
+```shell script
+aws configure
+aws logs get-log-events \
+   --log-group-name "/aws/lambda/lambda-name" \
+   --log-stream-name '2019/11/14/[$LATEST]0123456789abcdef0123456789abcdef' \
+   --output text \
+   --query 'events[*].message'
+```
+
+Replace `/aws/lambda/lambda-name` with the actual log group name and 
+`2019/11/14/[$LATEST]0123456789abcdef0123456789abcdef` with the actual log
+stream. Note the single quotes around the log stream name to prevent the shell
+from interpreting the `$` character. `--output text` can be changed to 
+`--output json` if desired. Timestamps are available if needed, but omitted
+in this example by the `--query` string.
+

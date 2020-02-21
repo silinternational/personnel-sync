@@ -13,7 +13,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-const DefaultBatchSizePerMinute = 50
+const DefaultBatchSize = 10
+const DefaultBatchDelaySeconds = 3
 const RoleMember = "MEMBER"
 const RoleOwner = "OWNER"
 const RoleManager = "MANAGER"
@@ -28,14 +29,20 @@ type GoogleGroups struct {
 	GoogleGroupsConfig GoogleGroupsConfig
 	AdminService       admin.Service
 	GroupSyncSet       GroupSyncSet
-	BatchSizePerMinute int
+	BatchSize          int
+	BatchDelaySeconds  int
 }
 
 type GroupSyncSet struct {
-	GroupEmail  string
-	Owners      []string
-	Managers    []string
-	ExtraOwners []string
+	GroupEmail    string
+	Owners        []string
+	ExtraOwners   []string
+	Managers      []string
+	ExtraManagers []string
+	ExtraMembers  []string
+	DisableAdd    bool
+	DisableUpdate bool
+	DisableDelete bool
 }
 
 func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -47,8 +54,11 @@ func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConf
 	}
 
 	// Defaults
-	if googleGroups.BatchSizePerMinute <= 0 {
-		googleGroups.BatchSizePerMinute = DefaultBatchSizePerMinute
+	if googleGroups.BatchSize <= 0 {
+		googleGroups.BatchSize = DefaultBatchSize
+	}
+	if googleGroups.BatchDelaySeconds <= 0 {
+		googleGroups.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
 	// Initialize AdminService object
@@ -99,8 +109,14 @@ func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
 	var members []personnel_sync.Person
 
 	for _, nextMember := range membersList {
-		// Do not include ExtraOwners in list to prevent inclusion in delete list
+		// Do not include Extra Managers or ExtraOwners in list to prevent inclusion in delete list
+		if isExtraManager, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraManagers); isExtraManager {
+			continue
+		}
 		if isExtraOwner, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraOwners); isExtraOwner {
+			continue
+		}
+		if isExtraMember, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraMembers); isExtraMember {
 			continue
 		}
 
@@ -140,29 +156,44 @@ func (g *GoogleGroups) ApplyChangeSet(
 		}
 	}
 
-	// Add any ExtraOwners to Create list since they are not in the source people
+	// Add any ExtraManagers, ExtraOwners, and ExtraMembers to Create list since they are not in the source people
+	for _, manager := range g.GroupSyncSet.ExtraManagers {
+		toBeCreated[manager] = RoleManager
+	}
 	for _, owner := range g.GroupSyncSet.ExtraOwners {
 		toBeCreated[owner] = RoleOwner
 	}
-
-	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(g.BatchSizePerMinute, int(60))
-
-	for email, role := range toBeCreated {
-		wg.Add(1)
-		go g.addMember(email, role, &results.Created, &wg, eventLog)
-		batchTimer.WaitOnBatch()
+	for _, member := range g.GroupSyncSet.ExtraMembers {
+		toBeCreated[member] = RoleMember
 	}
 
-	for _, dp := range changes.Delete {
-		// Do not delete ExtraOwners
-		if isExtraOwner, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
-			continue
-		}
+	// One minute per batch
+	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
-		wg.Add(1)
-		go g.removeMember(dp.CompareValue, &results.Deleted, &wg, eventLog)
-		batchTimer.WaitOnBatch()
+	if !g.GroupSyncSet.DisableAdd {
+		for email, role := range toBeCreated {
+			wg.Add(1)
+			go g.addMember(email, role, &results.Created, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
+	}
+
+	if !g.GroupSyncSet.DisableDelete {
+		for _, dp := range changes.Delete {
+			// Do not delete ExtraManagers, ExtraOwners, or ExtraMembers
+			if isExtraManager, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraManagers); isExtraManager {
+				continue
+			}
+			if isExtraOwner, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
+				continue
+			}
+			if isExtraMember, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraMembers); isExtraMember {
+				continue
+			}
+			wg.Add(1)
+			go g.removeMember(dp.CompareValue, &results.Deleted, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
 	}
 
 	wg.Wait()

@@ -1,7 +1,7 @@
 {
   "Runtime": {
-    "FailIfSinglePersonMissingCompareValue": false,
-    "DryRunMode": false
+    "DryRunMode": false,
+    "Verbosity": 1
   },
   "Source": {
     "Type": "RestAPI",
@@ -54,13 +54,15 @@
     {
       "Name": "Sync from personnel to Google Groups",
       "Source": {
-        "Path": "/user-report"
+        "Paths": ["/user-report"]
       },
       "Destination": {
         "GroupEmail": "group1@groups.domain.com",
         "Owners": ["person_a@domain.com","person_b@domain.com"],
+        "ExtraOwners": ["google-admin@domain.com"],
         "Managers": ["another_person@domain.com", "yet-another-person@domain.com"],
-        "ExtraOwners": ["google-admin@domain.com"]
+        "ExtraManagers": ["new_manager@domain.com"]
+
       }
     }
   ]

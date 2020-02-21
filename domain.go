@@ -10,12 +10,15 @@ import (
 	"time"
 )
 
-const DefaultConfigFile = "./config.json"
-const DestinationTypeGoogleGroups = "GoogleGroups"
+const (
+	DefaultConfigFile           = "./config.json"
+	DefaultVerbosity            = 5
 const DestinationTypeGoogleContacts = "GoogleContacts"
-const DestinationTypeGoogleUsers = "GoogleUsers"
-const DestinationTypeWebHelpDesk = "WebHelpDesk"
-const SourceTypeRestAPI = "RestAPI"
+	DestinationTypeGoogleGroups = "GoogleGroups"
+	DestinationTypeGoogleUsers  = "GoogleUsers"
+	DestinationTypeWebHelpDesk  = "WebHelpDesk"
+	SourceTypeRestAPI           = "RestAPI"
+)
 
 // LoadConfig looks for a config file if one is provided. Otherwise, it looks for
 // a config file based on the CONFIG_PATH env var.  If that is not set, it gets
@@ -37,7 +40,11 @@ func LoadConfig(configFile string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
-	config := AppConfig{}
+	config := AppConfig{
+		Runtime: RuntimeConfig{
+			Verbosity: DefaultVerbosity,
+		},
+	}
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
@@ -115,17 +122,23 @@ func getPersonFromList(compareValue string, peopleList []Person) Person {
 	return Person{}
 }
 
-func personAttributesAreEqual(sp, dp Person, attributeMap []AttributeMap) bool {
-	caseSensitivityList := getCaseSensitivitySourceAttributeList(attributeMap)
+func personAttributesAreEqual(sp, dp Person, config AppConfig) bool {
+	caseSensitivityList := getCaseSensitivitySourceAttributeList(config.AttributeMap)
+	equal := true
 	for key, val := range sp.Attributes {
 		if !stringsAreEqual(val, dp.Attributes[key], caseSensitivityList[key]) {
-			log.Printf("Attribute %s not equal for user %s. Case Sensitive: %v, Source: %s, Destination: %s \n",
-				key, sp.CompareValue, caseSensitivityList[key], val, dp.Attributes[key])
-			return false
+			if config.Runtime.Verbosity >= VerbosityMedium {
+				log.Printf(`User: "%s", "%s" not equal, CaseSensitive: "%t", Source: "%s", Dest: "%s"`+"\n",
+					sp.CompareValue, key, caseSensitivityList[key], val, dp.Attributes[key])
+				equal = false
+			} else {
+				log.Printf(`User: "%s" not equal`+"\n", key)
+				return false
+			}
 		}
 	}
 
-	return true
+	return equal
 }
 
 func stringsAreEqual(val1, val2 string, caseSensitive bool) bool {
@@ -150,7 +163,7 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 // (Create, Update and Delete) based on whether they are in the slice
 //  of destination Person instances.
 // It skips all source Person instances that have DisableChanges set to true
-func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []AttributeMap, idField string) ChangeSet {
+func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfig, idField string) ChangeSet {
 	var changeSet ChangeSet
 
 	// Find users who need to be created or updated
@@ -166,8 +179,8 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []
 			continue
 		}
 
-		if !personAttributesAreEqual(sp, destinationPerson, attributeMap) {
-			sp.ID = destinationPerson.ID
+		if !personAttributesAreEqual(sp, destinationPerson, config) {
+			sp.ID = destinationPerson.Attributes["id"]
 			changeSet.Update = append(changeSet.Update, sp)
 			continue
 		}
@@ -190,8 +203,8 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, attributeMap []
 //  - it gets the list of people from the destination
 //  - it generates the lists of people to change, update and delete
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
-func SyncPeople(source Source, destination Destination, attributeMap []AttributeMap, dryRun bool) ChangeResults {
-	desiredAttrs := GetDesiredAttributes(attributeMap)
+func SyncPeople(source Source, destination Destination, config AppConfig) ChangeResults {
+	desiredAttrs := GetDesiredAttributes(config.AttributeMap)
 	sourcePeople, err := source.ListUsers(desiredAttrs)
 	if err != nil {
 		return ChangeResults{
@@ -201,7 +214,7 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 	log.Printf("    Found %v people in source", len(sourcePeople))
 
 	// remap source people to destination attributes for comparison
-	sourcePeople, err = RemapToDestinationAttributes(sourcePeople, attributeMap)
+	sourcePeople, err = RemapToDestinationAttributes(sourcePeople, config.AttributeMap)
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -216,10 +229,10 @@ func SyncPeople(source Source, destination Destination, attributeMap []Attribute
 	}
 	log.Printf("    Found %v people in destination", len(destinationPeople))
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap, destination.GetIDField())
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config, destination.GetIDField())
 
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
-	if dryRun {
+	if config.Runtime.DryRunMode {
 		printChangeSet(changeSet)
 		return ChangeResults{
 			Created: uint64(len(changeSet.Create)),

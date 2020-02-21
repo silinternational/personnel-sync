@@ -9,10 +9,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Jeffail/gabs"
 
-	"github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync"
 )
 
 const AuthTypeBasic = "basic"
@@ -22,7 +23,7 @@ const AuthTypeSalesforceOauth = "SalesforceOauth"
 type RestAPI struct {
 	Method               string
 	BaseURL              string
-	Path                 string
+	Paths                []string
 	ResultsJSONContainer string
 	AuthType             string
 	Username             string
@@ -33,7 +34,7 @@ type RestAPI struct {
 }
 
 type SetConfig struct {
-	Path string
+	Paths []string
 }
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a restApi struct
@@ -43,6 +44,16 @@ func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.
 	err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI)
 	if err != nil {
 		return &RestAPI{}, err
+	}
+
+	if restAPI.AuthType == AuthTypeSalesforceOauth {
+		token, err := restAPI.getSalesforceOauthToken()
+		if err != nil {
+			log.Println(err)
+			return &RestAPI{}, err
+		}
+
+		restAPI.Password = token
 	}
 
 	return &restAPI, nil
@@ -58,64 +69,99 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 		return err
 	}
 
-	if setConfig.Path == "" {
-		return fmt.Errorf("path is empty in sync set")
-	}
-	if !strings.HasPrefix(setConfig.Path, "/") {
-		setConfig.Path = "/" + setConfig.Path
+	if len(setConfig.Paths) == 0 {
+		return fmt.Errorf("paths is empty in sync set")
 	}
 
-	r.Path = setConfig.Path
+	for i, p := range setConfig.Paths {
+		if p == "" {
+			return fmt.Errorf("a path in sync set sources is blank")
+		}
+		if !strings.HasPrefix(p, "/") {
+			setConfig.Paths[i] = "/" + p
+		}
+	}
+
+	r.Paths = setConfig.Paths
 
 	return nil
 }
 
+func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+	errLog := make(chan string, 1000)
+	people := make(chan personnel_sync.Person, 20000)
+	var wg sync.WaitGroup
+
+	for _, p := range r.Paths {
+		wg.Add(1)
+		go r.listUsersForPath(desiredAttrs, p, &wg, people, errLog)
+	}
+
+	wg.Wait()
+	close(people)
+	close(errLog)
+
+	if len(errLog) > 0 {
+		var errs []string
+		for msg := range errLog {
+			errs = append(errs, msg)
+		}
+		return []personnel_sync.Person{}, fmt.Errorf("errors listing users: %s", strings.Join(errs, ","))
+	}
+
+	var results []personnel_sync.Person
+
+	for person := range people {
+		results = append(results, person)
+	}
+
+	return results, nil
+}
+
 // ListUsers makes an http request and uses the response to populate
 // and return a slice of Person instances
-func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+func (r *RestAPI) listUsersForPath(
+	desiredAttrs []string,
+	path string,
+	wg *sync.WaitGroup,
+	people chan<- personnel_sync.Person,
+	errLog chan<- string) {
+
+	defer wg.Done()
+
 	client := &http.Client{}
-	apiURL := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
+	apiURL := fmt.Sprintf("%s%s", r.BaseURL, path)
 	req, err := http.NewRequest(r.Method, apiURL, nil)
 	if err != nil {
 		log.Println(err)
-		return []personnel_sync.Person{}, err
+		errLog <- err.Error()
 	}
 
 	switch r.AuthType {
 	case AuthTypeBasic:
 		req.SetBasicAuth(r.Username, r.Password)
-	case AuthTypeBearer:
+	case AuthTypeBearer, AuthTypeSalesforceOauth:
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
-	case AuthTypeSalesforceOauth:
-		token, err := r.getSalesforceOauthToken()
-		if err != nil {
-			return []personnel_sync.Person{}, err
-		}
-		newApiUrl := fmt.Sprintf("%s%s", r.BaseURL, r.Path)
-		req.URL, err = url.Parse(newApiUrl)
-		if err != nil {
-			return []personnel_sync.Person{}, fmt.Errorf("unable to change api url after Salesforce auth")
-		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println(err)
-		return []personnel_sync.Person{}, err
+		log.Println(err)
+		errLog <- err.Error()
 	}
 
 	bodyText, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("error reading response body: %s", err.Error())
-		return []personnel_sync.Person{}, err
+		errLog <- err.Error()
 	}
 
 	jsonParsed, err := gabs.ParseJSON(bodyText)
 	if err != nil {
 		log.Printf("error parsing json results: %s", err.Error())
 		log.Printf("response body: %s", string(bodyText))
-		return []personnel_sync.Person{}, err
+		errLog <- err.Error()
 	}
 
 	var peopleList []*gabs.Container
@@ -129,10 +175,14 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 
 	if err != nil {
 		log.Printf("error getting results children: %s\n", err.Error())
-		return []personnel_sync.Person{}, err
+		errLog <- err.Error()
 	}
 
-	return getPersonsFromResults(peopleList, r.CompareAttribute, desiredAttrs), nil
+	results := getPersonsFromResults(peopleList, r.CompareAttribute, desiredAttrs)
+
+	for _, person := range results {
+		people <- person
+	}
 }
 
 func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, desiredAttrs []string) []personnel_sync.Person {
@@ -148,7 +198,30 @@ func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, des
 				continue
 			}
 
-			peep.Attributes[sourceKey] = person.Path(sourceKey).Data().(string)
+			val := person.Path(sourceKey).Data()
+			if val == nil {
+				continue
+			}
+
+			switch val.(type) {
+			case string:
+				peep.Attributes[sourceKey] = val.(string)
+			case []interface{}:
+				if len(val.([]interface{})) > 0 {
+					firstValue := val.([]interface{})[0]
+					if firstValue == nil {
+						continue
+					}
+
+					var ok bool
+					if peep.Attributes[sourceKey], ok = firstValue.(string); !ok {
+						log.Printf("not a string, sourceKey=%s: %+v, type %T", sourceKey, firstValue, firstValue)
+					}
+				}
+			default:
+				log.Printf("unsupported data type, sourceKey=%s, type %T", sourceKey, val)
+			}
+
 			if sourceKey == compareAttr {
 				peep.CompareValue = person.Path(sourceKey).Data().(string)
 			}

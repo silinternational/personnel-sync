@@ -87,21 +87,24 @@ func TestGenerateChangeSet(t *testing.T) {
 		},
 	}
 
-	attrMaps := []AttributeMap{
-		{
-			Source:        "name",
-			Destination:   "name",
-			CaseSensitive: true,
-		},
-		{
-			Source:        "school",
-			Destination:   "school",
-			CaseSensitive: false,
+	config := AppConfig{
+		AttributeMap: []AttributeMap{
+			{
+				Source:        "name",
+				Destination:   "name",
+				CaseSensitive: true,
+			},
+			{
+				Source:        "school",
+				Destination:   "school",
+				CaseSensitive: false,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople, attrMaps, ""); !reflect.DeepEqual(got, tt.want) {
+			got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople, config, "")
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GenerateChangeSet() = %v, want %v", got, tt.want)
 			}
 		})
@@ -197,16 +200,18 @@ func TestIDSetForUpdate(t *testing.T) {
 		},
 	}
 
-	attributeMap := []AttributeMap{
-		{
-			Source:        "email",
-			Destination:   "email",
-			Required:      true,
-			CaseSensitive: false,
+	config := AppConfig{
+		AttributeMap: []AttributeMap{
+			{
+				Source:        "email",
+				Destination:   "email",
+				Required:      true,
+				CaseSensitive: false,
+			},
 		},
 	}
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, attributeMap, "id")
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config, "id")
 	if len(changeSet.Create) != 1 {
 		t.Error("Change set should include one person to be created.")
 	}
