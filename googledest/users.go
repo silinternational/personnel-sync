@@ -23,7 +23,7 @@ type GoogleUsers struct {
 	GoogleUsersConfig GoogleUsersConfig
 	AdminService      admin.Service
 	BatchSize         int
-	BatchDelay        int
+	BatchDelaySeconds int
 }
 
 func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -38,8 +38,8 @@ func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfi
 	if googleUsers.BatchSize <= 0 {
 		googleUsers.BatchSize = DefaultBatchSize
 	}
-	if googleUsers.BatchDelay <= 0 {
-		googleUsers.BatchDelay = DefaultBatchDelay
+	if googleUsers.BatchDelaySeconds <= 0 {
+		googleUsers.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
 	// Initialize AdminService object
@@ -177,7 +177,7 @@ func (g *GoogleUsers) ApplyChangeSet(
 	var wg sync.WaitGroup
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelay)
+	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
 	for _, toUpdate := range changes.Update {
 		wg.Add(1)

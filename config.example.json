@@ -20,7 +20,7 @@
     "Type": "GoogleGroups",
     "ExtraJSON": {
       "BatchSize": 10,
-      "BatchDelay": 3,
+      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "delegated-admin@domain.com",
       "GoogleAuth": {
         "type": "service_account",

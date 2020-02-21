@@ -81,7 +81,7 @@ of the destination configuration required for Google Groups:
     "Type": "GoogleGroups",
     "ExtraJSON": {
       "BatchSize": 10,
-      "BatchDelay": 3,
+      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "delegated-admin@domain.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -134,7 +134,7 @@ of the destination configuration required for Google Groups:
 }
 ```
 
-Configurations for `BatchSize`, `BatchDelay`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all option with defaults as shown in example.
+Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all option with defaults as shown in example.
 
 ### Google Users
 This destination can update User records in the Google Directory. The compare
@@ -168,7 +168,7 @@ Following is an example configuration listing all available fields:
     "Type": "GoogleUsers",
     "ExtraJSON": {
       "BatchSize": 10,
-      "BatchDelay": 3,
+      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "admin@example.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -325,13 +325,13 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
       "Password": "apitoken",
       "ListClientsPageLimit": 100,
       "BatchSize": 50,
-      "BatchDelay": 60
+      "BatchDelaySeconds": 60
     }
   }
 }
 ```
 
-`ListClientsPageLimit`, `BatchSize` and `BatchDelay` are optional. Their defaults are as shown in the example config.
+`ListClientsPageLimit`, `BatchSize` and `BatchDelaySeconds` are optional. Their defaults are as shown in the example config.
 
 ### Exporting logs from CloudWatch
 
