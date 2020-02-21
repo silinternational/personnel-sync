@@ -19,7 +19,8 @@
   "Destination": {
     "Type": "GoogleGroups",
     "ExtraJSON": {
-      "BatchSizePerMinute": 50,
+      "BatchSize": 10,
+      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "delegated-admin@domain.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -76,7 +77,10 @@
         ],
         "ExtraMembers":  [
           "not-in-report@domain.com"
-        ]
+        ],
+        "DisableAdd": false,
+        "DisableUpdate": false,
+        "DisableDelete": false
       }
     }
   ]
