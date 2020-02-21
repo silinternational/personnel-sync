@@ -28,7 +28,8 @@ type GoogleContactsConfig struct {
 type GoogleContacts struct {
 	DestinationConfig    personnel_sync.DestinationConfig
 	GoogleContactsConfig GoogleContactsConfig
-	BatchSizePerMinute   int
+	BatchSize            int
+	BatchDelaySeconds    int
 	Client               http.Client
 }
 
@@ -76,8 +77,11 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 	}
 
 	// Defaults
-	if googleContacts.BatchSizePerMinute <= 0 {
-		googleContacts.BatchSizePerMinute = DefaultBatchSizePerMinute
+	if googleContacts.BatchSize <= 0 {
+		googleContacts.BatchSize = DefaultBatchSize
+	}
+	if googleContacts.BatchDelaySeconds <= 0 {
+		googleContacts.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
 	// Initialize Client object
@@ -192,7 +196,7 @@ func (g *GoogleContacts) ApplyChangeSet(
 	var wg sync.WaitGroup
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(g.BatchSizePerMinute, int(60))
+	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
 	for _, toCreate := range changes.Create {
 		wg.Add(1)
