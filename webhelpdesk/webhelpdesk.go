@@ -15,7 +15,7 @@ import (
 )
 
 const DefaultBatchSize = 50
-const DefaultBatchDelay = 60
+const DefaultBatchDelaySeconds = 60
 const DefaultListClientsPageLimit = 100
 const ClientsAPIPath = "/ra/Clients"
 
@@ -34,7 +34,7 @@ type WebHelpDesk struct {
 	Password             string
 	ListClientsPageLimit int
 	BatchSize            int
-	BatchDelay           int
+	BatchDelaySeconds    int
 }
 
 func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -49,8 +49,8 @@ func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfi
 	if webHelpDesk.BatchSize <= 0 {
 		webHelpDesk.BatchSize = DefaultBatchSize
 	}
-	if webHelpDesk.BatchDelay <= 0 {
-		webHelpDesk.BatchDelay = DefaultBatchDelay
+	if webHelpDesk.BatchDelaySeconds <= 0 {
+		webHelpDesk.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
 	if webHelpDesk.ListClientsPageLimit == 0 {
@@ -126,7 +126,7 @@ func (w *WebHelpDesk) ApplyChangeSet(
 	var wg sync.WaitGroup
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(w.BatchSize, w.BatchDelay)
+	batchTimer := personnel_sync.NewBatchTimer(w.BatchSize, w.BatchDelaySeconds)
 
 	for _, cp := range changes.Create {
 		wg.Add(1)

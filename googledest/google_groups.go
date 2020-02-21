@@ -14,7 +14,7 @@ import (
 )
 
 const DefaultBatchSize = 10
-const DefaultBatchDelay = 3
+const DefaultBatchDelaySeconds = 3
 const RoleMember = "MEMBER"
 const RoleOwner = "OWNER"
 const RoleManager = "MANAGER"
@@ -30,7 +30,7 @@ type GoogleGroups struct {
 	AdminService       admin.Service
 	GroupSyncSet       GroupSyncSet
 	BatchSize          int
-	BatchDelay         int
+	BatchDelaySeconds  int
 }
 
 type GroupSyncSet struct {
@@ -57,8 +57,8 @@ func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConf
 	if googleGroups.BatchSize <= 0 {
 		googleGroups.BatchSize = DefaultBatchSize
 	}
-	if googleGroups.BatchDelay <= 0 {
-		googleGroups.BatchDelay = DefaultBatchDelay
+	if googleGroups.BatchDelaySeconds <= 0 {
+		googleGroups.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
 	// Initialize AdminService object
@@ -168,7 +168,7 @@ func (g *GoogleGroups) ApplyChangeSet(
 	}
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelay)
+	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
 	if !g.GroupSyncSet.DisableAdd {
 		for email, role := range toBeCreated {
