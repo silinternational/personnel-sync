@@ -157,19 +157,19 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	}
 
 	persons := make([]personnel_sync.Person, len(parsed.Entries))
-	for i := 0; i < len(parsed.Entries); i++ {
+	for i, entry := range parsed.Entries {
 		var primaryEmail string
-		for j, e := range parsed.Entries[i].Emails {
+		for j, e := range entry.Emails {
 			if e.Primary {
-				primaryEmail = parsed.Entries[i].Emails[j].Address
+				primaryEmail = entry.Emails[j].Address
 				break
 			}
 		}
 
 		var selfLink string
-		for j, l := range parsed.Entries[i].Links {
+		for j, l := range entry.Links {
 			if l.Rel == "self" {
-				selfLink = parsed.Entries[i].Links[j].Href
+				selfLink = entry.Links[j].Href
 				break
 			}
 		}
@@ -178,9 +178,11 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 			CompareValue: primaryEmail,
 			ID:           selfLink,
 			Attributes: map[string]string{
-				"email":    primaryEmail,
-				"fullName": parsed.Entries[i].Title,
-				"id":       selfLink,
+				"email":      primaryEmail,
+				"fullName":   entry.Title,
+				"givenName":  entry.Name.GivenName,
+				"familyName": entry.Name.FamilyName,
+				"id":         selfLink,
 			},
 		}
 	}
@@ -271,20 +273,23 @@ func (g *GoogleContacts) initGoogleClient() error {
 }
 
 func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
-	bodyTemplate := `
+	const bodyTemplate = `
 	   	<atom:entry xmlns:atom='http://www.w3.org/2005/Atom'
 	       xmlns:gd='http://schemas.google.com/g/2005'>
 	     <atom:category scheme='http://schemas.google.com/g/2005#kind'
 	       term='http://schemas.google.com/contact/2008#contact' />
 	     <gd:name>
 	        <gd:fullName>%s</gd:fullName>
+			<gd:givenName>%s</gd:givenName>
+			<gd:familyName>%s</gd:familyName>
 	     </gd:name>
 	     <gd:email rel='http://schemas.google.com/g/2005#work'
 	       primary='true'
 		   address='%s'/>
 	   </atom:entry>
 	`
-	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["email"])
+	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["givenName"], person.Attributes["familyName"],
+		person.Attributes["email"])
 }
 
 func (g *GoogleContacts) updateContact(
