@@ -293,7 +293,11 @@ Following is an example configuration listing all available fields:
  https://developers.google.com/admin-sdk/reports/v1/guides/delegation)
 
 In the [Google Developer Console](https://console.developers.google.com) ...
-* Enable the appropriate API for the Service Account.
+* Enable the appropriate API for the Service Account in the Google APIs
+ Developer Console, APIs and Services, Enable APIS And Services.
+  * For the Google Users adapter, enable "Admin SDK"
+  * For the Google Groups adapter, enable "Admin SDK"
+  * For the Google Contacts adapter, enable "Contacts API"
 * Create a new Service Account and a corresponding JSON credential file, which should contain something like this:
 
 ```json
