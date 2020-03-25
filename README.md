@@ -72,15 +72,36 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
 ## Destinations
 
 ### Google Contacts
-This destination can create, update, and delete Contact records in the Google Shared Contacts list.
+This destination can create, update, and delete Contact records in the Google
+Shared Contacts list.
+
+The compare attribute is `email`. A limited subset of contact properties are
+available to be updated. All fields are updated even if absent from the
+configuration. Omitted fields are set to empty. 
+
+| property       | Google property                |
+|----------------|--------------------------------|
+| id             | id                             | 
+| email          | email.address                  | 
+| familyName     | name.familyName                |
+| givenName      | name.givenName                 |
+| fullName       | name.fullName                  |
+| orgName        | organization.OrgName           |
+| department     | organization.orgDepartment     |
+| title          | organization.OrgTitle          |
+| jobDescription | organization.OrgJobDescription |
+
+Below is an example of the destination configuration required for Google Shared
+Contacts:
 
 ```json
   "Destination": {
     "Type": "GoogleContacts",
     "ExtraJSON": {
-      "BatchSizePerMinute": 50,
-      "DelegatedAdminEmail": "steve_schram@ycossf.online",
-      "Domain": "ycossf.online",
+      "BatchSize": 10,
+      "BatchDelaySeconds": 3,
+      "DelegatedAdminEmail": "delegated-admin@example.com",
+      "Domain": "example.com",
       "GoogleAuth": {
         "type": "service_account",
         "project_id": "abc-theme-123456",
@@ -111,8 +132,35 @@ This destination can create, update, and delete Contact records in the Google Sh
       "Destination": "givenName",
       "required": true
     }
+    {
+      "Source": "display_name",
+      "Destination": "fullName",
+      "required": false
+    },
+    {
+      "Source": "organization",
+      "Destination": "organization",
+      "required": false
+    },
+    {
+      "Source": "department",
+      "Destination": "department",
+      "required": false
+    },
+    {
+      "Source": "title",
+      "Destination": "title",
+      "required": false
+    },
+    {
+      "Source": "job_description",
+      "Destination": "jobDescription",
+      "required": false
+    }
   ],
 ```
+
+Note: `Source` fields should be adjusted to fit the actual source adapter.
 
 ### Google Groups
 This destination is useful for keeping Google Groups in sync with reports from a personnel system. Below is an example 
@@ -177,7 +225,9 @@ of the destination configuration required for Google Groups:
 }
 ```
 
-Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all option with defaults as shown in example.
+Note: `Source` fields should be adjusted to fit the actual source adapter.
+
+Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all optional with defaults as shown in example.
 
 ### Google Users
 This destination can update User records in the Google Directory. The compare
@@ -286,6 +336,8 @@ Following is an example configuration listing all available fields:
   ]
 }
 ```
+
+Note: `Source` fields should be adjusted to fit the actual source adapter.
 
 #### Google Service Account Configuration
 

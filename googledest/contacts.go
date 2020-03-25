@@ -40,13 +40,14 @@ type Entries struct {
 }
 
 type Contact struct {
-	XMLName xml.Name `xml:"entry"`
-	ID      string   `xml:"id"`
-	Links   []Link   `xml:"link"`
-	Etag    string   `xml:"etag,attr"`
-	Title   string   `xml:"title"`
-	Name    Name     `xml:"name"`
-	Emails  []Email  `xml:"email"`
+	XMLName      xml.Name     `xml:"entry"`
+	ID           string       `xml:"id"`
+	Links        []Link       `xml:"link"`
+	Etag         string       `xml:"etag,attr"`
+	Title        string       `xml:"title"`
+	Name         Name         `xml:"name"`
+	Emails       []Email      `xml:"email"`
+	Organization Organization `xml:"organization"`
 }
 
 type Email struct {
@@ -60,6 +61,14 @@ type Name struct {
 	FullName   string   `xml:"fullName"`
 	GivenName  string   `xml:"givenName"`
 	FamilyName string   `xml:"familyName"`
+}
+
+type Organization struct {
+	XMLName        xml.Name `xml:"organization"`
+	Name           string   `xml:"orgName"`
+	Title          string   `xml:"orgTitle"`
+	JobDescription string   `xml:"orgJobDescription"`
+	Department     string   `xml:"orgDepartment"`
 }
 
 type Link struct {
@@ -178,11 +187,15 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 			CompareValue: primaryEmail,
 			ID:           selfLink,
 			Attributes: map[string]string{
-				"email":      primaryEmail,
-				"fullName":   entry.Title,
-				"givenName":  entry.Name.GivenName,
-				"familyName": entry.Name.FamilyName,
-				"id":         selfLink,
+				"email":          primaryEmail,
+				"fullName":       entry.Title,
+				"givenName":      entry.Name.GivenName,
+				"familyName":     entry.Name.FamilyName,
+				"id":             selfLink,
+				"organization":   entry.Organization.Name,
+				"title":          entry.Organization.Title,
+				"jobDescription": entry.Organization.JobDescription,
+				"department":     entry.Organization.Department,
 			},
 		}
 	}
@@ -274,22 +287,27 @@ func (g *GoogleContacts) initGoogleClient() error {
 
 func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 	const bodyTemplate = `
-	   	<atom:entry xmlns:atom='http://www.w3.org/2005/Atom'
-	       xmlns:gd='http://schemas.google.com/g/2005'>
-	     <atom:category scheme='http://schemas.google.com/g/2005#kind'
-	       term='http://schemas.google.com/contact/2008#contact' />
-	     <gd:name>
-	        <gd:fullName>%s</gd:fullName>
-			<gd:givenName>%s</gd:givenName>
-			<gd:familyName>%s</gd:familyName>
-	     </gd:name>
-	     <gd:email rel='http://schemas.google.com/g/2005#work'
-	       primary='true'
-		   address='%s'/>
-	   </atom:entry>
-	`
-	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["givenName"], person.Attributes["familyName"],
-		person.Attributes["email"])
+<atom:entry xmlns:atom='http://www.w3.org/2005/Atom'
+			xmlns:gd='http://schemas.google.com/g/2005'>
+	<atom:category scheme='http://schemas.google.com/g/2005#kind'
+				   term='http://schemas.google.com/contact/2008#contact' />
+	<gd:name>
+		<gd:fullName>%s</gd:fullName>
+		<gd:givenName>%s</gd:givenName>
+		<gd:familyName>%s</gd:familyName>
+	</gd:name>
+	<gd:email rel='http://schemas.google.com/g/2005#work' primary='true' address='%s'/>
+	<gd:organization rel="http://schemas.google.com/g/2005#work" label="Work" primary="true">
+		  <gd:orgName>%s</gd:orgName>
+		  <gd:orgTitle>%s</gd:orgTitle>
+		  <gd:orgJobDescription>%s</gd:orgJobDescription>
+		  <gd:orgDepartment>%s</gd:orgDepartment>
+	</gd:organization> 
+</atom:entry>`
+
+	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["givenName"],
+		person.Attributes["familyName"], person.Attributes["email"], person.Attributes["organization"],
+		person.Attributes["title"], person.Attributes["jobDescription"], person.Attributes["department"])
 }
 
 func (g *GoogleContacts) updateContact(
