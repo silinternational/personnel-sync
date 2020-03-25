@@ -78,6 +78,10 @@ type Link struct {
 }
 
 func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+	if destinationConfig.Type != personnel_sync.DestinationTypeGoogleContacts {
+		return nil, fmt.Errorf("invalid config type: %s", destinationConfig.Type)
+	}
+
 	var googleContacts GoogleContacts
 	// Unmarshal ExtraJSON into GoogleContactsConfig struct
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleContacts.GoogleContactsConfig)
