@@ -162,16 +162,19 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 
 	var parsed Entries
 
-	err = xml.Unmarshal([]byte(body), &parsed)
-	if err != nil {
+	if err := xml.Unmarshal([]byte(body), &parsed); err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
 	}
 	if parsed.Total >= MaxQuerySize {
-		return []personnel_sync.Person{}, fmt.Errorf("Google Contacts directory contains too many entries")
+		return []personnel_sync.Person{}, fmt.Errorf("too many entries in Google Contacts directory")
 	}
 
-	persons := make([]personnel_sync.Person, len(parsed.Entries))
-	for i, entry := range parsed.Entries {
+	return g.extractPersonsFromResponse(parsed.Entries)
+}
+
+func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]personnel_sync.Person, error) {
+	persons := make([]personnel_sync.Person, len(contacts))
+	for i, entry := range contacts {
 		var primaryEmail string
 		for j, e := range entry.Emails {
 			if e.Primary {
@@ -290,11 +293,8 @@ func (g *GoogleContacts) initGoogleClient() error {
 }
 
 func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
-	const bodyTemplate = `
-<atom:entry xmlns:atom='http://www.w3.org/2005/Atom'
-			xmlns:gd='http://schemas.google.com/g/2005'>
-	<atom:category scheme='http://schemas.google.com/g/2005#kind'
-				   term='http://schemas.google.com/contact/2008#contact' />
+	const bodyTemplate = `<atom:entry xmlns:atom='http://www.w3.org/2005/Atom' xmlns:gd='http://schemas.google.com/g/2005'>
+	<atom:category scheme='http://schemas.google.com/g/2005#kind' term='http://schemas.google.com/contact/2008#contact' />
 	<gd:name>
 		<gd:fullName>%s</gd:fullName>
 		<gd:givenName>%s</gd:givenName>
