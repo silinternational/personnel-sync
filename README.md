@@ -87,7 +87,7 @@ configuration. Omitted fields are set to empty.
 | givenName      | name.givenName                 |
 | fullName       | name.fullName                  |
 | orgName        | organization.OrgName           |
-| department     | organization.orgDepartment     |
+| department     | organization.OrgDepartment     |
 | title          | organization.OrgTitle          |
 | jobDescription | organization.OrgJobDescription |
 
