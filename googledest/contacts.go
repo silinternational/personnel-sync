@@ -40,19 +40,27 @@ type Entries struct {
 }
 
 type Contact struct {
-	XMLName      xml.Name     `xml:"entry"`
-	ID           string       `xml:"id"`
-	Links        []Link       `xml:"link"`
-	Etag         string       `xml:"etag,attr"`
-	Title        string       `xml:"title"`
-	Name         Name         `xml:"name"`
-	Emails       []Email      `xml:"email"`
-	Organization Organization `xml:"organization"`
+	XMLName      xml.Name      `xml:"entry"`
+	ID           string        `xml:"id"`
+	Links        []Link        `xml:"link"`
+	Etag         string        `xml:"etag,attr"`
+	Title        string        `xml:"title"`
+	Name         Name          `xml:"name"`
+	Emails       []Email       `xml:"email"`
+	PhoneNumbers []PhoneNumber `xml:"phoneNumber"`
+	Organization Organization  `xml:"organization"`
+	Where        Where         `xml:"where"`
 }
 
 type Email struct {
 	XMLName xml.Name `xml:"email"`
 	Address string   `xml:"address,attr"`
+	Primary bool     `xml:"primary,attr"`
+}
+
+type PhoneNumber struct {
+	XMLName xml.Name `xml:"phoneNumber"`
+	Value   string   `xml:",chardata"`
 	Primary bool     `xml:"primary,attr"`
 }
 
@@ -75,6 +83,11 @@ type Link struct {
 	XMLName xml.Name `xml:"link"`
 	Rel     string   `xml:"rel,attr"`
 	Href    string   `xml:"href,attr"`
+}
+
+type Where struct {
+	XMLName     xml.Name `xml."where"`
+	ValueString string   `xml:"valueString,attr"`
 }
 
 func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -176,17 +189,25 @@ func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]perso
 	persons := make([]personnel_sync.Person, len(contacts))
 	for i, entry := range contacts {
 		var primaryEmail string
-		for j, e := range entry.Emails {
-			if e.Primary {
-				primaryEmail = entry.Emails[j].Address
+		for _, email := range entry.Emails {
+			if email.Primary {
+				primaryEmail = email.Address
+				break
+			}
+		}
+
+		var primaryPhoneNumber string
+		for _, phone := range entry.PhoneNumbers {
+			if phone.Primary {
+				primaryPhoneNumber = phone.Value
 				break
 			}
 		}
 
 		var selfLink string
-		for j, l := range entry.Links {
-			if l.Rel == "self" {
-				selfLink = entry.Links[j].Href
+		for _, link := range entry.Links {
+			if link.Rel == "self" {
+				selfLink = link.Href
 				break
 			}
 		}
@@ -195,11 +216,13 @@ func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]perso
 			CompareValue: primaryEmail,
 			ID:           selfLink,
 			Attributes: map[string]string{
+				"id":             selfLink,
 				"email":          primaryEmail,
+				"phoneNumber":    primaryPhoneNumber,
 				"fullName":       entry.Title,
 				"givenName":      entry.Name.GivenName,
 				"familyName":     entry.Name.FamilyName,
-				"id":             selfLink,
+				"where":          entry.Where.ValueString,
 				"organization":   entry.Organization.Name,
 				"title":          entry.Organization.Title,
 				"jobDescription": entry.Organization.JobDescription,
@@ -301,6 +324,8 @@ func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 		<gd:familyName>%s</gd:familyName>
 	</gd:name>
 	<gd:email rel='http://schemas.google.com/g/2005#work' primary='true' address='%s'/>
+	<gd:phoneNumber rel='http://schemas.google.com/g/2005#work' primary='true'>%s</gd:phoneNumber>
+	<gd:where valueString='%s'/>
 	<gd:organization rel="http://schemas.google.com/g/2005#work" label="Work" primary="true">
 		  <gd:orgName>%s</gd:orgName>
 		  <gd:orgTitle>%s</gd:orgTitle>
@@ -310,8 +335,9 @@ func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 </atom:entry>`
 
 	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["givenName"],
-		person.Attributes["familyName"], person.Attributes["email"], person.Attributes["organization"],
-		person.Attributes["title"], person.Attributes["jobDescription"], person.Attributes["department"])
+		person.Attributes["familyName"], person.Attributes["email"], person.Attributes["phoneNumber"],
+		person.Attributes["where"], person.Attributes["organization"], person.Attributes["title"],
+		person.Attributes["jobDescription"], person.Attributes["department"])
 }
 
 func (g *GoogleContacts) updateContact(

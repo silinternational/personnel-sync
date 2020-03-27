@@ -137,7 +137,15 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					Emails: []Email{
 						{
 							XMLName: xml.Name{Space: "http://www.w3.org/2005/Atom", Local: "email"},
-							Address: "alfred@example.com", Primary: true,
+							Address: "alfred@example.com",
+							Primary: true,
+						},
+					},
+					PhoneNumbers: []PhoneNumber{
+						{
+							XMLName: xml.Name{Space: "http://www.w3.org/2005/Atom", Local: "phoneNumber"},
+							Value:   "555-1212",
+							Primary: true,
 						},
 					},
 					Organization: Organization{
@@ -147,6 +155,10 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 						JobDescription: "Photo ops",
 						Department:     "Marketing",
 					},
+					Where: Where{
+						XMLName:     xml.Name{Space: "http://www.w3.org/2005/Atom", Local: "where"},
+						ValueString: "some place",
+					},
 				},
 			},
 			want: []personnel_sync.Person{
@@ -155,6 +167,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					ID:           "https://www.google.com/m8/feeds/contacts/example.org/full/204e599dcd6d3605",
 					Attributes: map[string]string{
 						"email":          "alfred@example.com",
+						"phoneNumber":    "555-1212",
 						"fullName":       "Alfred E. Newman",
 						"givenName":      "Alfred",
 						"familyName":     "Newman",
@@ -163,6 +176,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 						"title":          "Mascot",
 						"jobDescription": "Photo ops",
 						"department":     "Marketing",
+						"where":          "some place",
 					},
 					DisableChanges: false,
 				},
@@ -186,6 +200,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					ID:           "https://www.google.com/m8/feeds/contacts/example.org/full/204e599dcd6d3605",
 					Attributes: map[string]string{
 						"email":          "alfred@example.com",
+						"phoneNumber":    "",
 						"fullName":       "",
 						"givenName":      "",
 						"familyName":     "",
@@ -194,6 +209,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 						"title":          "",
 						"jobDescription": "",
 						"department":     "",
+						"where":          "",
 					},
 					DisableChanges: false,
 				},
@@ -202,6 +218,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					ID:           "https://www.google.com/m8/feeds/contacts/example.org/full/8f47da821e4824d8",
 					Attributes: map[string]string{
 						"email":          "ironman@example.com",
+						"phoneNumber":    "",
 						"fullName":       "",
 						"givenName":      "",
 						"familyName":     "",
@@ -210,6 +227,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 						"title":          "",
 						"jobDescription": "",
 						"department":     "",
+						"where":          "",
 					},
 					DisableChanges: false,
 				},
@@ -256,6 +274,11 @@ func TestGoogleContacts_createBody(t *testing.T) {
 			name:   "email",
 			person: personnel_sync.Person{Attributes: map[string]string{"email": "fred@example.com"}},
 			want:   "<gd:email rel='http://schemas.google.com/g/2005#work' primary='true' address='fred@example.com'/>",
+		},
+		{
+			name:   "phoneNumber",
+			person: personnel_sync.Person{Attributes: map[string]string{"phoneNumber": "555-1212"}},
+			want:   "<gd:phoneNumber rel='http://schemas.google.com/g/2005#work' primary='true'>555-1212</gd:phoneNumber>",
 		},
 		{
 			name:   "organization",
