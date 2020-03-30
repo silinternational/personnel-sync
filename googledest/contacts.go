@@ -90,7 +90,9 @@ type Where struct {
 	ValueString string   `xml:"valueString,attr"`
 }
 
-func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination,
+	error) {
+
 	if destinationConfig.Type != personnel_sync.DestinationTypeGoogleContacts {
 		return nil, fmt.Errorf("invalid config type: %s", destinationConfig.Type)
 	}
@@ -129,7 +131,9 @@ func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleContacts) httpRequest(verb string, url string, body string, headers map[string]string) (string, error) {
+func (g *GoogleContacts) httpRequest(verb string, url string, body string, headers map[string]string) (string,
+	error) {
+
 	var req *http.Request
 	var err error
 	if body == "" {
@@ -167,7 +171,8 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 }
 
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
-	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full?max-results=" + strconv.Itoa(MaxQuerySize)
+	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full?max-results=" +
+		strconv.Itoa(MaxQuerySize)
 	body, err := g.httpRequest("GET", href, "", map[string]string{})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
@@ -241,7 +246,8 @@ func (g *GoogleContacts) ApplyChangeSet(
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
 
-	batchTimer := personnel_sync.NewBatchTimer(g.GoogleContactsConfig.BatchSize, g.GoogleContactsConfig.BatchDelaySeconds)
+	batchTimer := personnel_sync.NewBatchTimer(g.GoogleContactsConfig.BatchSize,
+		g.GoogleContactsConfig.BatchDelaySeconds)
 
 	for _, toCreate := range changes.Create {
 		wg.Add(1)
