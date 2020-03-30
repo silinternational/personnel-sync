@@ -39,8 +39,11 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 		{
 			name: "test 1",
 			destinationConfig: personnel_sync.DestinationConfig{
-				Type:      personnel_sync.DestinationTypeGoogleContacts,
-				ExtraJSON: json.RawMessage(extraJSON),
+				Type:          personnel_sync.DestinationTypeGoogleContacts,
+				DisableAdd:    true,
+				DisableDelete: true,
+				DisableUpdate: true,
+				ExtraJSON:     json.RawMessage(extraJSON),
 			},
 			want: GoogleContacts{
 				GoogleContactsConfig: GoogleContactsConfig{
@@ -67,7 +70,10 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 		{
 			name: "wrong type",
 			destinationConfig: personnel_sync.DestinationConfig{
-				Type: personnel_sync.DestinationTypeGoogleGroups,
+				Type:          personnel_sync.DestinationTypeGoogleGroups,
+				DisableAdd:    true,
+				DisableDelete: true,
+				DisableUpdate: true,
 			},
 			wantErr: true,
 		},
