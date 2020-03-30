@@ -193,37 +193,14 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]personnel_sync.Person, error) {
 	persons := make([]personnel_sync.Person, len(contacts))
 	for i, entry := range contacts {
-		var primaryEmail string
-		for _, email := range entry.Emails {
-			if email.Primary {
-				primaryEmail = email.Address
-				break
-			}
-		}
-
-		var primaryPhoneNumber string
-		for _, phone := range entry.PhoneNumbers {
-			if phone.Primary {
-				primaryPhoneNumber = phone.Value
-				break
-			}
-		}
-
-		var selfLink string
-		for _, link := range entry.Links {
-			if link.Rel == "self" {
-				selfLink = link.Href
-				break
-			}
-		}
-
+		id := findSelfLink(entry)
 		persons[i] = personnel_sync.Person{
-			CompareValue: primaryEmail,
-			ID:           selfLink,
+			CompareValue: findPrimaryEmail(entry),
+			ID:           id,
 			Attributes: map[string]string{
-				"id":             selfLink,
-				"email":          primaryEmail,
-				"phoneNumber":    primaryPhoneNumber,
+				"id":             id,
+				"email":          findPrimaryEmail(entry),
+				"phoneNumber":    findPrimaryPhoneNumber(entry),
 				"fullName":       entry.Title,
 				"givenName":      entry.Name.GivenName,
 				"familyName":     entry.Name.FamilyName,
@@ -237,6 +214,33 @@ func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]perso
 	}
 
 	return persons, nil
+}
+
+func findSelfLink(entry Contact) string {
+	for _, link := range entry.Links {
+		if link.Rel == "self" {
+			return link.Href
+		}
+	}
+	return ""
+}
+
+func findPrimaryEmail(entry Contact) string {
+	for _, email := range entry.Emails {
+		if email.Primary {
+			return email.Address
+		}
+	}
+	return ""
+}
+
+func findPrimaryPhoneNumber(entry Contact) string {
+	for _, phone := range entry.PhoneNumbers {
+		if phone.Primary {
+			return phone.Value
+		}
+	}
+	return ""
 }
 
 func (g *GoogleContacts) ApplyChangeSet(
