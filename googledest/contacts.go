@@ -19,6 +19,20 @@ import (
 
 const MaxQuerySize = 10000
 
+const (
+	contactFieldID             = "id"
+	contactFieldEmail          = "email"
+	contactFieldPhoneNumber    = "phoneNumber"
+	contactFieldFullName       = "fullName"
+	contactFieldGivenName      = "givenName"
+	contactFieldFamilyName     = "familyName"
+	contactFieldWhere          = "where"
+	contactFieldOrganization   = "organization"
+	contactFieldTitle          = "title"
+	contactFieldJobDescription = "jobDescription"
+	contactFieldDepartment     = "department"
+)
+
 type GoogleContactsConfig struct {
 	DelegatedAdminEmail string
 	Domain              string
@@ -198,17 +212,17 @@ func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]perso
 			CompareValue: findPrimaryEmail(entry),
 			ID:           id,
 			Attributes: map[string]string{
-				"id":             id,
-				"email":          findPrimaryEmail(entry),
-				"phoneNumber":    findPrimaryPhoneNumber(entry),
-				"fullName":       entry.Title,
-				"givenName":      entry.Name.GivenName,
-				"familyName":     entry.Name.FamilyName,
-				"where":          entry.Where.ValueString,
-				"organization":   entry.Organization.Name,
-				"title":          entry.Organization.Title,
-				"jobDescription": entry.Organization.JobDescription,
-				"department":     entry.Organization.Department,
+				contactFieldID:             id,
+				contactFieldEmail:          findPrimaryEmail(entry),
+				contactFieldPhoneNumber:    findPrimaryPhoneNumber(entry),
+				contactFieldFullName:       entry.Title,
+				contactFieldGivenName:      entry.Name.GivenName,
+				contactFieldFamilyName:     entry.Name.FamilyName,
+				contactFieldWhere:          entry.Where.ValueString,
+				contactFieldOrganization:   entry.Organization.Name,
+				contactFieldTitle:          entry.Organization.Title,
+				contactFieldJobDescription: entry.Organization.JobDescription,
+				contactFieldDepartment:     entry.Organization.Department,
 			},
 		}
 	}
@@ -344,10 +358,11 @@ func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 	</gd:organization> 
 </atom:entry>`
 
-	return fmt.Sprintf(bodyTemplate, person.Attributes["fullName"], person.Attributes["givenName"],
-		person.Attributes["familyName"], person.Attributes["email"], person.Attributes["phoneNumber"],
-		person.Attributes["where"], person.Attributes["organization"], person.Attributes["title"],
-		person.Attributes["jobDescription"], person.Attributes["department"])
+	return fmt.Sprintf(bodyTemplate, person.Attributes[contactFieldFullName], person.Attributes[contactFieldGivenName],
+		person.Attributes[contactFieldFamilyName], person.Attributes[contactFieldEmail],
+		person.Attributes[contactFieldPhoneNumber], person.Attributes[contactFieldWhere],
+		person.Attributes[contactFieldOrganization], person.Attributes[contactFieldTitle],
+		person.Attributes[contactFieldJobDescription], person.Attributes[contactFieldDepartment])
 }
 
 func (g *GoogleContacts) updateContact(
