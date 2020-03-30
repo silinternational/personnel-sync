@@ -76,8 +76,8 @@ This destination can create, update, and delete Contact records in the Google
 Shared Contacts list.
 
 The compare attribute is `email`. A limited subset of contact properties are
-available to be updated. All fields are updated even if absent from the
-configuration. Omitted fields are set to empty. 
+available to be updated. __WARNING:__ On update, all fields are modified even
+if absent from the configuration. Omitted fields are set to empty. 
 
 | property       | Google property                |
 |----------------|--------------------------------|

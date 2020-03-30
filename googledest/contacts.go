@@ -354,6 +354,11 @@ func (g *GoogleContacts) initGoogleClient() error {
 	return nil
 }
 
+// createBody inserts attributes into an XML request body. This might be possible using the Go XML library, but
+// it would probably take some sort of hack or workaround to get it to insert the "gd:" namespace prefix on the
+// tag names.
+// WARNING: This updates all fields, even if omitted in the field mapping. A safer implementation would be to
+// merge the data retrieved from Google with the data coming from the source.
 func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 	const bodyTemplate = `<atom:entry xmlns:atom='http://www.w3.org/2005/Atom' xmlns:gd='http://schemas.google.com/g/2005'>
 	<atom:category scheme='http://schemas.google.com/g/2005#kind' term='http://schemas.google.com/contact/2008#contact' />
@@ -398,9 +403,6 @@ func (g *GoogleContacts) updateContact(
 		return
 	}
 
-	// Update all fields with data from the source -- note that this is a bit dangerous because any
-	// fields not included will be erased in Google. A safer solution would be to merge the data
-	// retrieved from Google with the data coming from the source.
 	body := g.createBody(person)
 
 	_, err = g.httpRequest("PUT", url, body, map[string]string{
