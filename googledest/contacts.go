@@ -105,6 +105,7 @@ type Where struct {
 	ValueString string   `xml:"valueString,attr"`
 }
 
+// NewGoogleContactsDestination creates a new GoogleContacts instance
 func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination,
 	error) {
 
@@ -139,15 +140,18 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 	return &googleContacts, nil
 }
 
+// GetIDField returns the property name to be used as the person ID
 func (g *GoogleContacts) GetIDField() string {
 	return "id"
 }
 
+// ForSet is not implemented for this destination. Only one sync set may be defined in config.json.
 func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 	// sync sets not implemented for this destination
 	return nil
 }
 
+// ListUsers returns all users (contacts) in the destination
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
 		g.GoogleContactsConfig.Domain, MaxQuerySize)
@@ -168,6 +172,7 @@ func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	return g.extractPersonsFromResponse(parsed.Entries)
 }
 
+// ApplyChangeSet executes all of the configured sync tasks (create, update, and/or delete)
 func (g *GoogleContacts) ApplyChangeSet(
 	changes personnel_sync.ChangeSet,
 	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
@@ -213,7 +218,7 @@ func (g *GoogleContacts) ApplyChangeSet(
 	return results
 }
 
-func (g *GoogleContacts) httpRequest(verb string, url string, body string, headers map[string]string) (string,
+func (g *GoogleContacts) httpRequest(verb, url, body string, headers map[string]string) (string,
 	error) {
 
 	var req *http.Request
@@ -409,7 +414,7 @@ func (g *GoogleContacts) updateContact(
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
-			Message: fmt.Sprintf("updateUser failed updating user %s: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("updateContact failed updating user %s: %s", person.CompareValue, err)}
 		return
 	}
 
@@ -455,7 +460,7 @@ func (g *GoogleContacts) deleteContact(
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
-			Message: fmt.Sprintf("deleteUser failed deleting user %s: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("deleteContact failed deleting user %s: %s", person.CompareValue, err)}
 		return
 	}
 
