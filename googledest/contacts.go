@@ -190,7 +190,7 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
 		g.GoogleContactsConfig.Domain, MaxQuerySize)
-	body, err := g.httpRequest("GET", href, "", map[string]string{})
+	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
 	}
@@ -313,13 +313,10 @@ func (g *GoogleContacts) addContact(
 
 	defer wg.Done()
 
-	// href := "https://www.google.com/m8/feeds/contacts/default/full"
 	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full"
-
 	body := g.createBody(person)
-
-	_, err := g.httpRequest("POST", href, body, map[string]string{"Content-Type": "application/atom+xml"})
-	if err != nil {
+	headers := map[string]string{"Content-Type": "application/atom+xml"}
+	if _, err := g.httpRequest(http.MethodPost, href, body, headers); err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
 			Message: fmt.Sprintf("unable to insert %s in Google contacts: %s", person.CompareValue, err)}
@@ -334,7 +331,7 @@ func (g *GoogleContacts) addContact(
 	atomic.AddUint64(counter, 1)
 }
 
-// initGoogleClent creates an http Client and adds a JWT config that has the required OAuth 2.0 scopes
+// initGoogleClient creates an http Client and adds a JWT config that has the required OAuth 2.0 scopes
 //  Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
 //  that has appropriate access privileges
 func (g *GoogleContacts) initGoogleClient() error {
@@ -405,7 +402,7 @@ func (g *GoogleContacts) updateContact(
 
 	body := g.createBody(person)
 
-	_, err = g.httpRequest("PUT", url, body, map[string]string{
+	_, err = g.httpRequest(http.MethodPut, url, body, map[string]string{
 		"If-Match":     contact.Etag,
 		"Content-Type": "application/atom+xml",
 	})
@@ -420,7 +417,7 @@ func (g *GoogleContacts) updateContact(
 }
 
 func (g *GoogleContacts) getContact(url string) (Contact, error) {
-	existingContact, err := g.httpRequest("GET", url, "", map[string]string{})
+	existingContact, err := g.httpRequest(http.MethodGet, url, "", map[string]string{})
 	if err != nil {
 		return Contact{}, fmt.Errorf("GET failed: %s", err)
 	}
@@ -452,7 +449,7 @@ func (g *GoogleContacts) deleteContact(
 		return
 	}
 
-	_, err = g.httpRequest("DELETE", url, "", map[string]string{
+	_, err = g.httpRequest(http.MethodDelete, url, "", map[string]string{
 		"If-Match": contact.Etag,
 	})
 	if err != nil {
