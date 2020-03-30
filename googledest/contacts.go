@@ -148,6 +148,71 @@ func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
+func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
+	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
+		g.GoogleContactsConfig.Domain, MaxQuerySize)
+	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})
+	if err != nil {
+		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
+	}
+
+	var parsed Entries
+
+	if err := xml.Unmarshal([]byte(body), &parsed); err != nil {
+		return []personnel_sync.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
+	}
+	if parsed.Total >= MaxQuerySize {
+		return []personnel_sync.Person{}, fmt.Errorf("too many entries in Google Contacts directory")
+	}
+
+	return g.extractPersonsFromResponse(parsed.Entries)
+}
+
+func (g *GoogleContacts) ApplyChangeSet(
+	changes personnel_sync.ChangeSet,
+	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
+
+	var results personnel_sync.ChangeResults
+	var wg sync.WaitGroup
+
+	batchTimer := personnel_sync.NewBatchTimer(g.GoogleContactsConfig.BatchSize,
+		g.GoogleContactsConfig.BatchDelaySeconds)
+
+	if g.DestinationConfig.DisableAdd {
+		log.Println("Contact creation is disabled.")
+	} else {
+		for _, toCreate := range changes.Create {
+			wg.Add(1)
+			go g.addContact(toCreate, &results.Created, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
+	}
+
+	if g.DestinationConfig.DisableUpdate {
+		log.Println("Contact update is disabled.")
+	} else {
+		for _, toUpdate := range changes.Update {
+			wg.Add(1)
+			go g.updateContact(toUpdate, &results.Updated, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
+	}
+
+	if g.DestinationConfig.DisableDelete {
+		log.Println("Contact deletion is disabled.")
+	} else {
+		for _, toUpdate := range changes.Delete {
+			wg.Add(1)
+			go g.deleteContact(toUpdate, &results.Deleted, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
+	}
+
+	wg.Wait()
+
+	return results
+}
+
 func (g *GoogleContacts) httpRequest(verb string, url string, body string, headers map[string]string) (string,
 	error) {
 
@@ -185,26 +250,6 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 	}
 
 	return bodyString, nil
-}
-
-func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
-	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
-		g.GoogleContactsConfig.Domain, MaxQuerySize)
-	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})
-	if err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
-	}
-
-	var parsed Entries
-
-	if err := xml.Unmarshal([]byte(body), &parsed); err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
-	}
-	if parsed.Total >= MaxQuerySize {
-		return []personnel_sync.Person{}, fmt.Errorf("too many entries in Google Contacts directory")
-	}
-
-	return g.extractPersonsFromResponse(parsed.Entries)
 }
 
 func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]personnel_sync.Person, error) {
@@ -258,51 +303,6 @@ func findPrimaryPhoneNumber(entry Contact) string {
 		}
 	}
 	return ""
-}
-
-func (g *GoogleContacts) ApplyChangeSet(
-	changes personnel_sync.ChangeSet,
-	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
-
-	var results personnel_sync.ChangeResults
-	var wg sync.WaitGroup
-
-	batchTimer := personnel_sync.NewBatchTimer(g.GoogleContactsConfig.BatchSize,
-		g.GoogleContactsConfig.BatchDelaySeconds)
-
-	if g.DestinationConfig.DisableAdd {
-		log.Println("Contact creation is disabled.")
-	} else {
-		for _, toCreate := range changes.Create {
-			wg.Add(1)
-			go g.addContact(toCreate, &results.Created, &wg, eventLog)
-			batchTimer.WaitOnBatch()
-		}
-	}
-
-	if g.DestinationConfig.DisableUpdate {
-		log.Println("Contact update is disabled.")
-	} else {
-		for _, toUpdate := range changes.Update {
-			wg.Add(1)
-			go g.updateContact(toUpdate, &results.Updated, &wg, eventLog)
-			batchTimer.WaitOnBatch()
-		}
-	}
-
-	if g.DestinationConfig.DisableDelete {
-		log.Println("Contact deletion is disabled.")
-	} else {
-		for _, toUpdate := range changes.Delete {
-			wg.Add(1)
-			go g.deleteContact(toUpdate, &results.Deleted, &wg, eventLog)
-			batchTimer.WaitOnBatch()
-		}
-	}
-
-	wg.Wait()
-
-	return results
 }
 
 func (g *GoogleContacts) addContact(
