@@ -71,6 +71,120 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
 
 ## Destinations
 
+### Google Contacts
+This destination can create, update, and delete Contact records in the Google
+Shared Contacts list.
+
+The compare attribute is `email`. A limited subset of contact properties are
+available to be updated. __WARNING:__ On update, all properties are modified even
+if absent from the configuration. Omitted properties are set to empty. One
+exception is `fullName` which is filled in by Google with 
+`givenName` + `familyName`
+
+| property       | Google property                |
+|----------------|--------------------------------|
+| id             | id                             | 
+| email          | email.address                  |
+| phone          | phoneNumber.text               | 
+| familyName     | name.familyName                |
+| givenName      | name.givenName                 |
+| fullName       | name.fullName                  |
+| orgName        | organization.orgName           |
+| department     | organization.orgDepartment     |
+| title          | organization.orgTitle          |
+| jobDescription | organization.orgJobDescription |
+| where          | where.valueString              |
+
+Google reference: https://developers.google.com/gdata/docs/2.0/elements#gdContactKind
+
+Below is an example of the destination configuration required for Google Shared
+Contacts:
+
+```json
+{
+  "Destination": {
+    "Type": "GoogleContacts",
+    "DisableAdd": false,
+    "DisableUpdate": false,
+    "DisableDelete": false,
+    "ExtraJSON": {
+      "BatchSize": 10,
+      "BatchDelaySeconds": 3,
+      "DelegatedAdminEmail": "delegated-admin@example.com",
+      "Domain": "example.com",
+      "GoogleAuth": {
+        "type": "service_account",
+        "project_id": "abc-theme-123456",
+        "private_key_id": "abc123",
+        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIabc...\nabc...\n...xyz\n-----END PRIVATE KEY-----\n",
+        "client_email": "my-sync-bot@abc-theme-123456.iam.gserviceaccount.com",
+        "client_id": "123456789012345678901",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com"
+      }            
+    }
+  },
+  "AttributeMap": [
+    {
+      "Source": "email",
+      "Destination": "email",
+      "required": true
+    },
+    {
+      "Source": "phoneNumber",
+      "Destination": "phoneNumber",
+      "required": false
+    },
+    {
+      "Source": "last_name",
+      "Destination": "familyName",
+      "required": true
+    },
+    {
+      "Source": "first_name",
+      "Destination": "givenName",
+      "required": true
+    },
+    {
+      "Source": "display_name",
+      "Destination": "fullName",
+      "required": false
+    },
+    {
+      "Source": "organization",
+      "Destination": "organization",
+      "required": false
+    },
+    {
+      "Source": "department",
+      "Destination": "department",
+      "required": false
+    },
+    {
+      "Source": "title",
+      "Destination": "title",
+      "required": false
+    },
+    {
+      "Source": "job_description",
+      "Destination": "jobDescription",
+      "required": false
+    },
+    {
+      "Source": "where",
+      "Destination": "where",
+      "required": false
+    }
+  ]
+}
+```
+
+Note: `Source` fields should be adjusted to fit the actual source adapter.
+
+Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all optional with defaults as shown in example.
+
 ### Google Groups
 This destination is useful for keeping Google Groups in sync with reports from a personnel system. Below is an example 
 of the destination configuration required for Google Groups:
@@ -134,7 +248,9 @@ of the destination configuration required for Google Groups:
 }
 ```
 
-Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all option with defaults as shown in example.
+Note: `Source` fields should be adjusted to fit the actual source adapter.
+
+Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all optional with defaults as shown in example.
 
 ### Google Users
 This destination can update User records in the Google Directory. The compare
@@ -244,13 +360,19 @@ Following is an example configuration listing all available fields:
 }
 ```
 
+Note: `Source` fields should be adjusted to fit the actual source adapter.
+
 #### Google Service Account Configuration
 
 (see https://stackoverflow.com/questions/53808710/authenticate-to-google-admin-directory-api#answer-53808774 and
  https://developers.google.com/admin-sdk/reports/v1/guides/delegation)
 
 In the [Google Developer Console](https://console.developers.google.com) ...
-* Enable the appropriate API for the Service Account.
+* Enable the appropriate API for the Service Account in the Google APIs
+ Developer Console, APIs and Services, Enable APIS And Services.
+  * For the Google Users adapter, enable "Admin SDK"
+  * For the Google Groups adapter, enable "Admin SDK"
+  * For the Google Contacts adapter, enable "Contacts API"
 * Create a new Service Account and a corresponding JSON credential file, which should contain something like this:
 
 ```json
@@ -275,6 +397,7 @@ In [Google Admin Security](https://admin.google.com/AdminHome?hl=en#SecuritySett
 * Under "Advanced Settings" add the appropriate API Scopes to the Service Account. Use the numeric `client_id`.
 * API Scopes required for Google Groups are: `https://www.googleapis.com/auth/admin.directory.group` and 
 `https://www.googleapis.com/auth/admin.directory.group.member`
+* The API Scope required for Google Contacts is: `https://www.google.com/m8/feeds/contacts/`
 * The API Scope required for Google User Directory is: `https://www.googleapis.com/auth/admin.directory.user`
 
 The sync job will need to use the Service Account credentials to impersonate another user that has
