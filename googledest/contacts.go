@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"sync"
 	"sync/atomic"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
+
+	personnel_sync "github.com/silinternational/personnel-sync"
 )
 
 const MaxQuerySize = 10000
@@ -171,8 +171,8 @@ func (g *GoogleContacts) httpRequest(verb string, url string, body string, heade
 }
 
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
-	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full?max-results=" +
-		strconv.Itoa(MaxQuerySize)
+	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
+		g.GoogleContactsConfig.Domain, MaxQuerySize)
 	body, err := g.httpRequest("GET", href, "", map[string]string{})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
