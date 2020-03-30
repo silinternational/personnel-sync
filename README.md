@@ -82,14 +82,18 @@ configuration. Omitted fields are set to empty.
 | property       | Google property                |
 |----------------|--------------------------------|
 | id             | id                             | 
-| email          | email.address                  | 
+| email          | email.address                  |
+| phone          | phoneNumber.text               | 
 | familyName     | name.familyName                |
 | givenName      | name.givenName                 |
 | fullName       | name.fullName                  |
-| orgName        | organization.OrgName           |
-| department     | organization.OrgDepartment     |
-| title          | organization.OrgTitle          |
-| jobDescription | organization.OrgJobDescription |
+| orgName        | organization.orgName           |
+| department     | organization.orgDepartment     |
+| title          | organization.orgTitle          |
+| jobDescription | organization.orgJobDescription |
+| where          | where.valueString              |
+
+Google reference: https://developers.google.com/gdata/docs/2.0/elements#gdContactKind
 
 Below is an example of the destination configuration required for Google Shared
 Contacts:
@@ -123,6 +127,11 @@ Contacts:
       "required": true
     },
     {
+      "Source": "phoneNumber",
+      "Destination": "phoneNumber",
+      "required": false
+    },
+    {
       "Source": "last_name",
       "Destination": "familyName",
       "required": true
@@ -131,7 +140,7 @@ Contacts:
       "Source": "first_name",
       "Destination": "givenName",
       "required": true
-    }
+    },
     {
       "Source": "display_name",
       "Destination": "fullName",
@@ -155,6 +164,11 @@ Contacts:
     {
       "Source": "job_description",
       "Destination": "jobDescription",
+      "required": false
+    },
+    {
+      "Source": "where",
+      "Destination": "where",
       "required": false
     }
   ],
