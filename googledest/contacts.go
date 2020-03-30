@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -126,6 +127,8 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 	if config.BatchDelaySeconds <= 0 {
 		config.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
+
+	googleContacts.DestinationConfig = destinationConfig
 
 	// Initialize Client object
 	err = googleContacts.initGoogleClient()
@@ -267,22 +270,34 @@ func (g *GoogleContacts) ApplyChangeSet(
 	batchTimer := personnel_sync.NewBatchTimer(g.GoogleContactsConfig.BatchSize,
 		g.GoogleContactsConfig.BatchDelaySeconds)
 
-	for _, toCreate := range changes.Create {
-		wg.Add(1)
-		go g.addContact(toCreate, &results.Created, &wg, eventLog)
-		batchTimer.WaitOnBatch()
+	if g.DestinationConfig.DisableAdd {
+		log.Println("Contact creation is disabled.")
+	} else {
+		for _, toCreate := range changes.Create {
+			wg.Add(1)
+			go g.addContact(toCreate, &results.Created, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
 	}
 
-	for _, toUpdate := range changes.Update {
-		wg.Add(1)
-		go g.updateContact(toUpdate, &results.Updated, &wg, eventLog)
-		batchTimer.WaitOnBatch()
+	if g.DestinationConfig.DisableUpdate {
+		log.Println("Contact update is disabled.")
+	} else {
+		for _, toUpdate := range changes.Update {
+			wg.Add(1)
+			go g.updateContact(toUpdate, &results.Updated, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
 	}
 
-	for _, toUpdate := range changes.Delete {
-		wg.Add(1)
-		go g.deleteContact(toUpdate, &results.Deleted, &wg, eventLog)
-		batchTimer.WaitOnBatch()
+	if g.DestinationConfig.DisableDelete {
+		log.Println("Contact deletion is disabled.")
+	} else {
+		for _, toUpdate := range changes.Delete {
+			wg.Add(1)
+			go g.deleteContact(toUpdate, &results.Deleted, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
 	}
 
 	wg.Wait()

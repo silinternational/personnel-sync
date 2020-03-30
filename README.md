@@ -99,8 +99,12 @@ Below is an example of the destination configuration required for Google Shared
 Contacts:
 
 ```json
+{
   "Destination": {
     "Type": "GoogleContacts",
+    "DisableAdd": false,
+    "DisableUpdate": false,
+    "DisableDelete": false,
     "ExtraJSON": {
       "BatchSize": 10,
       "BatchDelaySeconds": 3,
@@ -171,10 +175,13 @@ Contacts:
       "Destination": "where",
       "required": false
     }
-  ],
+  ]
+}
 ```
 
 Note: `Source` fields should be adjusted to fit the actual source adapter.
+
+Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all optional with defaults as shown in example.
 
 ### Google Groups
 This destination is useful for keeping Google Groups in sync with reports from a personnel system. Below is an example 
