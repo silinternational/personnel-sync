@@ -32,6 +32,7 @@ const (
 	contactFieldTitle          = "title"
 	contactFieldJobDescription = "jobDescription"
 	contactFieldDepartment     = "department"
+	contactFieldNotes          = "notes"
 )
 
 type GoogleContactsConfig struct {
@@ -65,6 +66,7 @@ type Contact struct {
 	PhoneNumbers []PhoneNumber `xml:"phoneNumber"`
 	Organization Organization  `xml:"organization"`
 	Where        Where         `xml:"where"`
+	Notes        string        `xml:"content"`
 }
 
 type Email struct {
@@ -101,7 +103,7 @@ type Link struct {
 }
 
 type Where struct {
-	XMLName     xml.Name `xml."where"`
+	XMLName     xml.Name `xml:"where"`
 	ValueString string   `xml:"valueString,attr"`
 }
 
@@ -276,6 +278,7 @@ func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]perso
 				contactFieldTitle:          entry.Organization.Title,
 				contactFieldJobDescription: entry.Organization.JobDescription,
 				contactFieldDepartment:     entry.Organization.Department,
+				contactFieldNotes:          entry.Notes,
 			},
 		}
 	}
@@ -364,6 +367,7 @@ func (g *GoogleContacts) initGoogleClient() error {
 func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 	const bodyTemplate = `<atom:entry xmlns:atom='http://www.w3.org/2005/Atom' xmlns:gd='http://schemas.google.com/g/2005'>
 	<atom:category scheme='http://schemas.google.com/g/2005#kind' term='http://schemas.google.com/contact/2008#contact' />
+	<atom:content type='text'>%s</atom:content>
 	<gd:name>
 		<gd:fullName>%s</gd:fullName>
 		<gd:givenName>%s</gd:givenName>
