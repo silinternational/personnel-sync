@@ -13,8 +13,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-const DefaultBatchSize = 10
-const DefaultBatchDelaySeconds = 3
 const RoleMember = "MEMBER"
 const RoleOwner = "OWNER"
 const RoleManager = "MANAGER"
