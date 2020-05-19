@@ -15,6 +15,7 @@ const (
 	DefaultVerbosity              = 5
 	DestinationTypeGoogleContacts = "GoogleContacts"
 	DestinationTypeGoogleGroups   = "GoogleGroups"
+	DestinationTypeGoogleSheets   = "GoogleSheets"
 	DestinationTypeGoogleUsers    = "GoogleUsers"
 	DestinationTypeWebHelpDesk    = "WebHelpDesk"
 	SourceTypeRestAPI             = "RestAPI"

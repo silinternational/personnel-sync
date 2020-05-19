@@ -46,6 +46,8 @@ func main() {
 		destination, err = googledest.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
+	case personnel_sync.DestinationTypeGoogleSheets:
+		destination, err = googledest.NewGoogleSheetsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleUsers:
 		destination, err = googledest.NewGoogleUsersDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeWebHelpDesk:
