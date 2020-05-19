@@ -384,11 +384,24 @@ func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
 	</gd:organization> 
 </atom:entry>`
 
-	return fmt.Sprintf(bodyTemplate, person.Attributes[contactFieldFullName], person.Attributes[contactFieldGivenName],
-		person.Attributes[contactFieldFamilyName], person.Attributes[contactFieldEmail],
-		person.Attributes[contactFieldPhoneNumber], person.Attributes[contactFieldWhere],
-		person.Attributes[contactFieldOrganization], person.Attributes[contactFieldTitle],
-		person.Attributes[contactFieldJobDescription], person.Attributes[contactFieldDepartment])
+	return fmt.Sprintf(bodyTemplate,
+		escapeForXML(person.Attributes[contactFieldNotes]),
+		escapeForXML(person.Attributes[contactFieldFullName]),
+		escapeForXML(person.Attributes[contactFieldGivenName]),
+		escapeForXML(person.Attributes[contactFieldFamilyName]),
+		escapeForXML(person.Attributes[contactFieldEmail]),
+		escapeForXML(person.Attributes[contactFieldPhoneNumber]),
+		escapeForXML(person.Attributes[contactFieldWhere]),
+		escapeForXML(person.Attributes[contactFieldOrganization]),
+		escapeForXML(person.Attributes[contactFieldTitle]),
+		escapeForXML(person.Attributes[contactFieldJobDescription]),
+		escapeForXML(person.Attributes[contactFieldDepartment]))
+}
+
+func escapeForXML(s string) string {
+	buf := new(bytes.Buffer)
+	_ = xml.EscapeText(buf, []byte(s))
+	return buf.String()
 }
 
 func (g *GoogleContacts) updateContact(
