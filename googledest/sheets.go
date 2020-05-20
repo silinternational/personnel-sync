@@ -153,10 +153,9 @@ func (g *GoogleSheets) addRow(
 		Values: [][]interface{}{newRow},
 	}
 
-	_, err := g.Service.Spreadsheets.Values.Update(
-		g.SheetsSyncSet.SheetID,
-		fmt.Sprintf("Sheet1!A%d:ZZ", n+2),
-		v).ValueInputOption("RAW").Do()
+	_, err := g.Service.Spreadsheets.Values.
+		Update(g.SheetsSyncSet.SheetID, fmt.Sprintf("Sheet1!A%d:ZZ", n+2), v).
+		ValueInputOption("RAW").Do()
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
