@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"sync"
 	"sync/atomic"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 
 	personnel_sync "github.com/silinternational/personnel-sync"
@@ -21,7 +21,7 @@ const MaxColumns = 40
 type GoogleSheets struct {
 	DestinationConfig personnel_sync.DestinationConfig
 	GoogleConfig      GoogleConfig
-	Client            http.Client
+	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
 	lastRow           int
 }
@@ -33,22 +33,25 @@ type SheetsSyncSet struct {
 	SheetID       string
 }
 
-func getClient(auth GoogleAuth, adminEmail string, scopes ...string) (http.Client, error) {
+func initSheetsService(auth GoogleAuth, adminEmail string, scopes ...string) (*sheets.Service, error) {
 	googleAuthJson, err := json.Marshal(auth)
 	if err != nil {
-		return http.Client{}, fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())
+		return nil, fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())
 	}
 
 	config, err := google.JWTConfigFromJSON(googleAuthJson, scopes...)
 	if err != nil {
-		return http.Client{}, fmt.Errorf("unable to parse client secret file to config: %s", err)
+		return nil, fmt.Errorf("unable to parse client secret file to config, error: %s", err)
 	}
 
-	ctx := context.Background()
 	config.Subject = adminEmail
-	client := config.Client(ctx)
 
-	return *client, nil
+	ctx := context.Background()
+	svc, err := sheets.NewService(ctx, option.WithHTTPClient(config.Client(ctx)))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create sheets service, error: %s", err)
+	}
+	return svc, nil
 }
 
 func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -67,8 +70,8 @@ func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConf
 		s.GoogleConfig.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
-	// Initialize AdminService object
-	s.Client, err = getClient(
+	// Initialize Sheets Service object
+	s.Service, err = initSheetsService(
 		s.GoogleConfig.GoogleAuth,
 		s.GoogleConfig.DelegatedAdminEmail,
 		sheets.SpreadsheetsScope,
@@ -76,6 +79,11 @@ func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConf
 	if err != nil {
 		return &GoogleSheets{}, err
 	}
+
+	//s.Service, err = sheets.New(&client)
+	//if err != nil {
+	//	return &s, fmt.Errorf("unable to retrieve Sheets service, error: %v", err)
+	//}
 
 	return &s, nil
 }
@@ -137,15 +145,6 @@ func (g *GoogleSheets) addRow(
 
 	defer wg.Done()
 
-	srv, err := sheets.New(&g.Client)
-	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("Unable to retrieve Sheets client, error: %v", err),
-		}
-		return
-	}
-
 	if g.lastRow == 0 {
 		headerRow := make([]interface{}, MaxColumns)
 		i := 0
@@ -160,7 +159,7 @@ func (g *GoogleSheets) addRow(
 			Values: [][]interface{}{headerRow},
 		}
 
-		_, err := srv.Spreadsheets.Values.Update(
+		_, err := g.Service.Spreadsheets.Values.Update(
 			g.SheetsSyncSet.SheetID,
 			"Sheet1!A1:ZZ",
 			v).ValueInputOption("RAW").Do()
@@ -190,7 +189,7 @@ func (g *GoogleSheets) addRow(
 
 	newRowRange := fmt.Sprintf("Sheet1!A%d:ZZ", g.lastRow+1)
 	fmt.Printf(newRowRange)
-	_, err = srv.Spreadsheets.Values.Update(
+	_, err := g.Service.Spreadsheets.Values.Update(
 		g.SheetsSyncSet.SheetID,
 		newRowRange,
 		v).ValueInputOption("RAW").Do()
@@ -212,14 +211,9 @@ func (g *GoogleSheets) addRow(
 }
 
 func (g *GoogleSheets) readSheet() {
-	srv, err := sheets.New(&g.Client)
-	if err != nil {
-		log.Fatalf("Unable to retrieve Sheets client, error: %v", err)
-	}
-
 	spreadsheetID := g.SheetsSyncSet.SheetID
 	readRange := "Sheet1!A1:E"
-	resp, err := srv.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
+	resp, err := g.Service.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve data from sheet, error: %v", err)
 	}
