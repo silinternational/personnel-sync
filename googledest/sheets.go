@@ -22,15 +22,13 @@ type GoogleSheets struct {
 	GoogleConfig      GoogleConfig
 	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
-	lastRow           int
-	rowsInSheet       int
+	header            map[string]int // map from field name to column number, zero-based (A=0)
+	lastRow           int            // the last row written, zero-based (one less than the sheet row number)
+	rowsInSheet       int            // the total number of rows of data in the sheet, including the header row
 }
 
 type SheetsSyncSet struct {
-	DisableAdd    bool
-	DisableUpdate bool
-	DisableDelete bool
-	SheetID       string
+	SheetID string
 }
 
 func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -121,12 +119,13 @@ func (g *GoogleSheets) ApplyChangeSet(
 	// One minute per batch
 	batchTimer := personnel_sync.NewBatchTimer(g.GoogleConfig.BatchSize, g.GoogleConfig.BatchDelaySeconds)
 
-	if !g.SheetsSyncSet.DisableAdd {
-		for _, person := range changes.Create {
-			wg.Add(1)
-			go g.addRow(person, &results.Created, &wg, eventLog)
-			batchTimer.WaitOnBatch()
-		}
+	// Since we are overwriting all of the existing data, set lastRow to the top
+	g.lastRow = 1
+
+	for _, person := range changes.Create {
+		wg.Add(1)
+		go g.addRow(person, &results.Created, &wg, eventLog)
+		batchTimer.WaitOnBatch()
 	}
 
 	wg.Wait()
@@ -142,50 +141,20 @@ func (g *GoogleSheets) addRow(
 
 	defer wg.Done()
 
-	if g.lastRow == 0 {
-		headerRow := make([]interface{}, MaxColumns)
-		i := 0
-		for key := range person.Attributes {
-			headerRow[i] = key
-			i++
-		}
-		for ; i < MaxColumns; i++ {
-			headerRow[i] = ""
-		}
-		v := &sheets.ValueRange{
-			Values: [][]interface{}{headerRow},
-		}
-
-		_, err := g.Service.Spreadsheets.Values.Update(
-			g.SheetsSyncSet.SheetID,
-			"Sheet1!A1:ZZ",
-			v).ValueInputOption("RAW").Do()
-		if err != nil {
-			eventLog <- personnel_sync.EventLogItem{
-				Event:   "error",
-				Message: fmt.Sprintf("Unable to add row to sheet, error: %v", err),
-			}
-			return
-		}
-
-		g.lastRow++
-	}
-
 	newRow := make([]interface{}, MaxColumns)
-	i := 0
-	for _, val := range person.Attributes {
-		newRow[i] = val
-		i++
-	}
-	for ; i < MaxColumns; i++ {
+	for i := 0; i < MaxColumns; i++ {
 		newRow[i] = ""
+	}
+	for field, val := range person.Attributes {
+		if col, ok := g.header[field]; ok {
+			newRow[col] = val
+		}
 	}
 	v := &sheets.ValueRange{
 		Values: [][]interface{}{newRow},
 	}
 
 	newRowRange := fmt.Sprintf("Sheet1!A%d:ZZ", g.lastRow+1)
-	fmt.Printf(newRowRange)
 	_, err := g.Service.Spreadsheets.Values.Update(
 		g.SheetsSyncSet.SheetID,
 		newRowRange,
@@ -217,14 +186,16 @@ func (g *GoogleSheets) readSheet() error {
 	if err != nil {
 		return fmt.Errorf("unable to retrieve data from sheet, error: %v", err)
 	}
-	//if len(resp.Values) > 0 {
-	//	for _, row := range resp.Values {
-	//		for _, col := range row {
-	//			fmt.Printf("%s,", col)
-	//		}
-	//		fmt.Printf("\n")
-	//	}
-	//}
+	if len(resp.Values) < 1 {
+		return fmt.Errorf("no header row found in sheet")
+	}
+	g.header = make(map[string]int, len(resp.Values[0]))
+	for i, v := range resp.Values[0] {
+		field := fmt.Sprintf("%v", v)
+		if _, ok := g.header[field]; !ok {
+			g.header[field] = i
+		}
+	}
 	g.rowsInSheet = len(resp.Values)
 	return nil
 }
