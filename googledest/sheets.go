@@ -23,7 +23,6 @@ type GoogleSheets struct {
 	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
 	header            map[string]int // map from field name to column number, zero-based (A=0)
-	lastRow           int            // the last row written, zero-based (one less than the sheet row number)
 	rowsInSheet       int            // the total number of rows of data in the sheet, including the header row
 }
 
@@ -119,14 +118,13 @@ func (g *GoogleSheets) ApplyChangeSet(
 	// One minute per batch
 	batchTimer := personnel_sync.NewBatchTimer(g.GoogleConfig.BatchSize, g.GoogleConfig.BatchDelaySeconds)
 
-	// Since we are overwriting all of the existing data, set lastRow to the top
-	g.lastRow = 1
-
-	for _, person := range changes.Create {
+	for i, person := range changes.Create {
 		wg.Add(1)
-		go g.addRow(person, &results.Created, &wg, eventLog)
+		go g.addRow(i, person, &results.Created, &wg, eventLog)
 		batchTimer.WaitOnBatch()
 	}
+
+	g.clearExtraRows(len(changes.Create), eventLog)
 
 	wg.Wait()
 
@@ -134,6 +132,7 @@ func (g *GoogleSheets) ApplyChangeSet(
 }
 
 func (g *GoogleSheets) addRow(
+	n int,
 	person personnel_sync.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
@@ -154,10 +153,9 @@ func (g *GoogleSheets) addRow(
 		Values: [][]interface{}{newRow},
 	}
 
-	newRowRange := fmt.Sprintf("Sheet1!A%d:ZZ", g.lastRow+1)
 	_, err := g.Service.Spreadsheets.Values.Update(
 		g.SheetsSyncSet.SheetID,
-		newRowRange,
+		fmt.Sprintf("Sheet1!A%d:ZZ", n+2),
 		v).ValueInputOption("RAW").Do()
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
@@ -166,14 +164,9 @@ func (g *GoogleSheets) addRow(
 		}
 		return
 	}
-	g.lastRow++
-
-	if g.lastRow < g.rowsInSheet {
-		g.clearOldRows(eventLog)
-	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "AddMember",
+		Event:   "AddRow",
 		Message: person.CompareValue,
 	}
 
@@ -200,9 +193,13 @@ func (g *GoogleSheets) readSheet() error {
 	return nil
 }
 
-func (g *GoogleSheets) clearOldRows(eventLog chan<- personnel_sync.EventLogItem) {
+func (g *GoogleSheets) clearExtraRows(n int, eventLog chan<- personnel_sync.EventLogItem) {
+	if g.rowsInSheet <= n+1 {
+		return
+	}
+
 	var emptyCells [][]interface{}
-	for i := 0; i < g.rowsInSheet-g.lastRow; i++ {
+	for i := 0; i < g.rowsInSheet-(n+1); i++ {
 		row := make([]interface{}, MaxColumns)
 		for j := 0; j < MaxColumns; j++ {
 			row[j] = ""
@@ -214,12 +211,11 @@ func (g *GoogleSheets) clearOldRows(eventLog chan<- personnel_sync.EventLogItem)
 		Values: emptyCells,
 	}
 
-	newRowRange := fmt.Sprintf("Sheet1!A%d:ZZ", g.lastRow+1)
+	newRowRange := fmt.Sprintf("Sheet1!A%d:ZZ", n+2)
 	fmt.Printf(newRowRange)
-	_, err := g.Service.Spreadsheets.Values.Update(
-		g.SheetsSyncSet.SheetID,
-		newRowRange,
-		v).ValueInputOption("RAW").Do()
+	_, err := g.Service.Spreadsheets.Values.
+		Update(g.SheetsSyncSet.SheetID, newRowRange, v).
+		ValueInputOption("RAW").Do()
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
@@ -228,5 +224,5 @@ func (g *GoogleSheets) clearOldRows(eventLog chan<- personnel_sync.EventLogItem)
 		return
 	}
 
-	g.rowsInSheet = g.lastRow
+	g.rowsInSheet = n + 1
 }
