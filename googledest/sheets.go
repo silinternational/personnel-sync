@@ -33,27 +33,6 @@ type SheetsSyncSet struct {
 	SheetID       string
 }
 
-func initSheetsService(auth GoogleAuth, adminEmail string, scopes ...string) (*sheets.Service, error) {
-	googleAuthJson, err := json.Marshal(auth)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())
-	}
-
-	config, err := google.JWTConfigFromJSON(googleAuthJson, scopes...)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse client secret file to config, error: %s", err)
-	}
-
-	config.Subject = adminEmail
-
-	ctx := context.Background()
-	svc, err := sheets.NewService(ctx, option.WithHTTPClient(config.Client(ctx)))
-	if err != nil {
-		return nil, fmt.Errorf("unable to create sheets service, error: %s", err)
-	}
-	return svc, nil
-}
-
 func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
 	var s GoogleSheets
 	// Unmarshal ExtraJSON into GoogleConfig struct
@@ -80,12 +59,28 @@ func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConf
 		return &GoogleSheets{}, err
 	}
 
-	//s.Service, err = sheets.New(&client)
-	//if err != nil {
-	//	return &s, fmt.Errorf("unable to retrieve Sheets service, error: %v", err)
-	//}
-
 	return &s, nil
+}
+
+func initSheetsService(auth GoogleAuth, adminEmail string, scopes ...string) (*sheets.Service, error) {
+	googleAuthJson, err := json.Marshal(auth)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal google auth data into json, error: %s", err.Error())
+	}
+
+	config, err := google.JWTConfigFromJSON(googleAuthJson, scopes...)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse client secret file to config, error: %s", err)
+	}
+
+	config.Subject = adminEmail
+
+	ctx := context.Background()
+	svc, err := sheets.NewService(ctx, option.WithHTTPClient(config.Client(ctx)))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create sheets service, error: %s", err)
+	}
+	return svc, nil
 }
 
 func (g *GoogleSheets) GetIDField() string {
