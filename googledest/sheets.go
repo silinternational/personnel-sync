@@ -3,7 +3,6 @@ package googledest
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 
@@ -24,6 +23,7 @@ type GoogleSheets struct {
 	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
 	lastRow           int
+	rowsInSheet       int
 }
 
 type SheetsSyncSet struct {
@@ -102,7 +102,9 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 func (g *GoogleSheets) ListUsers() ([]personnel_sync.Person, error) {
 	var members []personnel_sync.Person
 
-	g.readSheet()
+	if err := g.readSheet(); err != nil {
+		return members, err
+	}
 
 	// To start with, let's just ignore the existing content and overwrite the entire sheet
 
@@ -197,6 +199,10 @@ func (g *GoogleSheets) addRow(
 	}
 	g.lastRow++
 
+	if g.lastRow < g.rowsInSheet {
+		g.clearOldRows(eventLog)
+	}
+
 	eventLog <- personnel_sync.EventLogItem{
 		Event:   "AddMember",
 		Message: person.CompareValue,
@@ -205,19 +211,51 @@ func (g *GoogleSheets) addRow(
 	atomic.AddUint64(counter, 1)
 }
 
-func (g *GoogleSheets) readSheet() {
-	spreadsheetID := g.SheetsSyncSet.SheetID
-	readRange := "Sheet1!A1:E"
-	resp, err := g.Service.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
+func (g *GoogleSheets) readSheet() error {
+	readRange := "Sheet1!A1:ZZ"
+	resp, err := g.Service.Spreadsheets.Values.Get(g.SheetsSyncSet.SheetID, readRange).Do()
 	if err != nil {
-		log.Fatalf("Unable to retrieve data from sheet, error: %v", err)
+		return fmt.Errorf("unable to retrieve data from sheet, error: %v", err)
 	}
-	if len(resp.Values) > 0 {
-		for _, row := range resp.Values {
-			for _, col := range row {
-				fmt.Printf("%s, ", col)
-			}
-			fmt.Printf("\n")
+	//if len(resp.Values) > 0 {
+	//	for _, row := range resp.Values {
+	//		for _, col := range row {
+	//			fmt.Printf("%s,", col)
+	//		}
+	//		fmt.Printf("\n")
+	//	}
+	//}
+	g.rowsInSheet = len(resp.Values)
+	return nil
+}
+
+func (g *GoogleSheets) clearOldRows(eventLog chan<- personnel_sync.EventLogItem) {
+	var emptyCells [][]interface{}
+	for i := 0; i < g.rowsInSheet-g.lastRow; i++ {
+		row := make([]interface{}, MaxColumns)
+		for j := 0; j < MaxColumns; j++ {
+			row[j] = ""
 		}
+		emptyCells = append(emptyCells, row)
+
 	}
+	v := &sheets.ValueRange{
+		Values: emptyCells,
+	}
+
+	newRowRange := fmt.Sprintf("Sheet1!A%d:ZZ", g.lastRow+1)
+	fmt.Printf(newRowRange)
+	_, err := g.Service.Spreadsheets.Values.Update(
+		g.SheetsSyncSet.SheetID,
+		newRowRange,
+		v).ValueInputOption("RAW").Do()
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("unable to clear extra rows, error: %v", err),
+		}
+		return
+	}
+
+	g.rowsInSheet = g.lastRow
 }
