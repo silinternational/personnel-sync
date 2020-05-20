@@ -15,7 +15,7 @@ import (
 )
 
 // MaxColumns specifies the maximum number of columns (fields) copied into the sheet
-const MaxColumns = 40
+const MaxColumns = 20
 
 type GoogleSheets struct {
 	DestinationConfig personnel_sync.DestinationConfig
