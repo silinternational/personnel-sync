@@ -31,14 +31,6 @@ func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConf
 		return &GoogleSheets{}, err
 	}
 
-	// Defaults
-	if s.GoogleConfig.BatchSize <= 0 {
-		s.GoogleConfig.BatchSize = DefaultBatchSize
-	}
-	if s.GoogleConfig.BatchDelaySeconds <= 0 {
-		s.GoogleConfig.BatchDelaySeconds = DefaultBatchDelaySeconds
-	}
-
 	// Initialize Sheets Service object
 	s.Service, err = initSheetsService(
 		s.GoogleConfig.GoogleAuth,
