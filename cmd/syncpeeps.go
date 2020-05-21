@@ -17,8 +17,7 @@ import (
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(0)
-	now := time.Now().UTC()
-	log.Printf("Personnel sync started at %s", now.Format(time.RFC1123Z))
+	log.Printf("Personnel sync started at %s", time.Now().UTC().Format(time.RFC1123Z))
 
 	appConfig, err := personnel_sync.LoadConfig("")
 	if err != nil {
@@ -91,5 +90,6 @@ func main() {
 		}
 	}
 
+	log.Printf("Personnel sync completed at %s", time.Now().UTC().Format(time.RFC1123Z))
 	os.Exit(0)
 }

@@ -3,8 +3,6 @@ package googledest
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-	"sync/atomic"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -14,16 +12,11 @@ import (
 	personnel_sync "github.com/silinternational/personnel-sync"
 )
 
-// MaxColumns specifies the maximum number of columns (fields) copied into the sheet
-const MaxColumns = 20
-
 type GoogleSheets struct {
 	DestinationConfig personnel_sync.DestinationConfig
 	GoogleConfig      GoogleConfig
 	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
-	header            map[string]int // map from field name to column number, zero-based (A=0)
-	rowsInSheet       int            // the total number of rows of data in the sheet, including the header row
 }
 
 type SheetsSyncSet struct {
@@ -99,10 +92,6 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 func (g *GoogleSheets) ListUsers() ([]personnel_sync.Person, error) {
 	var members []personnel_sync.Person
 
-	if err := g.readSheet(); err != nil {
-		return members, err
-	}
-
 	// To start with, let's just ignore the existing content and overwrite the entire sheet
 
 	return members, nil
@@ -113,115 +102,95 @@ func (g *GoogleSheets) ApplyChangeSet(
 	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
 
 	var results personnel_sync.ChangeResults
-	var wg sync.WaitGroup
 
-	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(g.GoogleConfig.BatchSize, g.GoogleConfig.BatchDelaySeconds)
-
-	for i, person := range changes.Create {
-		wg.Add(1)
-		go g.addRow(i, person, &results.Created, &wg, eventLog)
-		batchTimer.WaitOnBatch()
+	sheetData, err := g.readSheet(eventLog)
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("Unable to read sheet, error: %v", err),
+		}
 	}
-
-	g.clearExtraRows(len(changes.Create), eventLog)
-
-	wg.Wait()
+	g.clearSheet(sheetData, eventLog)
+	g.updateSheet(g.getHeader(sheetData), changes.Create, eventLog)
+	results.Created = uint64(len(changes.Create))
 
 	return results
 }
 
-func (g *GoogleSheets) addRow(
-	n int,
-	person personnel_sync.Person,
-	counter *uint64,
-	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
-
-	defer wg.Done()
-
-	newRow := make([]interface{}, MaxColumns)
-	for i := 0; i < MaxColumns; i++ {
-		newRow[i] = ""
-	}
-	for field, val := range person.Attributes {
-		if col, ok := g.header[field]; ok {
-			newRow[col] = val
-		}
-	}
-	v := &sheets.ValueRange{
-		Values: [][]interface{}{newRow},
-	}
-
-	_, err := g.Service.Spreadsheets.Values.
-		Update(g.SheetsSyncSet.SheetID, fmt.Sprintf("Sheet1!A%d:ZZ", n+2), v).
-		ValueInputOption("RAW").Do()
-	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("Unable to add row to sheet, error: %v", err),
-		}
-		return
-	}
-
-	eventLog <- personnel_sync.EventLogItem{
-		Event:   "AddRow",
-		Message: person.CompareValue,
-	}
-
-	atomic.AddUint64(counter, 1)
-}
-
-func (g *GoogleSheets) readSheet() error {
+func (g *GoogleSheets) readSheet(eventLog chan<- personnel_sync.EventLogItem) ([][]interface{}, error) {
 	readRange := "Sheet1!A1:ZZ"
 	resp, err := g.Service.Spreadsheets.Values.Get(g.SheetsSyncSet.SheetID, readRange).Do()
 	if err != nil {
-		return fmt.Errorf("unable to retrieve data from sheet, error: %v", err)
+		return nil, fmt.Errorf("unable to retrieve data from sheet, error: %v", err)
 	}
 	if len(resp.Values) < 1 {
-		return fmt.Errorf("no header row found in sheet")
+		return nil, fmt.Errorf("no header row found in sheet")
 	}
-	g.header = make(map[string]int, len(resp.Values[0]))
-	for i, v := range resp.Values[0] {
-		field := fmt.Sprintf("%v", v)
-		if _, ok := g.header[field]; !ok {
-			g.header[field] = i
-		}
-	}
-	g.rowsInSheet = len(resp.Values)
-	return nil
+	return resp.Values, nil
 }
 
-func (g *GoogleSheets) clearExtraRows(n int, eventLog chan<- personnel_sync.EventLogItem) {
-	if g.rowsInSheet <= n+1 {
-		return
-	}
-
-	var emptyCells [][]interface{}
-	for i := 0; i < g.rowsInSheet-(n+1); i++ {
-		row := make([]interface{}, MaxColumns)
-		for j := 0; j < MaxColumns; j++ {
-			row[j] = ""
+func (g *GoogleSheets) getHeader(data [][]interface{}) map[string]int {
+	header := make(map[string]int, len(data[0]))
+	for i, v := range data[0] {
+		field := fmt.Sprintf("%v", v)
+		if _, ok := header[field]; !ok {
+			header[field] = i
 		}
-		emptyCells = append(emptyCells, row)
+	}
+	return header
+}
 
+func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- personnel_sync.EventLogItem) {
+	for i, row := range data {
+		if i == 0 {
+			continue
+		}
+		for j := range row {
+			data[i][j] = ""
+		}
 	}
 	v := &sheets.ValueRange{
-		Values: emptyCells,
+		Values: data,
 	}
 
-	newRowRange := fmt.Sprintf("Sheet1!A%d:ZZ", n+2)
-	fmt.Printf(newRowRange)
 	_, err := g.Service.Spreadsheets.Values.
-		Update(g.SheetsSyncSet.SheetID, newRowRange, v).
+		Update(g.SheetsSyncSet.SheetID, "Sheet1!A1", v).
 		ValueInputOption("RAW").Do()
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
 			Event:   "error",
-			Message: fmt.Sprintf("unable to clear extra rows, error: %v", err),
+			Message: fmt.Sprintf("unable to clear sheet, error: %v", err),
 		}
 		return
 	}
+}
 
-	g.rowsInSheet = n + 1
+func (g *GoogleSheets) updateSheet(
+	header map[string]int,
+	persons []personnel_sync.Person,
+	eventLog chan<- personnel_sync.EventLogItem) {
+
+	table := make([][]interface{}, len(persons))
+	for i, person := range persons {
+		row := make([]interface{}, len(header))
+		for field, val := range person.Attributes {
+			if col, ok := header[field]; ok {
+				row[col] = val
+			}
+		}
+		table[i] = row
+	}
+	v := &sheets.ValueRange{
+		Values: table,
+	}
+
+	_, err := g.Service.Spreadsheets.Values.
+		Update(g.SheetsSyncSet.SheetID, "Sheet1!A2:ZZ", v).
+		ValueInputOption("RAW").Do()
+	if err != nil {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "error",
+			Message: fmt.Sprintf("Unable to update sheet, error: %v", err),
+		}
+	}
 }

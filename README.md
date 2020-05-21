@@ -256,15 +256,12 @@ Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdat
 The Google Sheets destination creates a copy of the source data in a Google Sheets
 document.
 
-The Google Sheets document must be prepared with field names in row 1, and an
-adequate number of rows. (The sync process cannot add rows.)
+The Google Sheets document must be prepared with field names in row 1.
 
 Limitations:
 - The sheet name must be named "Sheet1"
 - The header row of the sheet must be pre-filled with field names
 - The entire sheet will be overwritten with new data on every sync
-- Maximum number of fields/columns = 20 (can be changed at compile time)
-- Rows cannot be added automatically
 
 Example config:
 ```json
