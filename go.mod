@@ -2,6 +2,8 @@ module github.com/silinternational/personnel-sync/v3
 
 go 1.14
 
+replace github.com/silinternational/personnel-sync/v3 => ./
+
 require (
 	github.com/Jeffail/gabs v1.4.0
 	github.com/aws/aws-lambda-go v1.16.0
