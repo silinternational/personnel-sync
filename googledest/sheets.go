@@ -9,13 +9,13 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	sync "github.com/silinternational/personnel-sync/v3"
 )
 
 const DefaultSheetName = "Sheet1"
 
 type GoogleSheets struct {
-	DestinationConfig personnel_sync.DestinationConfig
+	DestinationConfig sync.DestinationConfig
 	GoogleConfig      GoogleConfig
 	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
@@ -26,15 +26,14 @@ type SheetsSyncSet struct {
 	SheetName string
 }
 
-func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.Destination, error) {
 	var s GoogleSheets
-	// Unmarshal ExtraJSON into GoogleConfig struct
+
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &s.GoogleConfig)
 	if err != nil {
 		return &GoogleSheets{}, err
 	}
 
-	// Initialize Sheets Service object
 	s.Service, err = initSheetsService(
 		s.GoogleConfig.GoogleAuth,
 		s.GoogleConfig.DelegatedAdminEmail,
@@ -91,43 +90,40 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleSheets) ListUsers() ([]personnel_sync.Person, error) {
-	var members []personnel_sync.Person
+func (g *GoogleSheets) ListUsers() ([]sync.Person, error) {
+	var members []sync.Person
 
-	// To start with, let's just ignore the existing content and overwrite the entire sheet
+	// To keep it simple, ignore the existing content and overwrite the entire sheet
 
 	return members, nil
 }
 
 func (g *GoogleSheets) ApplyChangeSet(
-	changes personnel_sync.ChangeSet,
-	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
-
-	var results personnel_sync.ChangeResults
+	changes sync.ChangeSet,
+	eventLog chan<- sync.EventLogItem) sync.ChangeResults {
 
 	if g.DestinationConfig.DisableAdd || g.DestinationConfig.DisableDelete || g.DestinationConfig.DisableUpdate {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- sync.EventLogItem{
 			Event:   "ApplyChangeSet",
 			Message: fmt.Sprintf("Sync is disabled, no action taken"),
 		}
-		return results
+		return sync.ChangeResults{}
 	}
 
-	sheetData, err := g.readSheet(eventLog)
+	sheetData, err := g.readSheet()
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- sync.EventLogItem{
 			Event:   "error",
 			Message: fmt.Sprintf("Unable to read sheet, error: %v", err),
 		}
 	}
 	g.clearSheet(sheetData, eventLog)
 	g.updateSheet(g.getHeader(sheetData), changes.Create, eventLog)
-	results.Created = uint64(len(changes.Create))
 
-	return results
+	return sync.ChangeResults{Created: uint64(len(changes.Create))}
 }
 
-func (g *GoogleSheets) readSheet(eventLog chan<- personnel_sync.EventLogItem) ([][]interface{}, error) {
+func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
 	readRange := fmt.Sprintf("%s!A1:ZZ", g.SheetsSyncSet.SheetName)
 	resp, err := g.Service.Spreadsheets.Values.Get(g.SheetsSyncSet.SheetID, readRange).Do()
 	if err != nil {
@@ -150,7 +146,7 @@ func (g *GoogleSheets) getHeader(data [][]interface{}) map[string]int {
 	return header
 }
 
-func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- personnel_sync.EventLogItem) {
+func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- sync.EventLogItem) {
 	for i, row := range data {
 		if i == 0 {
 			continue
@@ -168,7 +164,7 @@ func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- personne
 		Update(g.SheetsSyncSet.SheetID, updateRange, v).
 		ValueInputOption("RAW").Do()
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- sync.EventLogItem{
 			Event:   "error",
 			Message: fmt.Sprintf("unable to clear sheet, error: %v", err),
 		}
@@ -176,11 +172,7 @@ func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- personne
 	}
 }
 
-func (g *GoogleSheets) updateSheet(
-	header map[string]int,
-	persons []personnel_sync.Person,
-	eventLog chan<- personnel_sync.EventLogItem) {
-
+func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person, eventLog chan<- sync.EventLogItem) {
 	table := make([][]interface{}, len(persons))
 	for i, person := range persons {
 		row := make([]interface{}, len(header))
@@ -200,7 +192,7 @@ func (g *GoogleSheets) updateSheet(
 		Update(g.SheetsSyncSet.SheetID, updateRange, v).
 		ValueInputOption("RAW").Do()
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- sync.EventLogItem{
 			Event:   "error",
 			Message: fmt.Sprintf("Unable to update sheet, error: %v", err),
 		}
