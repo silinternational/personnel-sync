@@ -9,7 +9,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync/v3"
 )
 
 type GoogleSheets struct {
