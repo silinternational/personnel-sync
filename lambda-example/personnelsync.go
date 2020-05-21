@@ -51,6 +51,8 @@ func handler(lambdaConfig LambdaConfig) error {
 	// Instantiate Destination
 	var destination personnel_sync.Destination
 	switch appConfig.Destination.Type {
+	case personnel_sync.DestinationTypeGoogleContacts:
+		destination, err = googledest.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleUsers:
