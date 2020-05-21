@@ -12,6 +12,8 @@ import (
 	personnel_sync "github.com/silinternational/personnel-sync/v3"
 )
 
+const DefaultSheetName = "Sheet1"
+
 type GoogleSheets struct {
 	DestinationConfig personnel_sync.DestinationConfig
 	GoogleConfig      GoogleConfig
@@ -20,7 +22,8 @@ type GoogleSheets struct {
 }
 
 type SheetsSyncSet struct {
-	SheetID string
+	SheetID   string
+	SheetName string
 }
 
 func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
@@ -80,6 +83,11 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 
 	g.SheetsSyncSet = syncSetConfig
 
+	// Defaults
+	if g.SheetsSyncSet.SheetName == "" {
+		g.SheetsSyncSet.SheetName = DefaultSheetName
+	}
+
 	return nil
 }
 
@@ -120,7 +128,7 @@ func (g *GoogleSheets) ApplyChangeSet(
 }
 
 func (g *GoogleSheets) readSheet(eventLog chan<- personnel_sync.EventLogItem) ([][]interface{}, error) {
-	readRange := "Sheet1!A1:ZZ"
+	readRange := fmt.Sprintf("%s!A1:ZZ", g.SheetsSyncSet.SheetName)
 	resp, err := g.Service.Spreadsheets.Values.Get(g.SheetsSyncSet.SheetID, readRange).Do()
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve data from sheet, error: %v", err)
@@ -155,8 +163,9 @@ func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- personne
 		Values: data,
 	}
 
+	updateRange := fmt.Sprintf("%s!A1", g.SheetsSyncSet.SheetName)
 	_, err := g.Service.Spreadsheets.Values.
-		Update(g.SheetsSyncSet.SheetID, "Sheet1!A1", v).
+		Update(g.SheetsSyncSet.SheetID, updateRange, v).
 		ValueInputOption("RAW").Do()
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
@@ -186,8 +195,9 @@ func (g *GoogleSheets) updateSheet(
 		Values: table,
 	}
 
+	updateRange := fmt.Sprintf("%s!A2:ZZ", g.SheetsSyncSet.SheetName)
 	_, err := g.Service.Spreadsheets.Values.
-		Update(g.SheetsSyncSet.SheetID, "Sheet1!A2:ZZ", v).
+		Update(g.SheetsSyncSet.SheetID, updateRange, v).
 		ValueInputOption("RAW").Do()
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{

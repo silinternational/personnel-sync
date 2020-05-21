@@ -254,17 +254,16 @@ Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdat
 The Google Sheets destination creates a copy of the source data in a Google Sheets
 document.
 
-The Google Sheets document must be prepared with field names in row 1.
-
 If any of the disable options, DisableAdd, DisableDelete, or DisableUpdate are
 set to true, no sync will be performed.
 
-Limitations:
-- The sheet name must be named "Sheet1"
-- There must be at least two rows in the sheet to begin with. The first row must
-  be pre-filled with field names. The second row must be present, but will be
-  ignored and may be overwritten.
-- The entire sheet will be overwritten with new data on every sync
+There must be at least two rows in the sheet to begin with. The first row must
+be pre-filled with field names. The second row must be present, but will be
+ignored and may be overwritten.
+
+The entire sheet will be overwritten with new data on every sync
+
+If not specified in the configuration, the sheet updated is "Sheet1"
 
 Example config:
 ```json
@@ -306,7 +305,8 @@ Example config:
         "Paths": ["/user"]
       },
       "Destination": {
-        "SheetID": "putAnActualSheetIDHerejD70xAjqPnOCHlDK3YomH"
+        "SheetID": "putAnActualSheetIDHerejD70xAjqPnOCHlDK3YomH",
+        "SheetName": "Sheet2"
       }
     }
   ]
