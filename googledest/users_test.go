@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/api/googleapi"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync/v3"
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
