@@ -76,7 +76,7 @@ func initSheetsService(auth GoogleAuth, adminEmail string, scopes ...string) (*s
 }
 
 func (g *GoogleSheets) GetIDField() string {
-	return "email"
+	return ""
 }
 
 func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
