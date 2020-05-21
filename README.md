@@ -263,7 +263,9 @@ set to true, no sync will be performed.
 
 Limitations:
 - The sheet name must be named "Sheet1"
-- The header row of the sheet must be pre-filled with field names
+- There must be at least two rows in the sheet to begin with. The first row must
+  be pre-filled with field names. The second row must be present, but will be
+  ignored and may be overwritten.
 - The entire sheet will be overwritten with new data on every sync
 
 Example config:
