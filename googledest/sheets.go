@@ -113,12 +113,27 @@ func (g *GoogleSheets) ApplyChangeSet(
 	sheetData, err := g.readSheet()
 	if err != nil {
 		eventLog <- sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("Unable to read sheet, error: %v", err),
+			Event:   "Error",
+			Message: fmt.Sprintf("unable to read sheet, error: %v", err),
 		}
+		return sync.ChangeResults{}
 	}
-	g.clearSheet(sheetData, eventLog)
-	g.updateSheet(g.getHeader(sheetData), changes.Create, eventLog)
+
+	if err := g.clearSheet(sheetData); err != nil {
+		eventLog <- sync.EventLogItem{
+			Event:   "Error",
+			Message: err.Error(),
+		}
+		return sync.ChangeResults{}
+	}
+
+	if err := g.updateSheet(g.getHeader(sheetData), changes.Create); err != nil {
+		eventLog <- sync.EventLogItem{
+			Event:   "Error",
+			Message: err.Error(),
+		}
+		return sync.ChangeResults{}
+	}
 
 	return sync.ChangeResults{Created: uint64(len(changes.Create))}
 }
@@ -146,7 +161,7 @@ func (g *GoogleSheets) getHeader(data [][]interface{}) map[string]int {
 	return header
 }
 
-func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- sync.EventLogItem) {
+func (g *GoogleSheets) clearSheet(data [][]interface{}) error {
 	for i, row := range data {
 		if i == 0 {
 			continue
@@ -164,15 +179,12 @@ func (g *GoogleSheets) clearSheet(data [][]interface{}, eventLog chan<- sync.Eve
 		Update(g.SheetsSyncSet.SheetID, updateRange, v).
 		ValueInputOption("RAW").Do()
 	if err != nil {
-		eventLog <- sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("unable to clear sheet, error: %v", err),
-		}
-		return
+		return fmt.Errorf("unable to clear sheet, error: %v", err)
 	}
+	return nil
 }
 
-func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person, eventLog chan<- sync.EventLogItem) {
+func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person) error {
 	table := make([][]interface{}, len(persons))
 	for i, person := range persons {
 		row := make([]interface{}, len(header))
@@ -192,9 +204,7 @@ func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person,
 		Update(g.SheetsSyncSet.SheetID, updateRange, v).
 		ValueInputOption("RAW").Do()
 	if err != nil {
-		eventLog <- sync.EventLogItem{
-			Event:   "error",
-			Message: fmt.Sprintf("Unable to update sheet, error: %v", err),
-		}
+		return fmt.Errorf("unable to update sheet, error: %v", err)
 	}
+	return nil
 }
