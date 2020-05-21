@@ -247,6 +247,10 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 	go processEventLog(eventLog)
 
 	results := destination.ApplyChangeSet(changeSet, eventLog)
+
+	for len(eventLog) > 0 {
+		time.Sleep(time.Millisecond * 100)
+	}
 	close(eventLog)
 
 	return results

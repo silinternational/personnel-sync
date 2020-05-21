@@ -49,6 +49,8 @@ func NewGoogleSheetsDestination(destinationConfig personnel_sync.DestinationConf
 		return &GoogleSheets{}, err
 	}
 
+	s.DestinationConfig = destinationConfig
+
 	return &s, nil
 }
 
@@ -102,6 +104,14 @@ func (g *GoogleSheets) ApplyChangeSet(
 	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
 
 	var results personnel_sync.ChangeResults
+
+	if g.DestinationConfig.DisableAdd || g.DestinationConfig.DisableDelete || g.DestinationConfig.DisableUpdate {
+		eventLog <- personnel_sync.EventLogItem{
+			Event:   "ApplyChangeSet",
+			Message: fmt.Sprintf("Sync is disabled, no action taken"),
+		}
+		return results
+	}
 
 	sheetData, err := g.readSheet(eventLog)
 	if err != nil {

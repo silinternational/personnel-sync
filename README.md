@@ -258,6 +258,9 @@ document.
 
 The Google Sheets document must be prepared with field names in row 1.
 
+If any of the disable options, DisableAdd, DisableDelete, or DisableUpdate are
+set to true, no sync will be performed.
+
 Limitations:
 - The sheet name must be named "Sheet1"
 - The header row of the sheet must be pre-filled with field names
