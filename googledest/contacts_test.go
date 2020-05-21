@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync/v3"
 )
 
 func TestNewGoogleContactsDestination(t *testing.T) {

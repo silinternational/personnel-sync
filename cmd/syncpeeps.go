@@ -5,13 +5,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/silinternational/personnel-sync/restapi"
+	"github.com/silinternational/personnel-sync/v3/restapi"
 
-	"github.com/silinternational/personnel-sync/webhelpdesk"
+	"github.com/silinternational/personnel-sync/v3/webhelpdesk"
 
-	"github.com/silinternational/personnel-sync/googledest"
+	"github.com/silinternational/personnel-sync/v3/googledest"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync/v3"
 )
 
 func main() {

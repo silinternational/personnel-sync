@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync/v3"
 )
 
 func TestRestAPI_ListUsers(t *testing.T) {

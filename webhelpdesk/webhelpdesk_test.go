@@ -9,9 +9,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/silinternational/personnel-sync/restapi"
+	"github.com/silinternational/personnel-sync/v3/restapi"
 
-	personnel_sync "github.com/silinternational/personnel-sync"
+	personnel_sync "github.com/silinternational/personnel-sync/v3"
 )
 
 func TestWebHelpDesk_ListUsers(t *testing.T) {
