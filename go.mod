@@ -1,4 +1,4 @@
-module github.com/silinternational/personnel-sync
+module github.com/silinternational/personnel-sync/v3
 
 go 1.14
 
