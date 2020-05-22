@@ -31,7 +31,7 @@ func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.
 
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &s.GoogleConfig)
 	if err != nil {
-		return &GoogleSheets{}, err
+		return nil, fmt.Errorf("error unmarshaling GoogleConfig: %s", err)
 	}
 
 	s.Service, err = initSheetsService(
@@ -40,7 +40,7 @@ func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.
 		sheets.SpreadsheetsScope,
 	)
 	if err != nil {
-		return &GoogleSheets{}, err
+		return nil, fmt.Errorf("error initializing Google Sheets service: %s", err)
 	}
 
 	s.DestinationConfig = destinationConfig
