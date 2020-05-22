@@ -194,6 +194,8 @@ of the destination configuration required for Google Groups:
   "Destination": {
     "Type": "GoogleGroups",
     "ExtraJSON": {
+      "BatchSize": 10,
+      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "delegated-admin@domain.com",
       "GoogleAuth": {
         "type": "service_account",
@@ -271,8 +273,6 @@ Example config:
   "Destination": {
     "Type": "GoogleSheets",
     "ExtraJSON": {
-      "BatchSize": 10,
-      "BatchDelaySeconds": 3,
       "DelegatedAdminEmail": "admin@example.com",
       "GoogleAuth": {
         "type": "service_account",
