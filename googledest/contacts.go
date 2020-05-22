@@ -39,11 +39,11 @@ type GoogleContactsConfig struct {
 	DelegatedAdminEmail string
 	Domain              string
 	GoogleAuth          GoogleAuth
-	BatchSize           int
-	BatchDelaySeconds   int
 }
 
 type GoogleContacts struct {
+	BatchSize            int
+	BatchDelaySeconds    int
 	DestinationConfig    personnel_sync.DestinationConfig
 	GoogleContactsConfig GoogleContactsConfig
 	Client               http.Client
@@ -123,12 +123,11 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 	}
 
 	// Defaults
-	config := &googleContacts.GoogleContactsConfig
-	if config.BatchSize <= 0 {
-		config.BatchSize = DefaultBatchSize
+	if googleContacts.BatchSize <= 0 {
+		googleContacts.BatchSize = DefaultBatchSize
 	}
-	if config.BatchDelaySeconds <= 0 {
-		config.BatchDelaySeconds = DefaultBatchDelaySeconds
+	if googleContacts.BatchDelaySeconds <= 0 {
+		googleContacts.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
 	googleContacts.DestinationConfig = destinationConfig
@@ -182,8 +181,8 @@ func (g *GoogleContacts) ApplyChangeSet(
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
 
-	batchTimer := personnel_sync.NewBatchTimer(g.GoogleContactsConfig.BatchSize,
-		g.GoogleContactsConfig.BatchDelaySeconds)
+	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize,
+		g.BatchDelaySeconds)
 
 	if g.DestinationConfig.DisableAdd {
 		log.Println("Contact creation is disabled.")

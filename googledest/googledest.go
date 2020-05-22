@@ -7,8 +7,6 @@ type GoogleConfig struct {
 	DelegatedAdminEmail string
 	Domain              string
 	GoogleAuth          GoogleAuth
-	BatchSize           int
-	BatchDelaySeconds   int
 }
 
 type GoogleAuth struct {

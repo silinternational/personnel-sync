@@ -46,6 +46,8 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 				ExtraJSON:     json.RawMessage(extraJSON),
 			},
 			want: GoogleContacts{
+				BatchSize:         5,
+				BatchDelaySeconds: 1,
 				GoogleContactsConfig: GoogleContactsConfig{
 					DelegatedAdminEmail: "delegated-admin@example.com",
 					Domain:              "example.com",
@@ -61,8 +63,6 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 						AuthProviderX509CertURL: "https://www.googleapis.com/oauth2/v1/certs",
 						ClientX509CertURL:       "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com",
 					},
-					BatchSize:         5,
-					BatchDelaySeconds: 1,
 				},
 			},
 			wantErr: false,

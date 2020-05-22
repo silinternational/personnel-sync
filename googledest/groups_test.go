@@ -75,7 +75,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 
 	type fields struct {
 		DestinationConfig  personnel_sync.DestinationConfig
-		GoogleGroupsConfig GoogleGroupsConfig
+		GoogleGroupsConfig GoogleConfig
 		AdminService       admin.Service
 	}
 	tests := []struct {
