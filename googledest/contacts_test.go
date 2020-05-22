@@ -48,7 +48,7 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 			want: GoogleContacts{
 				BatchSize:         5,
 				BatchDelaySeconds: 1,
-				GoogleContactsConfig: GoogleContactsConfig{
+				GoogleConfig: GoogleConfig{
 					DelegatedAdminEmail: "delegated-admin@example.com",
 					Domain:              "example.com",
 					GoogleAuth: GoogleAuth{
@@ -92,8 +92,8 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 				return
 			}
 			g := got.(*GoogleContacts)
-			if !reflect.DeepEqual(g.GoogleContactsConfig, tt.want.GoogleContactsConfig) {
-				t.Errorf("incorrect GoogleContactsConfig \ngot: %#v, \nwant: %#v", got, tt.want)
+			if !reflect.DeepEqual(g.GoogleConfig, tt.want.GoogleConfig) {
+				t.Errorf("incorrect GoogleConfig \ngot: %#v, \nwant: %#v", got, tt.want)
 			}
 		})
 	}
