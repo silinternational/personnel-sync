@@ -20,7 +20,7 @@ to `.env` and insert AWS credentials for Serverless to use to deploy the Lambda 
 Due to dependencies on Go to build the application and Serverless to interact with AWS to create and deploy the Lambda 
 the easiest way to do all this is using the included `Dockerfile` and `docker-compose`.
 
-Run `make deploy`. This will build the Docker image, run `dep ensure` inside the container, build the Go binary, and 
+Run `make deploy`. This will build the Docker image, run `go get` inside the container, build the Go binary, and 
 use Serverless to deploy the Lambda function to the default Serverless stage `dev`, but you can update the command in 
 the Makefile to change the stage as desired. 
 

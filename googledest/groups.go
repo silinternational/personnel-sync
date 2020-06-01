@@ -13,24 +13,17 @@ import (
 	"golang.org/x/net/context"
 )
 
-const DefaultBatchSize = 10
-const DefaultBatchDelaySeconds = 3
 const RoleMember = "MEMBER"
 const RoleOwner = "OWNER"
 const RoleManager = "MANAGER"
 
-type GoogleGroupsConfig struct {
-	DelegatedAdminEmail string
-	GoogleAuth          GoogleAuth
-}
-
 type GoogleGroups struct {
-	DestinationConfig  personnel_sync.DestinationConfig
-	GoogleGroupsConfig GoogleGroupsConfig
-	AdminService       admin.Service
-	GroupSyncSet       GroupSyncSet
-	BatchSize          int
-	BatchDelaySeconds  int
+	DestinationConfig personnel_sync.DestinationConfig
+	GoogleConfig      GoogleConfig
+	AdminService      admin.Service
+	GroupSyncSet      GroupSyncSet
+	BatchSize         int
+	BatchDelaySeconds int
 }
 
 type GroupSyncSet struct {
@@ -48,7 +41,7 @@ type GroupSyncSet struct {
 func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
 	var googleGroups GoogleGroups
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
-	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleGroups.GoogleGroupsConfig)
+	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleGroups.GoogleConfig)
 	if err != nil {
 		return &GoogleGroups{}, err
 	}
@@ -63,8 +56,8 @@ func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConf
 
 	// Initialize AdminService object
 	googleGroups.AdminService, err = initGoogleAdminService(
-		googleGroups.GoogleGroupsConfig.GoogleAuth,
-		googleGroups.GoogleGroupsConfig.DelegatedAdminEmail,
+		googleGroups.GoogleConfig.GoogleAuth,
+		googleGroups.GoogleConfig.DelegatedAdminEmail,
 		admin.AdminDirectoryGroupScope,
 		admin.AdminDirectoryGroupMemberScope,
 	)

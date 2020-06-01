@@ -17,8 +17,7 @@ import (
 func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(0)
-	now := time.Now().UTC()
-	log.Printf("Personnel sync started at %s", now.Format(time.RFC1123Z))
+	log.Printf("Personnel sync started at %s", time.Now().UTC().Format(time.RFC1123Z))
 
 	appConfig, err := personnel_sync.LoadConfig("")
 	if err != nil {
@@ -46,6 +45,8 @@ func main() {
 		destination, err = googledest.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
 		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
+	case personnel_sync.DestinationTypeGoogleSheets:
+		destination, err = googledest.NewGoogleSheetsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleUsers:
 		destination, err = googledest.NewGoogleUsersDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeWebHelpDesk:
@@ -89,5 +90,6 @@ func main() {
 		}
 	}
 
+	log.Printf("Personnel sync completed at %s", time.Now().UTC().Format(time.RFC1123Z))
 	os.Exit(0)
 }

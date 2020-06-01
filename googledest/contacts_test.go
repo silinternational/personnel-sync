@@ -46,7 +46,9 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 				ExtraJSON:     json.RawMessage(extraJSON),
 			},
 			want: GoogleContacts{
-				GoogleContactsConfig: GoogleContactsConfig{
+				BatchSize:         5,
+				BatchDelaySeconds: 1,
+				GoogleConfig: GoogleConfig{
 					DelegatedAdminEmail: "delegated-admin@example.com",
 					Domain:              "example.com",
 					GoogleAuth: GoogleAuth{
@@ -61,8 +63,6 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 						AuthProviderX509CertURL: "https://www.googleapis.com/oauth2/v1/certs",
 						ClientX509CertURL:       "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com",
 					},
-					BatchSize:         5,
-					BatchDelaySeconds: 1,
 				},
 			},
 			wantErr: false,
@@ -92,8 +92,8 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 				return
 			}
 			g := got.(*GoogleContacts)
-			if !reflect.DeepEqual(g.GoogleContactsConfig, tt.want.GoogleContactsConfig) {
-				t.Errorf("incorrect GoogleContactsConfig \ngot: %#v, \nwant: %#v", got, tt.want)
+			if !reflect.DeepEqual(g.GoogleConfig, tt.want.GoogleConfig) {
+				t.Errorf("incorrect GoogleConfig \ngot: %#v, \nwant: %#v", got, tt.want)
 			}
 		})
 	}

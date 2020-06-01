@@ -35,18 +35,12 @@ const (
 	contactFieldNotes          = "notes"
 )
 
-type GoogleContactsConfig struct {
-	DelegatedAdminEmail string
-	Domain              string
-	GoogleAuth          GoogleAuth
-	BatchSize           int
-	BatchDelaySeconds   int
-}
-
 type GoogleContacts struct {
-	DestinationConfig    personnel_sync.DestinationConfig
-	GoogleContactsConfig GoogleContactsConfig
-	Client               http.Client
+	BatchSize         int
+	BatchDelaySeconds int
+	DestinationConfig personnel_sync.DestinationConfig
+	GoogleConfig      GoogleConfig
+	Client            http.Client
 }
 
 type Entries struct {
@@ -116,19 +110,18 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 	}
 
 	var googleContacts GoogleContacts
-	// Unmarshal ExtraJSON into GoogleContactsConfig struct
-	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleContacts.GoogleContactsConfig)
+	// Unmarshal ExtraJSON into GoogleConfig struct
+	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleContacts.GoogleConfig)
 	if err != nil {
 		return &GoogleContacts{}, err
 	}
 
 	// Defaults
-	config := &googleContacts.GoogleContactsConfig
-	if config.BatchSize <= 0 {
-		config.BatchSize = DefaultBatchSize
+	if googleContacts.BatchSize <= 0 {
+		googleContacts.BatchSize = DefaultBatchSize
 	}
-	if config.BatchDelaySeconds <= 0 {
-		config.BatchDelaySeconds = DefaultBatchDelaySeconds
+	if googleContacts.BatchDelaySeconds <= 0 {
+		googleContacts.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
 	googleContacts.DestinationConfig = destinationConfig
@@ -156,7 +149,7 @@ func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 // ListUsers returns all users (contacts) in the destination
 func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
 	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
-		g.GoogleContactsConfig.Domain, MaxQuerySize)
+		g.GoogleConfig.Domain, MaxQuerySize)
 	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})
 	if err != nil {
 		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
@@ -182,8 +175,8 @@ func (g *GoogleContacts) ApplyChangeSet(
 	var results personnel_sync.ChangeResults
 	var wg sync.WaitGroup
 
-	batchTimer := personnel_sync.NewBatchTimer(g.GoogleContactsConfig.BatchSize,
-		g.GoogleContactsConfig.BatchDelaySeconds)
+	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize,
+		g.BatchDelaySeconds)
 
 	if g.DestinationConfig.DisableAdd {
 		log.Println("Contact creation is disabled.")
@@ -321,7 +314,7 @@ func (g *GoogleContacts) addContact(
 
 	defer wg.Done()
 
-	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleContactsConfig.Domain + "/full"
+	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleConfig.Domain + "/full"
 	body := g.createBody(person)
 	headers := map[string]string{"Content-Type": "application/atom+xml"}
 	if _, err := g.httpRequest(http.MethodPost, href, body, headers); err != nil {
@@ -343,7 +336,7 @@ func (g *GoogleContacts) addContact(
 //  Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
 //  that has appropriate access privileges
 func (g *GoogleContacts) initGoogleClient() error {
-	googleAuthJson, err := json.Marshal(g.GoogleContactsConfig.GoogleAuth)
+	googleAuthJson, err := json.Marshal(g.GoogleConfig.GoogleAuth)
 	if err != nil {
 		return fmt.Errorf("unable to marshal google auth data into json, error: %s", err)
 	}
@@ -353,7 +346,7 @@ func (g *GoogleContacts) initGoogleClient() error {
 		return fmt.Errorf("unable to parse client secret file to config: %s", err)
 	}
 
-	config.Subject = g.GoogleContactsConfig.DelegatedAdminEmail
+	config.Subject = g.GoogleConfig.DelegatedAdminEmail
 	g.Client = *config.Client(context.Background())
 
 	return nil

@@ -15,6 +15,7 @@ const (
 	DefaultVerbosity              = 5
 	DestinationTypeGoogleContacts = "GoogleContacts"
 	DestinationTypeGoogleGroups   = "GoogleGroups"
+	DestinationTypeGoogleSheets   = "GoogleSheets"
 	DestinationTypeGoogleUsers    = "GoogleUsers"
 	DestinationTypeWebHelpDesk    = "WebHelpDesk"
 	SourceTypeRestAPI             = "RestAPI"
@@ -246,6 +247,8 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 	go processEventLog(eventLog)
 
 	results := destination.ApplyChangeSet(changeSet, eventLog)
+
+	time.Sleep(time.Millisecond * 10)
 	close(eventLog)
 
 	return results
