@@ -3,6 +3,7 @@ package google
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -114,10 +115,33 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 }
 
 func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, error) {
-	return []sync.Person{}, nil
+	log.Print("reading from source")
+	sheetData, err := g.readSheet()
+	if err != nil {
+		return nil, fmt.Errorf("googleSheets ListUsersInDestination error %w", err)
+	}
+
+	header := map[int]string{}
+	p := make([]sync.Person, len(sheetData))
+	for i := range sheetData {
+		if i == 0 {
+			for j := range sheetData[i] {
+				header[j] = sheetData[i][j].(string)
+			}
+			continue
+		}
+		p[i-1].Attributes = map[string]string{}
+		for j := range sheetData[i] {
+			p[i-1].Attributes[header[j]] = sheetData[i][j].(string)
+		}
+	}
+
+	log.Printf("source: %+v\n", p)
+	return p, nil
 }
 
 func (g *GoogleSheets) ListUsersInDestination() ([]sync.Person, error) {
+	log.Print("reading from destination")
 	var members []sync.Person
 
 	// To keep it simple, ignore the existing content and overwrite the entire sheet
@@ -169,7 +193,7 @@ func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
 	readRange := fmt.Sprintf("%s!A1:ZZ", g.SheetsSyncSet.SheetName)
 	resp, err := g.Service.Spreadsheets.Values.Get(g.SheetsSyncSet.SheetID, readRange).Do()
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve data from sheet, error: %v", err)
+		return nil, fmt.Errorf("unable to retrieve data from sheet '%s', error: %v", g.SheetsSyncSet.SheetName, err)
 	}
 	if len(resp.Values) < 1 {
 		return nil, fmt.Errorf("no header row found in sheet")
