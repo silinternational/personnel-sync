@@ -9,7 +9,7 @@ import (
 
 	"github.com/silinternational/personnel-sync/v3/webhelpdesk"
 
-	"github.com/silinternational/personnel-sync/v3/googledest"
+	"github.com/silinternational/personnel-sync/v3/google"
 
 	personnel_sync "github.com/silinternational/personnel-sync/v3"
 )
@@ -30,25 +30,28 @@ func main() {
 	switch appConfig.Source.Type {
 	case personnel_sync.SourceTypeRestAPI:
 		source, err = restapi.NewRestAPISource(appConfig.Source)
-		if err != nil {
-			log.Println("Unable to initialize RestAPI source, error: ", err.Error())
-			os.Exit(1)
-		}
+	case personnel_sync.SourceTypeGoogleSheets:
+		source, err = google.NewGoogleSheetsSource(appConfig.Source)
 	default:
 		source = &personnel_sync.EmptySource{}
+	}
+
+	if err != nil {
+		log.Println("Unable to initialize source, error: ", err.Error())
+		os.Exit(1)
 	}
 
 	// Instantiate Destination
 	var destination personnel_sync.Destination
 	switch appConfig.Destination.Type {
 	case personnel_sync.DestinationTypeGoogleContacts:
-		destination, err = googledest.NewGoogleContactsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
-		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleGroupsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleSheets:
-		destination, err = googledest.NewGoogleSheetsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleSheetsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleUsers:
-		destination, err = googledest.NewGoogleUsersDestination(appConfig.Destination)
+		destination, err = google.NewGoogleUsersDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 	default:

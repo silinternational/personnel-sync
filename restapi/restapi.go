@@ -87,7 +87,7 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+func (r *RestAPI) ListUsersInSource(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	errLog := make(chan string, 1000)
 	people := make(chan personnel_sync.Person, 20000)
 	var wg sync.WaitGroup
@@ -118,7 +118,7 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 	return results, nil
 }
 
-// ListUsers makes an http request and uses the response to populate
+// ListUsersInSource makes an http request and uses the response to populate
 // and return a slice of Person instances
 func (r *RestAPI) listUsersForPath(
 	desiredAttrs []string,

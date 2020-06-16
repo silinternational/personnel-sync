@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"encoding/json"
@@ -16,6 +16,7 @@ const DefaultSheetName = "Sheet1"
 
 type GoogleSheets struct {
 	DestinationConfig sync.DestinationConfig
+	SourceConfig      sync.SourceConfig
 	GoogleConfig      GoogleConfig
 	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
@@ -44,6 +45,28 @@ func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.
 	}
 
 	s.DestinationConfig = destinationConfig
+
+	return &s, nil
+}
+
+func NewGoogleSheetsSource(sourceConfig sync.SourceConfig) (sync.Source, error) {
+	var s GoogleSheets
+
+	err := json.Unmarshal(sourceConfig.ExtraJSON, &s.GoogleConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling GoogleConfig: %s", err)
+	}
+
+	s.Service, err = initSheetsService(
+		s.GoogleConfig.GoogleAuth,
+		s.GoogleConfig.DelegatedAdminEmail,
+		sheets.SpreadsheetsScope,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing Google Sheets service: %s", err)
+	}
+
+	s.SourceConfig = sourceConfig
 
 	return &s, nil
 }
@@ -90,7 +113,11 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleSheets) ListUsers() ([]sync.Person, error) {
+func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, error) {
+	return []sync.Person{}, nil
+}
+
+func (g *GoogleSheets) ListUsersInDestination() ([]sync.Person, error) {
 	var members []sync.Person
 
 	// To keep it simple, ignore the existing content and overwrite the entire sheet

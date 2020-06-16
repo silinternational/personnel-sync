@@ -70,11 +70,11 @@ type ChangeResults struct {
 type Destination interface {
 	GetIDField() string
 	ForSet(syncSetJson json.RawMessage) error
-	ListUsers() ([]Person, error)
+	ListUsersInDestination() ([]Person, error)
 	ApplyChangeSet(changes ChangeSet, activityLog chan<- EventLogItem) ChangeResults
 }
 
 type Source interface {
 	ForSet(syncSetJson json.RawMessage) error
-	ListUsers(desiredAttrs []string) ([]Person, error)
+	ListUsersInSource(desiredAttrs []string) ([]Person, error)
 }

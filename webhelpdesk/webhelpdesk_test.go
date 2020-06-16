@@ -237,13 +237,13 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				t.Error(err)
 				t.FailNow()
 			}
-			got, err := w.ListUsers()
+			got, err := w.ListUsersInDestination()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("WebHelpDesk.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("WebHelpDesk.ListUsersInDestination() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WebHelpDesk.ListUsers() = %v, want %v", got, tt.want)
+				t.Errorf("WebHelpDesk.ListUsersInDestination() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -265,7 +265,7 @@ func TestCreateChangeSet(t *testing.T) {
 		t.FailNow()
 	}
 
-	users, err := whd.ListUsers()
+	users, err := whd.ListUsersInDestination()
 	if err != nil {
 		t.Errorf("Failed to list whd users, error: %s", err.Error())
 		t.FailNow()
@@ -276,7 +276,7 @@ func TestCreateChangeSet(t *testing.T) {
 		t.Error(err)
 	}
 
-	sourcePeople, _ := source.ListUsers([]string{"email"})
+	sourcePeople, _ := source.ListUsersInDestination([]string{"email"})
 	log.Printf("found %v people in source", len(sourcePeople))
 
 	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users, testConfig, "id")
