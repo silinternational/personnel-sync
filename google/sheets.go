@@ -268,8 +268,8 @@ func makeSheetDataFromPersons(header map[int]string, persons []sync.Person) [][]
 	sheetData := make([][]interface{}, len(persons))
 	for i, person := range persons {
 		row := make([]interface{}, len(header))
-		for i := range row {
-			row[i] = person.Attributes[header[i]]
+		for j := range row {
+			row[j] = person.Attributes[header[j]]
 		}
 		sheetData[i] = row
 	}
