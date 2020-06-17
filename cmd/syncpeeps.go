@@ -37,7 +37,7 @@ func main() {
 	}
 
 	if err != nil {
-		log.Println("Unable to initialize source, error: ", err.Error())
+		log.Printf("Unable to initialize %s source, error: %s", appConfig.Source.Type, err.Error())
 		os.Exit(1)
 	}
 

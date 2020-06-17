@@ -29,20 +29,9 @@ type SheetsSyncSet struct {
 }
 
 func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.Destination, error) {
-	var s GoogleSheets
-
-	err := json.Unmarshal(destinationConfig.ExtraJSON, &s.GoogleConfig)
+	s, err := readConfig(destinationConfig.ExtraJSON)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling GoogleConfig: %s", err)
-	}
-
-	s.Service, err = initSheetsService(
-		s.GoogleConfig.GoogleAuth,
-		s.GoogleConfig.DelegatedAdminEmail,
-		sheets.SpreadsheetsScope,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing Google Sheets service: %s", err)
+		return nil, fmt.Errorf("error reading GoogleSheets destination config: %s", err)
 	}
 
 	s.DestinationConfig = destinationConfig
@@ -51,11 +40,21 @@ func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.
 }
 
 func NewGoogleSheetsSource(sourceConfig sync.SourceConfig) (sync.Source, error) {
+	s, err := readConfig(sourceConfig.ExtraJSON)
+	if err != nil {
+		return nil, fmt.Errorf("error reading GoogleSheets source config: %s", err)
+	}
+	s.SourceConfig = sourceConfig
+
+	return &s, nil
+}
+
+func readConfig(data []byte) (GoogleSheets, error) {
 	var s GoogleSheets
 
-	err := json.Unmarshal(sourceConfig.ExtraJSON, &s.GoogleConfig)
+	err := json.Unmarshal(data, &s.GoogleConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling GoogleConfig: %s", err)
+		return s, fmt.Errorf("error unmarshaling GoogleConfig: %s", err)
 	}
 
 	s.Service, err = initSheetsService(
@@ -64,12 +63,9 @@ func NewGoogleSheetsSource(sourceConfig sync.SourceConfig) (sync.Source, error) 
 		sheets.SpreadsheetsScope,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing Google Sheets service: %s", err)
+		return s, fmt.Errorf("error initializing Google Sheets service: %s", err)
 	}
-
-	s.SourceConfig = sourceConfig
-
-	return &s, nil
+	return s, nil
 }
 
 func initSheetsService(auth GoogleAuth, adminEmail string, scopes ...string) (*sheets.Service, error) {
@@ -201,6 +197,9 @@ func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
 }
 
 func (g *GoogleSheets) getHeader(data [][]interface{}) map[string]int {
+	if len(data) < 1 {
+		return map[string]int{}
+	}
 	header := make(map[string]int, len(data[0]))
 	for i, v := range data[0] {
 		field := fmt.Sprintf("%v", v)
