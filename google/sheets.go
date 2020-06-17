@@ -117,8 +117,15 @@ func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, 
 		return nil, fmt.Errorf("googleSheets ListUsersInSource error %w", err)
 	}
 
+	return getPersonsFromSheetData(sheetData), nil
+}
+
+func getPersonsFromSheetData(sheetData [][]interface{}) []sync.Person {
 	header := map[int]string{}
-	p := make([]sync.Person, len(sheetData))
+	if len(sheetData) < 1 {
+		return []sync.Person{}
+	}
+	p := make([]sync.Person, len(sheetData)-1)
 	for i, row := range sheetData {
 		if i == 0 {
 			for j, cellValue := range row {
@@ -131,8 +138,7 @@ func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, 
 			p[i-1].Attributes[header[j]] = cellValue.(string)
 		}
 	}
-
-	return p, nil
+	return p
 }
 
 func (g *GoogleSheets) ListUsersInDestination() ([]sync.Person, error) {
@@ -173,7 +179,7 @@ func (g *GoogleSheets) ApplyChangeSet(
 		return sync.ChangeResults{}
 	}
 
-	if err := g.updateSheet(getHeader(sheetData), changes.Create); err != nil {
+	if err := g.updateSheet(getHeaderFromSheetData(sheetData), changes.Create); err != nil {
 		eventLog <- sync.EventLogItem{
 			Event:   "Error",
 			Message: err.Error(),

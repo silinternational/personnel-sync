@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	sync "github.com/silinternational/personnel-sync/v3"
 )
 
 func TestNewGoogleSheetsDestination(t *testing.T) {
@@ -28,14 +28,14 @@ func TestNewGoogleSheetsDestination(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		destinationConfig personnel_sync.DestinationConfig
+		destinationConfig sync.DestinationConfig
 		want              GoogleSheets
 		wantErr           bool
 	}{
 		{
 			name: "test 1",
-			destinationConfig: personnel_sync.DestinationConfig{
-				Type:          personnel_sync.DestinationTypeGoogleSheets,
+			destinationConfig: sync.DestinationConfig{
+				Type:          sync.DestinationTypeGoogleSheets,
 				DisableAdd:    true,
 				DisableDelete: true,
 				DisableUpdate: true,
@@ -63,8 +63,8 @@ func TestNewGoogleSheetsDestination(t *testing.T) {
 		},
 		{
 			name: "wrong type",
-			destinationConfig: personnel_sync.DestinationConfig{
-				Type:          personnel_sync.DestinationTypeGoogleGroups,
+			destinationConfig: sync.DestinationConfig{
+				Type:          sync.DestinationTypeGoogleGroups,
 				DisableAdd:    true,
 				DisableDelete: true,
 				DisableUpdate: true,
@@ -113,14 +113,14 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		sourceConfig personnel_sync.SourceConfig
+		sourceConfig sync.SourceConfig
 		want         GoogleSheets
 		wantErr      bool
 	}{
 		{
 			name: "test 1",
-			sourceConfig: personnel_sync.SourceConfig{
-				Type:      personnel_sync.SourceTypeGoogleSheets,
+			sourceConfig: sync.SourceConfig{
+				Type:      sync.SourceTypeGoogleSheets,
 				ExtraJSON: json.RawMessage(extraJSON),
 			},
 			want: GoogleSheets{
@@ -145,8 +145,8 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 		},
 		{
 			name: "wrong type",
-			sourceConfig: personnel_sync.SourceConfig{
-				Type: personnel_sync.SourceTypeRestAPI,
+			sourceConfig: sync.SourceConfig{
+				Type: sync.SourceTypeRestAPI,
 			},
 			wantErr: true,
 		},
@@ -167,6 +167,51 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 			g := got.(*GoogleSheets)
 			if !reflect.DeepEqual(g.GoogleConfig, tt.want.GoogleConfig) {
 				t.Errorf("incorrect GoogleConfig \ngot: %#v, \nwant: %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getPersonsFromSheetData(t *testing.T) {
+	tests := []struct {
+		name      string
+		sheetData [][]interface{}
+		want      []sync.Person
+	}{
+		{
+			name:      "empty sheet data",
+			sheetData: [][]interface{}{},
+			want:      []sync.Person{},
+		},
+		{
+			name: "only a header row",
+			sheetData: [][]interface{}{
+				{"a", "b", "c"},
+			},
+			want: []sync.Person{},
+		},
+		{
+			name: "one row",
+			sheetData: [][]interface{}{
+				{"a", "b", "c"},
+				{"valueA", "valueB", "valueC"},
+			},
+			want: []sync.Person{{
+				CompareValue: "",
+				ID:           "",
+				Attributes: map[string]string{
+					"a": "valueA",
+					"b": "valueB",
+					"c": "valueC",
+				},
+				DisableChanges: false,
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getPersonsFromSheetData(tt.sheetData); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getPersonsFromSheetData() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
