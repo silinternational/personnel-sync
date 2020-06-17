@@ -118,25 +118,24 @@ func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, 
 	log.Print("reading from source")
 	sheetData, err := g.readSheet()
 	if err != nil {
-		return nil, fmt.Errorf("googleSheets ListUsersInDestination error %w", err)
+		return nil, fmt.Errorf("googleSheets ListUsersInSource error %w", err)
 	}
 
 	header := map[int]string{}
 	p := make([]sync.Person, len(sheetData))
-	for i := range sheetData {
+	for i, row := range sheetData {
 		if i == 0 {
-			for j := range sheetData[i] {
-				header[j] = sheetData[i][j].(string)
+			for j, cellValue := range row {
+				header[j] = cellValue.(string)
 			}
 			continue
 		}
 		p[i-1].Attributes = map[string]string{}
-		for j := range sheetData[i] {
-			p[i-1].Attributes[header[j]] = sheetData[i][j].(string)
+		for j, cellValue := range row {
+			p[i-1].Attributes[header[j]] = cellValue.(string)
 		}
 	}
 
-	log.Printf("source: %+v\n", p)
 	return p, nil
 }
 
