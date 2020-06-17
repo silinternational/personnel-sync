@@ -266,3 +266,104 @@ func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 		})
 	}
 }
+
+func Test_makeSheetDataFromPersons(t *testing.T) {
+	tests := []struct {
+		name    string
+		header  map[string]int
+		persons []sync.Person
+		want    [][]interface{}
+	}{
+		{
+			name:    "empty input",
+			header:  map[string]int{},
+			persons: []sync.Person{},
+			want:    [][]interface{}{},
+		},
+		{
+			name:   "empty header",
+			header: map[string]int{},
+			persons: []sync.Person{
+				{
+					CompareValue:   "",
+					ID:             "",
+					Attributes:     map[string]string{"a": "valueA"},
+					DisableChanges: false,
+				},
+			},
+			want: [][]interface{}{},
+		},
+		{
+			name:    "empty persons list",
+			header:  map[string]int{"a": 0},
+			persons: []sync.Person{},
+			want:    [][]interface{}{},
+		},
+		{
+			name:   "2 persons, 2 attributes",
+			header: map[string]int{"a": 0, "b": 1},
+			persons: []sync.Person{
+				{
+					CompareValue:   "",
+					ID:             "",
+					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1"},
+					DisableChanges: false,
+				},
+				{
+					CompareValue:   "",
+					ID:             "",
+					Attributes:     map[string]string{"a": "valueA2", "b": "valueB2"},
+					DisableChanges: false,
+				},
+			},
+			want: [][]interface{}{
+				{"valueA1", "valueB1"},
+				{"valueA2", "valueB2"},
+			},
+		},
+		{
+			name:   "extra header column",
+			header: map[string]int{"a": 0, "b": 1, "c": 2},
+			persons: []sync.Person{
+				{
+					CompareValue:   "",
+					ID:             "",
+					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1"},
+					DisableChanges: false,
+				},
+				{
+					CompareValue:   "",
+					ID:             "",
+					Attributes:     map[string]string{"a": "valueA2", "b": "valueB2"},
+					DisableChanges: false,
+				},
+			},
+			want: [][]interface{}{
+				{"valueA1", "valueB1"},
+				{"valueA2", "valueB2"},
+			},
+		},
+		{
+			name:   "unused attribute",
+			header: map[string]int{"a": 0, "b": 1},
+			persons: []sync.Person{
+				{
+					CompareValue:   "",
+					ID:             "",
+					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1", "c": "valueC1"},
+					DisableChanges: false,
+				},
+			},
+			want: [][]interface{}{
+				{"valueA1", "valueB1"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := makeSheetDataFromPersons(tt.header, tt.persons); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("makeSheetDataFromPersons() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

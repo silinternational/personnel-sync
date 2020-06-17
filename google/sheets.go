@@ -240,16 +240,7 @@ func (g *GoogleSheets) clearSheet(data [][]interface{}) error {
 }
 
 func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person) error {
-	table := make([][]interface{}, len(persons))
-	for i, person := range persons {
-		row := make([]interface{}, len(header))
-		for field, val := range person.Attributes {
-			if col, ok := header[field]; ok {
-				row[col] = val
-			}
-		}
-		table[i] = row
-	}
+	table := makeSheetDataFromPersons(header, persons)
 	v := &sheets.ValueRange{
 		Values: table,
 	}
@@ -262,4 +253,21 @@ func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person)
 		return fmt.Errorf("unable to update sheet, error: %v", err)
 	}
 	return nil
+}
+
+func makeSheetDataFromPersons(header map[string]int, persons []sync.Person) [][]interface{} {
+	if len(header) < 1 {
+		return [][]interface{}{}
+	}
+	sheetData := make([][]interface{}, len(persons))
+	for i, person := range persons {
+		row := make([]interface{}, len(header))
+		for field, val := range person.Attributes {
+			if col, ok := header[field]; ok {
+				row[col] = val
+			}
+		}
+		sheetData[i] = row
+	}
+	return sheetData
 }
