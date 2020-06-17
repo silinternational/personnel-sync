@@ -173,7 +173,7 @@ func (g *GoogleSheets) ApplyChangeSet(
 		return sync.ChangeResults{}
 	}
 
-	if err := g.updateSheet(g.getHeader(sheetData), changes.Create); err != nil {
+	if err := g.updateSheet(getHeader(sheetData), changes.Create); err != nil {
 		eventLog <- sync.EventLogItem{
 			Event:   "Error",
 			Message: err.Error(),
@@ -196,12 +196,12 @@ func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
 	return resp.Values, nil
 }
 
-func (g *GoogleSheets) getHeader(data [][]interface{}) map[string]int {
-	if len(data) < 1 {
+func getHeaderFromSheetData(sheetData [][]interface{}) map[string]int {
+	if len(sheetData) < 1 {
 		return map[string]int{}
 	}
-	header := make(map[string]int, len(data[0]))
-	for i, v := range data[0] {
+	header := make(map[string]int, len(sheetData[0]))
+	for i, v := range sheetData[0] {
 		field := fmt.Sprintf("%v", v)
 		if _, ok := header[field]; !ok {
 			header[field] = i

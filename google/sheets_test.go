@@ -172,7 +172,7 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 	}
 }
 
-func TestGoogleSheets_getHeader(t *testing.T) {
+func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 	tests := []struct {
 		name string
 		data [][]interface{}
@@ -215,9 +215,8 @@ func TestGoogleSheets_getHeader(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := GoogleSheets{}
-			if got := g.getHeader(tt.data); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getHeader() = %v, want %v", got, tt.want)
+			if got := getHeaderFromSheetData(tt.data); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getHeaderFromSheetData() = %v, want %v", got, tt.want)
 			}
 		})
 	}
