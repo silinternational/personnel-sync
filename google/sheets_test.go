@@ -174,21 +174,36 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 
 func Test_getPersonsFromSheetData(t *testing.T) {
 	tests := []struct {
-		name      string
-		sheetData [][]interface{}
-		want      []sync.Person
+		name         string
+		sheetData    [][]interface{}
+		desiredAttrs []string
+		want         []sync.Person
 	}{
 		{
-			name:      "empty sheet data",
-			sheetData: [][]interface{}{},
-			want:      []sync.Person{},
+			name:         "empty sheet data",
+			sheetData:    [][]interface{}{},
+			desiredAttrs: []string{"a", "b"},
+			want:         []sync.Person{},
 		},
 		{
 			name: "only a header row",
 			sheetData: [][]interface{}{
 				{"a", "b", "c"},
 			},
-			want: []sync.Person{},
+			desiredAttrs: []string{"a", "b"},
+			want:         []sync.Person{},
+		},
+		{
+			name: "no desired attributes",
+			sheetData: [][]interface{}{
+				{"a", "b", "c"},
+				{"valueA", "valueB", "valueC"},
+			},
+			desiredAttrs: []string{},
+			want: []sync.Person{{
+				Attributes:     map[string]string{},
+				DisableChanges: false,
+			}},
 		},
 		{
 			name: "one row",
@@ -196,13 +211,12 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 				{"a", "b", "c"},
 				{"valueA", "valueB", "valueC"},
 			},
+			desiredAttrs: []string{"a", "b"},
 			want: []sync.Person{{
-				CompareValue: "",
-				ID:           "",
+				ID: "",
 				Attributes: map[string]string{
 					"a": "valueA",
 					"b": "valueB",
-					"c": "valueC",
 				},
 				DisableChanges: false,
 			}},
@@ -210,7 +224,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getPersonsFromSheetData(tt.sheetData); !reflect.DeepEqual(got, tt.want) {
+			if got := getPersonsFromSheetData(tt.sheetData, tt.desiredAttrs); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getPersonsFromSheetData() = %#v, want %#v", got, tt.want)
 			}
 		})

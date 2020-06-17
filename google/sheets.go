@@ -117,14 +117,20 @@ func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, 
 		return nil, fmt.Errorf("googleSheets ListUsersInSource error %w", err)
 	}
 
-	return getPersonsFromSheetData(sheetData), nil
+	return getPersonsFromSheetData(sheetData, desiredAttrs), nil
 }
 
-func getPersonsFromSheetData(sheetData [][]interface{}) []sync.Person {
+func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string) []sync.Person {
 	header := map[int]string{}
 	if len(sheetData) < 1 {
 		return []sync.Person{}
 	}
+
+	attrMap := make(map[string]bool, len(desiredAttrs))
+	for _, a := range desiredAttrs {
+		attrMap[a] = true
+	}
+
 	p := make([]sync.Person, len(sheetData)-1)
 	for i, row := range sheetData {
 		if i == 0 {
@@ -135,7 +141,9 @@ func getPersonsFromSheetData(sheetData [][]interface{}) []sync.Person {
 		}
 		p[i-1].Attributes = map[string]string{}
 		for j, cellValue := range row {
-			p[i-1].Attributes[header[j]] = cellValue.(string)
+			if attrMap[header[j]] {
+				p[i-1].Attributes[header[j]] = cellValue.(string)
+			}
 		}
 	}
 	return p
