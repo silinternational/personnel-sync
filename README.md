@@ -252,6 +252,69 @@ Note: `Source` fields should be adjusted to fit the actual source adapter.
 
 Configurations for `BatchSize`, `BatchDelaySeconds`, `DisableAdd`, `DisableUpdate`, and `DisableDelete` are all optional with defaults as shown in example.
 
+### Google Sheets
+The Google Sheets destination creates a copy of the source data in a Google Sheets
+document.
+
+If any of the disable options, DisableAdd, DisableDelete, or DisableUpdate are
+set to true, no sync will be performed.
+
+There must be at least two rows in the sheet to begin with. The first row must
+be pre-filled with field names. The second row must be present, but will be
+ignored and may be overwritten.
+
+The entire sheet will be overwritten with new data on every sync
+
+If not specified in the configuration, the sheet updated is "Sheet1"
+
+Example config:
+```json
+{
+  "Destination": {
+    "Type": "GoogleSheets",
+    "ExtraJSON": {
+      "DelegatedAdminEmail": "admin@example.com",
+      "GoogleAuth": {
+        "type": "service_account",
+        "project_id": "abc-theme-123456",
+        "private_key_id": "abc123",
+        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIabc...\nabc...\n...xyz\n-----END PRIVATE KEY-----\n",
+        "client_email": "my-sync-bot@abc-theme-123456.iam.gserviceaccount.com",
+        "client_id": "123456789012345678901",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com"
+      }            
+    }
+  },
+  "AttributeMap": [
+    {
+      "Source": "email",
+      "Destination": "email"
+    },
+    {
+      "Source": "employee_id",
+      "Destination": "employee_id"
+    }
+  ],
+  "SyncSets": [
+    {
+      "Name": "Sync from Xyz API to Google Sheets",
+      "Source": {
+        "Paths": ["/user"]
+      },
+      "Destination": {
+        "SheetID": "putAnActualSheetIDHerejD70xAjqPnOCHlDK3YomH",
+        "SheetName": "Sheet2"
+      }
+    }
+  ]
+}
+```
+
+Note: `Source` fields should be adjusted to fit the actual source adapter.
+
 ### Google Users
 This destination can update User records in the Google Directory. The compare
 attribute is `primaryEmail`. A limited subset of user properties are available

@@ -14,22 +14,17 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
-type GoogleUsersConfig struct {
-	DelegatedAdminEmail string
-	GoogleAuth          GoogleAuth
-}
-
 type GoogleUsers struct {
-	GoogleUsersConfig GoogleUsersConfig
-	AdminService      admin.Service
 	BatchSize         int
 	BatchDelaySeconds int
+	GoogleConfig      GoogleConfig
+	AdminService      admin.Service
 }
 
 func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
 	var googleUsers GoogleUsers
-	// Unmarshal ExtraJSON into GoogleUsersConfig struct
-	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleUsers.GoogleUsersConfig)
+	// Unmarshal ExtraJSON into GoogleConfig struct
+	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleUsers.GoogleConfig)
 	if err != nil {
 		return &GoogleUsers{}, err
 	}
@@ -44,8 +39,8 @@ func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfi
 
 	// Initialize AdminService object
 	googleUsers.AdminService, err = initGoogleAdminService(
-		googleUsers.GoogleUsersConfig.GoogleAuth,
-		googleUsers.GoogleUsersConfig.DelegatedAdminEmail,
+		googleUsers.GoogleConfig.GoogleAuth,
+		googleUsers.GoogleConfig.DelegatedAdminEmail,
 		admin.AdminDirectoryUserScope,
 	)
 	if err != nil {
