@@ -235,20 +235,20 @@ func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 	tests := []struct {
 		name string
 		data [][]interface{}
-		want map[string]int
+		want map[int]string
 	}{
 		{
 			name: "empty sheet data",
 			data: [][]interface{}{},
-			want: map[string]int{},
+			want: map[int]string{},
 		},
 		{
 			name: "one column",
 			data: [][]interface{}{
 				{"a"},
 			},
-			want: map[string]int{
-				"a": 0,
+			want: map[int]string{
+				0: "a",
 			},
 		},
 		{
@@ -256,10 +256,10 @@ func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 			data: [][]interface{}{
 				{"a", "", "c"},
 			},
-			want: map[string]int{
-				"a": 0,
-				"":  1,
-				"c": 2,
+			want: map[int]string{
+				0: "a",
+				1: "",
+				2: "c",
 			},
 		},
 		{
@@ -267,8 +267,9 @@ func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 			data: [][]interface{}{
 				{"a", "a"},
 			},
-			want: map[string]int{
-				"a": 0,
+			want: map[int]string{
+				0: "a",
+				1: "a",
 			},
 		},
 	}
@@ -284,23 +285,21 @@ func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 func Test_makeSheetDataFromPersons(t *testing.T) {
 	tests := []struct {
 		name    string
-		header  map[string]int
+		header  map[int]string
 		persons []sync.Person
 		want    [][]interface{}
 	}{
 		{
 			name:    "empty input",
-			header:  map[string]int{},
+			header:  map[int]string{},
 			persons: []sync.Person{},
 			want:    [][]interface{}{},
 		},
 		{
 			name:   "empty header",
-			header: map[string]int{},
+			header: map[int]string{},
 			persons: []sync.Person{
 				{
-					CompareValue:   "",
-					ID:             "",
 					Attributes:     map[string]string{"a": "valueA"},
 					DisableChanges: false,
 				},
@@ -309,23 +308,19 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 		},
 		{
 			name:    "empty persons list",
-			header:  map[string]int{"a": 0},
+			header:  map[int]string{0: "a"},
 			persons: []sync.Person{},
 			want:    [][]interface{}{},
 		},
 		{
 			name:   "2 persons, 2 attributes",
-			header: map[string]int{"a": 0, "b": 1},
+			header: map[int]string{0: "a", 1: "b"},
 			persons: []sync.Person{
 				{
-					CompareValue:   "",
-					ID:             "",
 					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1"},
 					DisableChanges: false,
 				},
 				{
-					CompareValue:   "",
-					ID:             "",
 					Attributes:     map[string]string{"a": "valueA2", "b": "valueB2"},
 					DisableChanges: false,
 				},
@@ -337,33 +332,27 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 		},
 		{
 			name:   "extra header column",
-			header: map[string]int{"a": 0, "b": 1, "c": 2},
+			header: map[int]string{0: "a", 1: "b", 2: "c"},
 			persons: []sync.Person{
 				{
-					CompareValue:   "",
-					ID:             "",
 					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1"},
 					DisableChanges: false,
 				},
 				{
-					CompareValue:   "",
-					ID:             "",
 					Attributes:     map[string]string{"a": "valueA2", "b": "valueB2"},
 					DisableChanges: false,
 				},
 			},
 			want: [][]interface{}{
-				{"valueA1", "valueB1"},
-				{"valueA2", "valueB2"},
+				{"valueA1", "valueB1", ""},
+				{"valueA2", "valueB2", ""},
 			},
 		},
 		{
 			name:   "unused attribute",
-			header: map[string]int{"a": 0, "b": 1},
+			header: map[int]string{0: "a", 1: "b"},
 			persons: []sync.Person{
 				{
-					CompareValue:   "",
-					ID:             "",
 					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1", "c": "valueC1"},
 					DisableChanges: false,
 				},

@@ -210,16 +210,14 @@ func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
 	return resp.Values, nil
 }
 
-func getHeaderFromSheetData(sheetData [][]interface{}) map[string]int {
+func getHeaderFromSheetData(sheetData [][]interface{}) map[int]string {
 	if len(sheetData) < 1 {
-		return map[string]int{}
+		return map[int]string{}
 	}
-	header := make(map[string]int, len(sheetData[0]))
+	header := make(map[int]string, len(sheetData[0]))
 	for i, v := range sheetData[0] {
 		field := fmt.Sprintf("%v", v)
-		if _, ok := header[field]; !ok {
-			header[field] = i
-		}
+		header[i] = field
 	}
 	return header
 }
@@ -247,7 +245,7 @@ func (g *GoogleSheets) clearSheet(data [][]interface{}) error {
 	return nil
 }
 
-func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person) error {
+func (g *GoogleSheets) updateSheet(header map[int]string, persons []sync.Person) error {
 	table := makeSheetDataFromPersons(header, persons)
 	v := &sheets.ValueRange{
 		Values: table,
@@ -263,17 +261,15 @@ func (g *GoogleSheets) updateSheet(header map[string]int, persons []sync.Person)
 	return nil
 }
 
-func makeSheetDataFromPersons(header map[string]int, persons []sync.Person) [][]interface{} {
+func makeSheetDataFromPersons(header map[int]string, persons []sync.Person) [][]interface{} {
 	if len(header) < 1 {
 		return [][]interface{}{}
 	}
 	sheetData := make([][]interface{}, len(persons))
 	for i, person := range persons {
 		row := make([]interface{}, len(header))
-		for field, val := range person.Attributes {
-			if col, ok := header[field]; ok {
-				row[col] = val
-			}
+		for i := range row {
+			row[i] = person.Attributes[header[i]]
 		}
 		sheetData[i] = row
 	}
