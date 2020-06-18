@@ -177,6 +177,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 		name         string
 		sheetData    [][]interface{}
 		desiredAttrs []string
+		compareAttr  string
 		want         []sync.Person
 	}{
 		{
@@ -201,8 +202,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 			},
 			desiredAttrs: []string{},
 			want: []sync.Person{{
-				Attributes:     map[string]string{},
-				DisableChanges: false,
+				Attributes: map[string]string{},
 			}},
 		},
 		{
@@ -212,19 +212,21 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 				{"valueA", "valueB", "valueC"},
 			},
 			desiredAttrs: []string{"a", "b"},
+			compareAttr:  "b",
 			want: []sync.Person{{
 				ID: "",
 				Attributes: map[string]string{
 					"a": "valueA",
 					"b": "valueB",
 				},
-				DisableChanges: false,
+				CompareValue: "valueB",
 			}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getPersonsFromSheetData(tt.sheetData, tt.desiredAttrs); !reflect.DeepEqual(got, tt.want) {
+			got := getPersonsFromSheetData(tt.sheetData, tt.desiredAttrs, tt.compareAttr)
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getPersonsFromSheetData() = %#v, want %#v", got, tt.want)
 			}
 		})

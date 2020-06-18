@@ -24,8 +24,9 @@ type GoogleSheets struct {
 }
 
 type SheetsSyncSet struct {
-	SheetID   string
-	SheetName string
+	SheetID          string
+	SheetName        string
+	CompareAttribute string
 }
 
 func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.Destination, error) {
@@ -117,10 +118,10 @@ func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, 
 		return nil, fmt.Errorf("googleSheets ListUsersInSource error %w", err)
 	}
 
-	return getPersonsFromSheetData(sheetData, desiredAttrs), nil
+	return getPersonsFromSheetData(sheetData, desiredAttrs, g.SheetsSyncSet.CompareAttribute), nil
 }
 
-func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string) []sync.Person {
+func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, compareAttr string) []sync.Person {
 	header := map[int]string{}
 	if len(sheetData) < 1 {
 		return []sync.Person{}
@@ -143,6 +144,9 @@ func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string) [
 		for j, cellValue := range row {
 			if attrMap[header[j]] {
 				p[i-1].Attributes[header[j]] = cellValue.(string)
+				if header[j] == compareAttr {
+					p[i-1].CompareValue = cellValue.(string)
+				}
 			}
 		}
 	}
