@@ -88,7 +88,7 @@ func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleGroups) ListUsersInDestination() ([]personnel_sync.Person, error) {
+func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	var membersList []*admin.Member
 	membersListCall := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail)
 	err := membersListCall.Pages(context.TODO(), func(members *admin.Members) error {

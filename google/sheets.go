@@ -3,7 +3,6 @@ package google
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -111,11 +110,10 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleSheets) ListUsersInSource(desiredAttrs []string) ([]sync.Person, error) {
-	log.Print("reading from source")
+func (g *GoogleSheets) ListUsers(desiredAttrs []string) ([]sync.Person, error) {
 	sheetData, err := g.readSheet()
 	if err != nil {
-		return nil, fmt.Errorf("googleSheets ListUsersInSource error %w", err)
+		return nil, fmt.Errorf("googleSheets ListUsers error %w", err)
 	}
 
 	return getPersonsFromSheetData(sheetData, desiredAttrs, g.SheetsSyncSet.CompareAttribute), nil
@@ -151,15 +149,6 @@ func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, c
 		}
 	}
 	return p
-}
-
-func (g *GoogleSheets) ListUsersInDestination() ([]sync.Person, error) {
-	log.Print("reading from destination")
-	var members []sync.Person
-
-	// To keep it simple, ignore the existing content and overwrite the entire sheet
-
-	return members, nil
 }
 
 func (g *GoogleSheets) ApplyChangeSet(

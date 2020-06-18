@@ -146,8 +146,8 @@ func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-// ListUsersInDestination returns all users (contacts) in the destination
-func (g *GoogleContacts) ListUsersInDestination() ([]personnel_sync.Person, error) {
+// ListUsers returns all users (contacts) in the destination
+func (g *GoogleContacts) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
 		g.GoogleConfig.Domain, MaxQuerySize)
 	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})

@@ -72,13 +72,13 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			got, err := g.ListUsersInDestination()
+			got, err := g.ListUsers([]string{})
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GoogleUsers.ListUsersInDestination() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GoogleUsers.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GoogleUsers.ListUsersInDestination() = %v, want %v", got, tt.want)
+				t.Errorf("GoogleUsers.ListUsers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
