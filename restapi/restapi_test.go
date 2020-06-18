@@ -269,14 +269,14 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				t.FailNow()
 			}
 
-			got, err := r.ListUsers(tt.desiredAttrs)
+			got, err := r.ListUsersInSource(tt.desiredAttrs)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("RestAPI.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("RestAPI.ListUsersInSource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RestAPI.ListUsers() = %v, want %v", got, tt.want)
+				t.Errorf("RestAPI.ListUsersInSource() = %v, want %v", got, tt.want)
 			}
 		})
 	}

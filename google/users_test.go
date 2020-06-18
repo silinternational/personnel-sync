@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"math/rand"
@@ -72,13 +72,13 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			got, err := g.ListUsers()
+			got, err := g.ListUsersInDestination()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GoogleUsers.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GoogleUsers.ListUsersInDestination() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GoogleUsers.ListUsers() = %v, want %v", got, tt.want)
+				t.Errorf("GoogleUsers.ListUsersInDestination() = %v, want %v", got, tt.want)
 			}
 		})
 	}

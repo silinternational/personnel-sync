@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"encoding/json"
@@ -142,7 +142,7 @@ func setStringFromInterface(i interface{}, m map[string]string, key string) {
 	}
 }
 
-func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
+func (g *GoogleUsers) ListUsersInDestination() ([]personnel_sync.Person, error) {
 	var usersList []*admin.User
 	usersListCall := g.AdminService.Users.List()
 	usersListCall.Customer("my_customer") // query all domains in this GSuite

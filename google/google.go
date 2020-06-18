@@ -1,4 +1,4 @@
-package googledest
+package google
 
 const DefaultBatchSize = 10
 const DefaultBatchDelaySeconds = 3

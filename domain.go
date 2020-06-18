@@ -19,6 +19,7 @@ const (
 	DestinationTypeGoogleUsers    = "GoogleUsers"
 	DestinationTypeWebHelpDesk    = "WebHelpDesk"
 	SourceTypeRestAPI             = "RestAPI"
+	SourceTypeGoogleSheets        = "GoogleSheets"
 )
 
 // LoadConfig looks for a config file if one is provided. Otherwise, it looks for
@@ -206,7 +207,7 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfi
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
 func SyncPeople(source Source, destination Destination, config AppConfig) ChangeResults {
 	desiredAttrs := GetDesiredAttributes(config.AttributeMap)
-	sourcePeople, err := source.ListUsers(desiredAttrs)
+	sourcePeople, err := source.ListUsersInSource(desiredAttrs)
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -222,7 +223,7 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 		}
 	}
 
-	destinationPeople, err := destination.ListUsers()
+	destinationPeople, err := destination.ListUsersInDestination()
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -327,7 +328,7 @@ func (e *EmptyDestination) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (e *EmptyDestination) ListUsers() ([]Person, error) {
+func (e *EmptyDestination) ListUsersInDestination() ([]Person, error) {
 	return []Person{}, nil
 }
 
@@ -341,7 +342,7 @@ func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (e *EmptySource) ListUsers(desiredAttrs []string) ([]Person, error) {
+func (e *EmptySource) ListUsersInSource(desiredAttrs []string) ([]Person, error) {
 	return []Person{}, nil
 }
 
