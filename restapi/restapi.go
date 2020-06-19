@@ -292,3 +292,50 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 
 	return authResponse.AccessToken, nil
 }
+
+
+func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (string,
+	error) {
+
+	var req *http.Request
+	var err error
+	if body == "" {
+		req, err = http.NewRequest(verb, url, nil)
+	} else {
+		req, err = http.NewRequest(verb, url, bytes.NewBuffer([]byte(body)))
+	}
+	if err != nil {
+		return "", err
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	req.Header.Set("User-Agent", r.UserAgent)
+
+	switch r.AuthType {
+	case AuthTypeBasic:
+		req.SetBasicAuth(r.Username, r.Password)
+	case AuthTypeBearer, AuthTypeSalesforceOauth:
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read http response body: %s", err)
+	}
+	bodyString := string(bodyBytes)
+
+	if resp.StatusCode >= 400 {
+		return bodyString, errors.New(resp.Status)
+	}
+
+	return bodyString, nil
+}
