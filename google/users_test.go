@@ -41,7 +41,6 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 			want: []personnel_sync.Person{
 				{
 					CompareValue: "user_one@example.com",
-					ID:           "",
 					Attributes: map[string]string{
 						"email":      "user_one@example.com",
 						"familyName": "one",
@@ -52,7 +51,6 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 				},
 				{
 					CompareValue: "user_two@example.com",
-					ID:           "",
 					Attributes: map[string]string{
 						"email":      "user_two@example.com",
 						"familyName": "two",
@@ -122,7 +120,6 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 					Update: []personnel_sync.Person{
 						{
 							CompareValue: "user@example.com",
-							ID:           "",
 							Attributes: map[string]string{
 								"email":      "user@example.com",
 								"familyName": strconv.Itoa(rand.Intn(1000)),

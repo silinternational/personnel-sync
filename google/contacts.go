@@ -135,11 +135,6 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 	return &googleContacts, nil
 }
 
-// GetIDField returns the property name to be used as the person ID
-func (g *GoogleContacts) GetIDField() string {
-	return "id"
-}
-
 // ForSet is not implemented for this destination. Only one sync set may be defined in config.json.
 func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 	// sync sets not implemented for this destination

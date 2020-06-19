@@ -166,7 +166,7 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 // (Create, Update and Delete) based on whether they are in the slice
 //  of destination Person instances.
 // It skips all source Person instances that have DisableChanges set to true
-func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfig, idField string) ChangeSet {
+func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfig) ChangeSet {
 	var changeSet ChangeSet
 
 	// Find users who need to be created or updated
@@ -231,7 +231,7 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 	}
 	log.Printf("    Found %v people in destination", len(destinationPeople))
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config, destination.GetIDField())
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config)
 
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if config.Runtime.DryRunMode {
@@ -328,10 +328,6 @@ func InArray(needle interface{}, haystack interface{}) (exists bool, index int) 
 }
 
 type EmptyDestination struct{}
-
-func (e *EmptyDestination) GetIDField() string {
-	return "id"
-}
 
 func (e *EmptyDestination) ForSet(syncSetJson json.RawMessage) error {
 	return nil

@@ -68,7 +68,6 @@ type ChangeResults struct {
 }
 
 type Destination interface {
-	GetIDField() string
 	ForSet(syncSetJson json.RawMessage) error
 	ListUsers(desiredAttrs []string) ([]Person, error)
 	ApplyChangeSet(changes ChangeSet, activityLog chan<- EventLogItem) ChangeResults

@@ -279,7 +279,7 @@ func TestCreateChangeSet(t *testing.T) {
 	sourcePeople, _ := source.ListUsers([]string{"email"})
 	log.Printf("found %v people in source", len(sourcePeople))
 
-	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users, testConfig, "id")
+	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users, testConfig)
 
 	log.Printf("ChangeSet ready %v to be created, %v to be deleted", len(changeSet.Create), len(changeSet.Delete))
 }

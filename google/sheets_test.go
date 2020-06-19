@@ -214,7 +214,6 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 			desiredAttrs: []string{"a", "b"},
 			compareAttr:  "b",
 			want: []sync.Person{{
-				ID: "",
 				Attributes: map[string]string{
 					"a": "valueA",
 					"b": "valueB",
