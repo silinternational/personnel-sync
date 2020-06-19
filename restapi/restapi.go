@@ -13,7 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 
 	psync "github.com/silinternational/personnel-sync/v3"
 )
@@ -221,15 +221,10 @@ func (r *RestAPI) listUsersForPath(
 	var peopleList []*gabs.Container
 	if r.ResultsJSONContainer != "" {
 		// Get children records based on ResultsJSONContainer from config
-		peopleList, err = jsonParsed.S(r.ResultsJSONContainer).Children()
+		peopleList = jsonParsed.S(r.ResultsJSONContainer).Children()
 	} else {
 		// Root level should contain array of children records
-		peopleList, err = jsonParsed.Children()
-	}
-
-	if err != nil {
-		log.Printf("error getting results children: %s\n", err.Error())
-		errLog <- err.Error()
+		peopleList = jsonParsed.Children()
 	}
 
 	results := getPersonsFromResults(peopleList, r.CompareAttribute, desiredAttrs)

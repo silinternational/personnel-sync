@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 
 	psync "github.com/silinternational/personnel-sync/v3"
 )
