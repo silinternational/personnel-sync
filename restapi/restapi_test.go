@@ -2,7 +2,6 @@ package restapi
 
 import (
 	"fmt"
-	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -15,6 +14,10 @@ import (
 
 func TestRestAPI_ListUsers(t *testing.T) {
 	server := getTestServer()
+	endpoints := getFakeEndpoints()
+	workday := endpoints[EndpointListWorkday]
+	other := endpoints[EndpointListOther]
+	salesforce := endpoints[EndpointListSalesforce]
 
 	tests := []struct {
 		name         string
@@ -28,17 +31,17 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			name: "workday-like results",
 			sourceConfig: psync.SourceConfig{
 				Type: psync.SourceTypeRestAPI,
-				ExtraJSON: []byte(fmt.Sprintf(`{
-		  "Method": "GET",
-		  "BaseURL": "%s",
-		  "ResultsJSONContainer": "Report_Entry",
-		  "AuthType": "basic",
-		  "Username": "username",
-		  "Password": "password",
-		  "CompareAttribute": "Email"
-		}`, server.URL)),
+				ExtraJSON: []byte(fmt.Sprintf(extraJSONtemplate,
+					workday.method,
+					server.URL,
+					workday.resultsContainer,
+					workday.authType,
+					workday.username,
+					workday.password,
+					workday.compareAttr,
+				)),
 			},
-			syncSet: `{"Paths":["/workday"]}`,
+			syncSet: `{"Paths":["` + workday.path + `"]}`,
 			desiredAttrs: []string{
 				"Employee_Number",
 				"First_Name",
@@ -89,17 +92,17 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			name: "other results",
 			sourceConfig: psync.SourceConfig{
 				Type: psync.SourceTypeRestAPI,
-				ExtraJSON: []byte(fmt.Sprintf(`{
-		 "Method": "GET",
-		 "BaseURL": "%s",
-		 "AuthType": "basic",
-		 "Username": "username",
-		 "Password": "password",
-		 "CompareAttribute": "email",
-		 "ResultsJSONContainer": ""
-		}`, server.URL)),
+				ExtraJSON: []byte(fmt.Sprintf(extraJSONtemplate,
+					other.method,
+					server.URL,
+					other.resultsContainer,
+					other.authType,
+					other.username,
+					other.password,
+					other.compareAttr,
+				)),
 			},
-			syncSet: `{"Paths":["/other"]}`,
+			syncSet: `{"Paths":["` + other.path + `"]}`,
 			desiredAttrs: []string{
 				"employeeID",
 				"first",
@@ -138,17 +141,17 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			name: "sfdc results",
 			sourceConfig: psync.SourceConfig{
 				Type: psync.SourceTypeRestAPI,
-				ExtraJSON: []byte(fmt.Sprintf(`{
-		 "Method": "GET",
-		 "BaseURL": "%s",
-		 "AuthType": "basic",
-		 "Username": "username",
-		 "Password": "password",
-		 "CompareAttribute": "fHCM2__User__r.Email",
-		 "ResultsJSONContainer": "records"
-		}`, server.URL)),
+				ExtraJSON: []byte(fmt.Sprintf(extraJSONtemplate,
+					salesforce.method,
+					server.URL,
+					salesforce.resultsContainer,
+					AuthTypeBearer,
+					salesforce.username,
+					salesforce.password,
+					salesforce.compareAttr,
+				)),
 			},
-			syncSet: `{"Paths":["/sfdc"]}`,
+			syncSet: `{"Paths":["` + salesforce.path + `"]}`,
 			desiredAttrs: []string{
 				"fHCM2__User__r.Email",
 			},
@@ -196,6 +199,9 @@ func TestRestAPI_ListUsers(t *testing.T) {
 
 func TestRestAPI_listUsersForPath(t *testing.T) {
 	server := getTestServer()
+	endpoints := getFakeEndpoints()
+	workday := endpoints[EndpointListWorkday]
+
 	type args struct {
 		desiredAttrs []string
 		path         string
@@ -209,13 +215,13 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 		{
 			name: "Workday",
 			r: RestAPI{
-				Method:               http.MethodGet,
+				ListMethod:           workday.method,
 				BaseURL:              server.URL,
-				ResultsJSONContainer: "Report_Entry",
-				AuthType:             AuthTypeBasic,
-				Username:             "username",
-				Password:             "password",
-				CompareAttribute:     "Email",
+				ResultsJSONContainer: workday.resultsContainer,
+				AuthType:             workday.authType,
+				Username:             workday.username,
+				Password:             workday.password,
+				CompareAttribute:     workday.compareAttr,
 			},
 			args: args{
 				desiredAttrs: []string{
@@ -370,6 +376,30 @@ func Test_getPersonsFromResults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := getPersonsFromResults(tt.peopleList, tt.compareAttr, tt.desiredAttrs); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getPersonsFromResults() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_attributesToJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		attr map[string]string
+		want string
+	}{
+		{
+			name: "1",
+			attr: map[string]string{
+				"field":        "value",
+				"parent.child": "child_value",
+			},
+			want: `{"field":"value","parent":{"child":"child_value"}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := attributesToJSON(tt.attr); got != tt.want {
+				t.Errorf("attributesToJSON() = %v, want %v", got, tt.want)
 			}
 		})
 	}

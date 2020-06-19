@@ -62,6 +62,8 @@ func handler(lambdaConfig LambdaConfig) error {
 		destination, err = google.NewGoogleSheetsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleUsers:
 		destination, err = google.NewGoogleUsersDestination(appConfig.Destination)
+	case personnel_sync.DestinationTypeRestAPI:
+		destination, err = restapi.NewRestAPIDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 	default:

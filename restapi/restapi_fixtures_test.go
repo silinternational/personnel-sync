@@ -8,13 +8,15 @@ import (
 )
 
 type fakeEndpoint struct {
-	path         string
-	method       string
-	status       int
-	responseBody string
-	authType     string
-	username     string
-	password     string
+	path             string
+	method           string
+	status           int
+	responseBody     string
+	authType         string
+	username         string
+	password         string
+	compareAttr      string
+	resultsContainer string
 }
 
 const (
@@ -23,6 +25,16 @@ const (
 	EndpointListSalesforce = "list salesforce"
 	EndpointCreateOther    = "create other"
 )
+
+const extraJSONtemplate = `{
+  "Method": "%s",
+  "BaseURL": "%s",
+  "ResultsJSONContainer": "%s",
+  "AuthType": "%s",
+  "Username": "%s",
+  "Password": "%s",
+  "CompareAttribute": "%s"
+}`
 
 const workdayUsersJSON = `{
   "Report_Entry": [
@@ -110,36 +122,45 @@ const salesforceUsersJSON = `{
 func getFakeEndpoints() map[string]fakeEndpoint {
 	return map[string]fakeEndpoint{
 		EndpointListWorkday: {
-			path:         "/workday",
-			method:       http.MethodGet,
-			status:       http.StatusOK,
-			responseBody: workdayUsersJSON,
-			authType:     AuthTypeBasic,
-			username:     "workday_username",
-			password:     "workday_password",
+			path:             "/workday",
+			method:           http.MethodGet,
+			status:           http.StatusOK,
+			responseBody:     workdayUsersJSON,
+			authType:         AuthTypeBasic,
+			username:         "workday_username",
+			password:         "workday_password",
+			compareAttr:      "Email",
+			resultsContainer: "Report_Entry",
 		},
 		EndpointListOther: {
-			path:         "/other/list",
-			method:       http.MethodGet,
-			status:       http.StatusOK,
-			responseBody: otherUsersJSON,
-			authType:     AuthTypeBearer,
-			password:     "bearer_token",
+			path:             "/other/list",
+			method:           http.MethodGet,
+			status:           http.StatusOK,
+			responseBody:     otherUsersJSON,
+			authType:         AuthTypeBearer,
+			password:         "bearer_token",
+			compareAttr:      "email",
+			resultsContainer: "",
 		},
 		EndpointListSalesforce: {
-			path:         "/sfdc",
-			method:       http.MethodGet,
-			status:       http.StatusOK,
-			responseBody: salesforceUsersJSON,
-			authType:     AuthTypeSalesforceOauth,
-			password:     "sf_token",
+			path:             "/sfdc",
+			method:           http.MethodGet,
+			status:           http.StatusOK,
+			responseBody:     salesforceUsersJSON,
+			authType:         AuthTypeSalesforceOauth,
+			username:         "sf_username",
+			password:         "sf_token",
+			compareAttr:      "fHCM2__User__r.Email",
+			resultsContainer: "records",
 		},
 		EndpointCreateOther: {
-			path:     "/other/create",
-			method:   http.MethodPost,
-			status:   http.StatusOK,
-			authType: AuthTypeBearer,
-			password: "bearer_token",
+			path:             "/other/create",
+			method:           http.MethodPost,
+			status:           http.StatusOK,
+			authType:         AuthTypeBearer,
+			password:         "bearer_token",
+			compareAttr:      "",
+			resultsContainer: "",
 		},
 	}
 }
