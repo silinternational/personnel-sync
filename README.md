@@ -19,14 +19,26 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
     "ExtraJSON": {
       "Method": "GET",
       "BaseURL": "https://example.com",
-      "Path": "/path",
       "ResultsJSONContainer": "Results",
       "AuthType": "basic",
       "Username": "username",
       "Password": "password",
       "CompareAttribute": "email"
     }
-  }
+  },
+  "SyncSets": [
+    {
+      "Name": "Sync from REST API",
+      "Source": {
+        "Paths": ["/users"]
+      },
+      "Destination": {
+          "DisableAdd": false,
+          "DisableUpdate": false,
+          "DisableDelete": false
+      }
+    }
+  ]
 }
 ```
 
@@ -38,7 +50,6 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
     "ExtraJSON": {
       "Method": "GET",
       "BaseURL": "https://example.com",
-      "Path": "/path",
       "ResultsJSONContainer": "Results",
       "AuthType": "bearer",
       "Password": "token",
@@ -47,6 +58,7 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
   }
 }
 ```
+`SyncSets` is configured the same as for basic authentication.
 
 #### Salesforce OAuth Authentication
 ```json
@@ -56,7 +68,6 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
     "ExtraJSON": {
       "Method": "GET",
       "BaseURL": "https://login.salesforce.com/services/oauth2/token",
-      "Path": "/services/data/v20.0/query/",
       "ResultsJSONContainer": "records",
       "AuthType": "SalesforceOauth",
       "Username": "admin@example.com",
@@ -65,9 +76,24 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
       "ClientSecret": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
       "CompareAttribute": "email"
     }
-  }
+  },
+  "SyncSets": [
+    {
+      "Name": "Sync from Google Sheets to Xyz API",
+      "Source": {
+        "Paths": ["/services/data/v20.0/query/?q=SELECT%20Email,Name%20FROM%20Contacts"]
+      },
+      "Destination": {
+          "DisableAdd": false,
+          "DisableUpdate": false,
+          "DisableDelete": false
+      }
+    }
+  ]
 }
 ```
+
+`SyncSets` is configured the same as for basic authentication.
 
 ### Google Sheets
 The Google Sheets source reads records in rows from a Sheets document, where 

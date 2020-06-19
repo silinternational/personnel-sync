@@ -69,7 +69,7 @@ func (w *WebHelpDesk) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (w *WebHelpDesk) ListUsersInDestination() ([]personnel_sync.Person, error) {
+func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	var allClients []User
 	page := 1
 

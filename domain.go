@@ -206,8 +206,7 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfi
 //  - it generates the lists of people to change, update and delete
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
 func SyncPeople(source Source, destination Destination, config AppConfig) ChangeResults {
-	desiredAttrs := GetDesiredAttributes(config.AttributeMap)
-	sourcePeople, err := source.ListUsersInSource(desiredAttrs)
+	sourcePeople, err := source.ListUsers(GetSourceAttributes(config.AttributeMap))
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -223,7 +222,7 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 		}
 	}
 
-	destinationPeople, err := destination.ListUsersInDestination()
+	destinationPeople, err := destination.ListUsers(GetDestinationAttributes(config.AttributeMap))
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -255,10 +254,19 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 	return results
 }
 
-func GetDesiredAttributes(attrMap []AttributeMap) []string {
+func GetSourceAttributes(attrMap []AttributeMap) []string {
 	var keys []string
 	for _, attrMap := range attrMap {
 		keys = append(keys, attrMap.Source)
+	}
+
+	return keys
+}
+
+func GetDestinationAttributes(attrMap []AttributeMap) []string {
+	var keys []string
+	for _, attrMap := range attrMap {
+		keys = append(keys, attrMap.Destination)
 	}
 
 	return keys
@@ -328,7 +336,7 @@ func (e *EmptyDestination) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (e *EmptyDestination) ListUsersInDestination() ([]Person, error) {
+func (e *EmptyDestination) ListUsers(desiredAttrs []string) ([]Person, error) {
 	return []Person{}, nil
 }
 
@@ -342,7 +350,7 @@ func (e *EmptySource) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (e *EmptySource) ListUsersInSource(desiredAttrs []string) ([]Person, error) {
+func (e *EmptySource) ListUsers(desiredAttrs []string) ([]Person, error) {
 	return []Person{}, nil
 }
 
