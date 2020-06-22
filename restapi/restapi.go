@@ -248,9 +248,7 @@ func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, des
 				continue
 			}
 
-			switch val.(type) {
-			case string:
-				peep.Attributes[sourceKey] = val.(string)
+			switch v := val.(type) {
 			case []interface{}:
 				if len(val.([]interface{})) > 0 {
 					firstValue := val.([]interface{})[0]
@@ -264,7 +262,7 @@ func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, des
 					}
 				}
 			default:
-				log.Printf("unsupported data type, sourceKey=%s, type %T", sourceKey, val)
+				peep.Attributes[sourceKey] = fmt.Sprintf("%v", v)
 			}
 
 			if sourceKey == compareAttr {
