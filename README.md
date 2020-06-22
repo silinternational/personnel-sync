@@ -17,13 +17,14 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
   "Source": {
     "Type": "RestAPI",
     "ExtraJSON": {
-      "Method": "GET",
+      "ListMethod": "GET",
       "BaseURL": "https://example.com",
       "ResultsJSONContainer": "Results",
       "AuthType": "basic",
       "Username": "username",
       "Password": "password",
-      "CompareAttribute": "email"
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
     }
   },
   "SyncSets": [
@@ -48,12 +49,13 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
   "Source": {
     "Type": "RestAPI",
     "ExtraJSON": {
-      "Method": "GET",
+      "ListMethod": "GET",
       "BaseURL": "https://example.com",
       "ResultsJSONContainer": "Results",
       "AuthType": "bearer",
       "Password": "token",
-      "CompareAttribute": "email"
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
     }
   }
 }
@@ -66,7 +68,7 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
   "Source": {
     "Type": "RestAPI",
     "ExtraJSON": {
-      "Method": "GET",
+      "ListMethod": "GET",
       "BaseURL": "https://login.salesforce.com/services/oauth2/token",
       "ResultsJSONContainer": "records",
       "AuthType": "SalesforceOauth",
@@ -74,7 +76,8 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
       "Password": "abc123def.ghiJKL",
       "ClientID": "ABCD1234abcd56789_ABCD1234abcd5678ABCD1234abcd5678ABCD1234abcd5678ABCD1.234abcd5678ABC",
       "ClientSecret": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
-      "CompareAttribute": "email"
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
     }
   },
   "SyncSets": [
@@ -151,6 +154,64 @@ Example config:
 ```
 
 ## Destinations
+
+### REST API
+Destinations conforming to a simple REST API can use the `RestAPI` destination.
+Authentication is the same as for a REST API source, except that Salesforce
+OAuth is not supported.
+
+Here are some examples of how to configure it:
+
+#### Basic Authentication
+```json
+{
+  "Destination": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "ListMethod": "GET",
+      "CreateMethod": "POST",
+      "BaseURL": "https://example.com",
+      "ResultsJSONContainer": "Results",
+      "AuthType": "basic",
+      "Username": "username",
+      "Password": "password",
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
+    }
+  }
+}
+```
+
+#### Bearer Token Authentication
+```json
+{
+  "Destination": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "ListMethod": "GET",
+      "CreateMethod": "POST",
+      "BaseURL": "https://example.com",
+      "ResultsJSONContainer": "Results",
+      "AuthType": "bearer",
+      "Password": "token",
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
+    }
+  },
+  "SyncSets": [
+    {
+      "Name": "Sync from personnel to REST API",
+      "Source": {
+          "Paths": ["/user-report"]
+      },
+      "Destination": {
+        "Paths": ["/users"],
+        "CreatePath": "/users"
+      }
+    }
+  ]
+}
+```
 
 ### Google Contacts
 This destination can create, update, and delete Contact records in the Google
@@ -313,7 +374,7 @@ of the destination configuration required for Google Groups:
     {
       "Name": "Sync from personnel to Google Groups",
       "Source": {
-          "Path": "/user-report"
+          "Path": ["/user-report"]
       },
       "Destination": {
           "GroupEmail": "group1@groups.domain.com",

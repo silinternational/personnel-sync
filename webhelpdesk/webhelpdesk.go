@@ -79,7 +79,7 @@ func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]personnel_sync.Person,
 			"page":  fmt.Sprintf("%v", page),
 		}
 
-		listUsersResp, err := w.makeHttpRequest(ClientsAPIPath, "GET", "", additionalParams)
+		listUsersResp, err := w.makeHttpRequest(ClientsAPIPath, http.MethodGet, "", additionalParams)
 		if err != nil {
 			return []personnel_sync.Person{}, err
 		}

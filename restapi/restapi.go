@@ -2,6 +2,7 @@ package restapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,20 +11,24 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	psync "github.com/silinternational/personnel-sync/v3"
 )
 
 const AuthTypeBasic = "basic"
 const AuthTypeBearer = "bearer"
 const AuthTypeSalesforceOauth = "SalesforceOauth"
+const DefaultBatchSize = 10
+const DefaultBatchDelaySeconds = 3
 
 type RestAPI struct {
-	Method               string
+	Method               string // DEPRECATED
+	ListMethod           string
+	CreateMethod         string
 	BaseURL              string
-	Paths                []string
 	ResultsJSONContainer string
 	AuthType             string
 	Username             string
@@ -31,20 +36,28 @@ type RestAPI struct {
 	ClientID             string
 	ClientSecret         string
 	CompareAttribute     string
+	UserAgent            string
+	BatchSize            int
+	BatchDelaySeconds    int
+	destinationConfig    psync.DestinationConfig
+	setConfig            SetConfig
 }
 
 type SetConfig struct {
-	Paths []string
+	Paths      []string
+	CreatePath string
 }
 
-// NewRestAPISource unmarshals the sourceConfig's ExtraJson into a restApi struct
-func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.Source, error) {
+// NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
+func NewRestAPISource(sourceConfig psync.SourceConfig) (psync.Source, error) {
 	var restAPI RestAPI
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
 	err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI)
 	if err != nil {
 		return &RestAPI{}, err
 	}
+
+	restAPI.setDefaults()
 
 	if restAPI.AuthType == AuthTypeSalesforceOauth {
 		token, err := restAPI.getSalesforceOauthToken()
@@ -55,6 +68,21 @@ func NewRestAPISource(sourceConfig personnel_sync.SourceConfig) (personnel_sync.
 
 		restAPI.Password = token
 	}
+
+	return &restAPI, nil
+}
+
+// NewRestAPIDestination unmarshals the destinationConfig's ExtraJson into a RestApi struct
+func NewRestAPIDestination(destinationConfig psync.DestinationConfig) (psync.Destination, error) {
+	var restAPI RestAPI
+	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
+	err := json.Unmarshal(destinationConfig.ExtraJSON, &restAPI)
+	if err != nil {
+		return &RestAPI{}, err
+	}
+
+	restAPI.setDefaults()
+	restAPI.destinationConfig = destinationConfig
 
 	return &restAPI, nil
 }
@@ -70,31 +98,31 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	}
 
 	if len(setConfig.Paths) == 0 {
-		return fmt.Errorf("paths is empty in sync set")
+		return errors.New("paths is empty in sync set")
 	}
 
 	for i, p := range setConfig.Paths {
 		if p == "" {
-			return fmt.Errorf("a path in sync set sources is blank")
+			return errors.New("a path in sync set sources is blank")
 		}
 		if !strings.HasPrefix(p, "/") {
 			setConfig.Paths[i] = "/" + p
 		}
 	}
 
-	r.Paths = setConfig.Paths
+	r.setConfig = setConfig
 
 	return nil
 }
 
 // ListUsers makes an http request and uses the response to populate
 // and return a slice of Person instances
-func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+func (r *RestAPI) ListUsers(desiredAttrs []string) ([]psync.Person, error) {
 	errLog := make(chan string, 1000)
-	people := make(chan personnel_sync.Person, 20000)
+	people := make(chan psync.Person, 20000)
 	var wg sync.WaitGroup
 
-	for _, p := range r.Paths {
+	for _, p := range r.setConfig.Paths {
 		wg.Add(1)
 		go r.listUsersForPath(desiredAttrs, p, &wg, people, errLog)
 	}
@@ -108,10 +136,10 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 		for msg := range errLog {
 			errs = append(errs, msg)
 		}
-		return []personnel_sync.Person{}, fmt.Errorf("errors listing users: %s", strings.Join(errs, ","))
+		return []psync.Person{}, fmt.Errorf("errors listing users from %s: %s", r.BaseURL, strings.Join(errs, ","))
 	}
 
-	var results []personnel_sync.Person
+	var results []psync.Person
 
 	for person := range people {
 		results = append(results, person)
@@ -120,20 +148,44 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, err
 	return results, nil
 }
 
-// ListUsersInSource makes an http request and uses the response to populate
-// and return a slice of Person instances
+func (r *RestAPI) GetIDField() string {
+	return ""
+}
+
+func (r *RestAPI) ApplyChangeSet(changes psync.ChangeSet, eventLog chan<- psync.EventLogItem) psync.ChangeResults {
+	var results psync.ChangeResults
+	var wg sync.WaitGroup
+
+	batchTimer := psync.NewBatchTimer(r.BatchSize, r.BatchDelaySeconds)
+
+	if r.destinationConfig.DisableAdd {
+		log.Println("Contact creation is disabled.")
+	} else {
+		for _, toCreate := range changes.Create {
+			wg.Add(1)
+			go r.addContact(toCreate, &results.Created, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
+	}
+
+	wg.Wait()
+
+	// TODO: add errors to results.Errors (or remove ChangeResults.Errors since no destination uses it)
+	return results
+}
+
 func (r *RestAPI) listUsersForPath(
 	desiredAttrs []string,
 	path string,
 	wg *sync.WaitGroup,
-	people chan<- personnel_sync.Person,
+	people chan<- psync.Person,
 	errLog chan<- string) {
 
 	defer wg.Done()
 
 	client := &http.Client{}
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, path)
-	req, err := http.NewRequest(r.Method, apiURL, nil)
+	req, err := http.NewRequest(r.ListMethod, apiURL, nil)
 	if err != nil {
 		log.Println(err)
 		errLog <- err.Error()
@@ -148,15 +200,14 @@ func (r *RestAPI) listUsersForPath(
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println(err)
-		log.Println(err)
-		errLog <- err.Error()
+		errLog <- "error issuing http request, " + err.Error()
+		return
 	}
 
 	bodyText, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("error reading response body: %s", err.Error())
-		errLog <- err.Error()
+		errLog <- "error reading response body: " + err.Error()
+		return
 	}
 
 	jsonParsed, err := gabs.ParseJSON(bodyText)
@@ -164,20 +215,16 @@ func (r *RestAPI) listUsersForPath(
 		log.Printf("error parsing json results: %s", err.Error())
 		log.Printf("response body: %s", string(bodyText))
 		errLog <- err.Error()
+		return
 	}
 
 	var peopleList []*gabs.Container
 	if r.ResultsJSONContainer != "" {
 		// Get children records based on ResultsJSONContainer from config
-		peopleList, err = jsonParsed.S(r.ResultsJSONContainer).Children()
+		peopleList = jsonParsed.S(r.ResultsJSONContainer).Children()
 	} else {
 		// Root level should contain array of children records
-		peopleList, err = jsonParsed.Children()
-	}
-
-	if err != nil {
-		log.Printf("error getting results children: %s\n", err.Error())
-		errLog <- err.Error()
+		peopleList = jsonParsed.Children()
 	}
 
 	results := getPersonsFromResults(peopleList, r.CompareAttribute, desiredAttrs)
@@ -187,11 +234,11 @@ func (r *RestAPI) listUsersForPath(
 	}
 }
 
-func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, desiredAttrs []string) []personnel_sync.Person {
-	var sourcePeople []personnel_sync.Person
+func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, desiredAttrs []string) []psync.Person {
+	sourcePeople := make([]psync.Person, 0)
 
 	for _, person := range peopleList {
-		peep := personnel_sync.Person{
+		peep := psync.Person{
 			Attributes: map[string]string{},
 		}
 
@@ -291,4 +338,113 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 	r.BaseURL = strings.TrimSuffix(authResponse.InstanceURL, "/")
 
 	return authResponse.AccessToken, nil
+}
+
+func (r *RestAPI) setDefaults() {
+	// migrate from `Method` to `ListMethod`
+	if r.ListMethod == "" {
+		r.ListMethod = r.Method
+	}
+	// if neither was set, use the default
+	if r.ListMethod == "" {
+		r.ListMethod = http.MethodGet
+	}
+	if r.CreateMethod == "" {
+		r.CreateMethod = http.MethodPost
+	}
+	if r.BatchSize <= 0 {
+		r.BatchSize = DefaultBatchSize
+	}
+	if r.BatchDelaySeconds <= 0 {
+		r.BatchDelaySeconds = DefaultBatchDelaySeconds
+	}
+	if r.UserAgent == "" {
+		r.UserAgent = "personnel-sync"
+	}
+}
+
+func (r *RestAPI) addContact(p psync.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- psync.EventLogItem) {
+	defer wg.Done()
+
+	apiURL := fmt.Sprintf("%s%s", r.BaseURL, r.setConfig.CreatePath)
+	headers := map[string]string{"Content-Type": "application/json"}
+	responseBody, err := r.httpRequest(r.CreateMethod, apiURL, attributesToJSON(p.Attributes), headers)
+	if err != nil {
+		eventLog <- psync.EventLogItem{
+			Event: "error",
+			Message: fmt.Sprintf("addContact %s httpRequest error %s, response: %s", p.CompareValue, err,
+				responseBody),
+		}
+		return
+	}
+
+	eventLog <- psync.EventLogItem{
+		Event:   "AddContact",
+		Message: p.CompareValue,
+	}
+
+	atomic.AddUint64(n, 1)
+}
+
+func attributesToJSON(attr map[string]string) string {
+	jsonObj := gabs.New()
+	for field, value := range attr {
+		if _, err := jsonObj.SetP(value, field); err != nil {
+			log.Printf("error setting field %s for REST API add, %s", field, err)
+		}
+	}
+	return jsonObj.String()
+}
+
+func (r *RestAPI) updateContact(p psync.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- psync.EventLogItem) {
+	wg.Done()
+}
+
+func (r *RestAPI) deleteContact(p psync.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- psync.EventLogItem) {
+	wg.Done()
+}
+
+func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (string, error) {
+
+	var req *http.Request
+	var err error
+	if body == "" {
+		req, err = http.NewRequest(verb, url, nil)
+	} else {
+		req, err = http.NewRequest(verb, url, strings.NewReader(body))
+	}
+	if err != nil {
+		return "", err
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	req.Header.Set("User-Agent", r.UserAgent)
+
+	switch r.AuthType {
+	case AuthTypeBasic:
+		req.SetBasicAuth(r.Username, r.Password)
+	case AuthTypeBearer, AuthTypeSalesforceOauth:
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read http response body: %s", err)
+	}
+	bodyString := string(bodyBytes)
+
+	if resp.StatusCode >= 400 {
+		return bodyString, errors.New(resp.Status)
+	}
+
+	return bodyString, nil
 }

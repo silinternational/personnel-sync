@@ -17,9 +17,10 @@ const (
 	DestinationTypeGoogleGroups   = "GoogleGroups"
 	DestinationTypeGoogleSheets   = "GoogleSheets"
 	DestinationTypeGoogleUsers    = "GoogleUsers"
+	DestinationTypeRestAPI        = "RestAPI"
 	DestinationTypeWebHelpDesk    = "WebHelpDesk"
-	SourceTypeRestAPI             = "RestAPI"
 	SourceTypeGoogleSheets        = "GoogleSheets"
+	SourceTypeRestAPI             = "RestAPI"
 )
 
 // LoadConfig looks for a config file if one is provided. Otherwise, it looks for
