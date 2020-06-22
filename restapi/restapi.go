@@ -341,9 +341,11 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 }
 
 func (r *RestAPI) setDefaults() {
+	// migrate from `Method` to `ListMethod`
 	if r.ListMethod == "" {
 		r.ListMethod = r.Method
 	}
+	// if neither was set, use the default
 	if r.ListMethod == "" {
 		r.ListMethod = http.MethodGet
 	}
