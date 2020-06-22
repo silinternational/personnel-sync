@@ -107,6 +107,12 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 }
 
 func (g *GoogleSheets) ListUsers(desiredAttrs []string) ([]sync.Person, error) {
+	if g.DestinationConfig.Type != "" {
+		// if this sheet is a destination, don't return the list of users since we don't have logic to do incremental
+		// updates to the sheet
+		return nil, nil
+	}
+
 	sheetData, err := g.readSheet()
 	if err != nil {
 		return nil, fmt.Errorf("googleSheets ListUsers error %w", err)
