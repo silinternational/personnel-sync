@@ -89,10 +89,6 @@ func initSheetsService(auth GoogleAuth, adminEmail string, scopes ...string) (*s
 	return svc, nil
 }
 
-func (g *GoogleSheets) GetIDField() string {
-	return ""
-}
-
 func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 	var syncSetConfig SheetsSyncSet
 	err := json.Unmarshal(syncSetJson, &syncSetConfig)

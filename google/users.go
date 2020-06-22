@@ -50,10 +50,6 @@ func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfi
 	return &googleUsers, nil
 }
 
-func (g *GoogleUsers) GetIDField() string {
-	return "id"
-}
-
 func (g *GoogleUsers) ForSet(syncSetJson json.RawMessage) error {
 	// sync sets not implemented for this destination
 	return nil

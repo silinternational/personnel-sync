@@ -148,10 +148,6 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]psync.Person, error) {
 	return results, nil
 }
 
-func (r *RestAPI) GetIDField() string {
-	return ""
-}
-
 func (r *RestAPI) ApplyChangeSet(changes psync.ChangeSet, eventLog chan<- psync.EventLogItem) psync.ChangeResults {
 	var results psync.ChangeResults
 	var wg sync.WaitGroup

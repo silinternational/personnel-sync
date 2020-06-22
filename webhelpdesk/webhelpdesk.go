@@ -60,10 +60,6 @@ func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfi
 	return &webHelpDesk, nil
 }
 
-func (w *WebHelpDesk) GetIDField() string {
-	return "id"
-}
-
 func (w *WebHelpDesk) ForSet(syncSetJson json.RawMessage) error {
 	// unused in WebHelpDesk
 	return nil
