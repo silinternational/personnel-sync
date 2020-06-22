@@ -404,8 +404,7 @@ func (r *RestAPI) deleteContact(p psync.Person, n *uint64, wg *sync.WaitGroup, e
 	wg.Done()
 }
 
-func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (string,
-	error) {
+func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (string, error) {
 
 	var req *http.Request
 	var err error
