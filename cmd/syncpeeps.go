@@ -33,7 +33,8 @@ func main() {
 	case personnel_sync.SourceTypeGoogleSheets:
 		source, err = google.NewGoogleSheetsSource(appConfig.Source)
 	default:
-		source = &personnel_sync.EmptySource{}
+		log.Println("Unrecognized source type:", appConfig.Source.Type)
+		os.Exit(1)
 	}
 
 	if err != nil {
@@ -57,7 +58,8 @@ func main() {
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 	default:
-		destination = &personnel_sync.EmptyDestination{}
+		log.Println("Unrecognized destination type:", appConfig.Destination.Type)
+		os.Exit(1)
 	}
 
 	if err != nil {
