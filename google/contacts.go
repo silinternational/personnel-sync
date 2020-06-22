@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 )
 
 const MaxQuerySize = 10000
@@ -135,11 +135,6 @@ func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationCo
 	return &googleContacts, nil
 }
 
-// GetIDField returns the property name to be used as the person ID
-func (g *GoogleContacts) GetIDField() string {
-	return "id"
-}
-
 // ForSet is not implemented for this destination. Only one sync set may be defined in config.json.
 func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 	// sync sets not implemented for this destination
@@ -147,7 +142,7 @@ func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 }
 
 // ListUsers returns all users (contacts) in the destination
-func (g *GoogleContacts) ListUsers() ([]personnel_sync.Person, error) {
+func (g *GoogleContacts) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
 		g.GoogleConfig.Domain, MaxQuerySize)
 	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})

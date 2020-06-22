@@ -5,13 +5,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/silinternational/personnel-sync/v3/restapi"
+	"github.com/silinternational/personnel-sync/v4/restapi"
 
-	"github.com/silinternational/personnel-sync/v3/webhelpdesk"
+	"github.com/silinternational/personnel-sync/v4/webhelpdesk"
 
-	"github.com/silinternational/personnel-sync/v3/googledest"
+	"github.com/silinternational/personnel-sync/v4/google"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 )
 
 func main() {
@@ -30,29 +30,36 @@ func main() {
 	switch appConfig.Source.Type {
 	case personnel_sync.SourceTypeRestAPI:
 		source, err = restapi.NewRestAPISource(appConfig.Source)
-		if err != nil {
-			log.Println("Unable to initialize RestAPI source, error: ", err.Error())
-			os.Exit(1)
-		}
+	case personnel_sync.SourceTypeGoogleSheets:
+		source, err = google.NewGoogleSheetsSource(appConfig.Source)
 	default:
-		source = &personnel_sync.EmptySource{}
+		log.Println("Unrecognized source type:", appConfig.Source.Type)
+		os.Exit(1)
+	}
+
+	if err != nil {
+		log.Printf("Unable to initialize %s source, error: %s", appConfig.Source.Type, err.Error())
+		os.Exit(1)
 	}
 
 	// Instantiate Destination
 	var destination personnel_sync.Destination
 	switch appConfig.Destination.Type {
 	case personnel_sync.DestinationTypeGoogleContacts:
-		destination, err = googledest.NewGoogleContactsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleContactsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleGroups:
-		destination, err = googledest.NewGoogleGroupsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleGroupsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleSheets:
-		destination, err = googledest.NewGoogleSheetsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleSheetsDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeGoogleUsers:
-		destination, err = googledest.NewGoogleUsersDestination(appConfig.Destination)
+		destination, err = google.NewGoogleUsersDestination(appConfig.Destination)
+	case personnel_sync.DestinationTypeRestAPI:
+		destination, err = restapi.NewRestAPIDestination(appConfig.Destination)
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 	default:
-		destination = &personnel_sync.EmptyDestination{}
+		log.Println("Unrecognized destination type:", appConfig.Destination.Type)
+		os.Exit(1)
 	}
 
 	if err != nil {

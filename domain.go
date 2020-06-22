@@ -17,7 +17,9 @@ const (
 	DestinationTypeGoogleGroups   = "GoogleGroups"
 	DestinationTypeGoogleSheets   = "GoogleSheets"
 	DestinationTypeGoogleUsers    = "GoogleUsers"
+	DestinationTypeRestAPI        = "RestAPI"
 	DestinationTypeWebHelpDesk    = "WebHelpDesk"
+	SourceTypeGoogleSheets        = "GoogleSheets"
 	SourceTypeRestAPI             = "RestAPI"
 )
 
@@ -164,7 +166,7 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 // (Create, Update and Delete) based on whether they are in the slice
 //  of destination Person instances.
 // It skips all source Person instances that have DisableChanges set to true
-func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfig, idField string) ChangeSet {
+func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfig) ChangeSet {
 	var changeSet ChangeSet
 
 	// Find users who need to be created or updated
@@ -205,8 +207,7 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfi
 //  - it generates the lists of people to change, update and delete
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
 func SyncPeople(source Source, destination Destination, config AppConfig) ChangeResults {
-	desiredAttrs := GetDesiredAttributes(config.AttributeMap)
-	sourcePeople, err := source.ListUsers(desiredAttrs)
+	sourcePeople, err := source.ListUsers(GetSourceAttributes(config.AttributeMap))
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -222,7 +223,7 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 		}
 	}
 
-	destinationPeople, err := destination.ListUsers()
+	destinationPeople, err := destination.ListUsers(GetDestinationAttributes(config.AttributeMap))
 	if err != nil {
 		return ChangeResults{
 			Errors: []string{err.Error()},
@@ -230,7 +231,7 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 	}
 	log.Printf("    Found %v people in destination", len(destinationPeople))
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config, destination.GetIDField())
+	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config)
 
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if config.Runtime.DryRunMode {
@@ -254,10 +255,19 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 	return results
 }
 
-func GetDesiredAttributes(attrMap []AttributeMap) []string {
+func GetSourceAttributes(attrMap []AttributeMap) []string {
 	var keys []string
 	for _, attrMap := range attrMap {
 		keys = append(keys, attrMap.Source)
+	}
+
+	return keys
+}
+
+func GetDestinationAttributes(attrMap []AttributeMap) []string {
+	var keys []string
+	for _, attrMap := range attrMap {
+		keys = append(keys, attrMap.Destination)
 	}
 
 	return keys
@@ -319,15 +329,11 @@ func InArray(needle interface{}, haystack interface{}) (exists bool, index int) 
 
 type EmptyDestination struct{}
 
-func (e *EmptyDestination) GetIDField() string {
-	return "id"
-}
-
 func (e *EmptyDestination) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (e *EmptyDestination) ListUsers() ([]Person, error) {
+func (e *EmptyDestination) ListUsers(desiredAttrs []string) ([]Person, error) {
 	return []Person{}, nil
 }
 

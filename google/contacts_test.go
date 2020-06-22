@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 )
 
 func TestNewGoogleContactsDestination(t *testing.T) {

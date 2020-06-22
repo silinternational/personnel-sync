@@ -17,16 +17,29 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
   "Source": {
     "Type": "RestAPI",
     "ExtraJSON": {
-      "Method": "GET",
+      "ListMethod": "GET",
       "BaseURL": "https://example.com",
-      "Path": "/path",
       "ResultsJSONContainer": "Results",
       "AuthType": "basic",
       "Username": "username",
       "Password": "password",
-      "CompareAttribute": "email"
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
     }
-  }
+  },
+  "SyncSets": [
+    {
+      "Name": "Sync from REST API",
+      "Source": {
+        "Paths": ["/users"]
+      },
+      "Destination": {
+          "DisableAdd": false,
+          "DisableUpdate": false,
+          "DisableDelete": false
+      }
+    }
+  ]
 }
 ```
 
@@ -36,17 +49,18 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
   "Source": {
     "Type": "RestAPI",
     "ExtraJSON": {
-      "Method": "GET",
+      "ListMethod": "GET",
       "BaseURL": "https://example.com",
-      "Path": "/path",
       "ResultsJSONContainer": "Results",
       "AuthType": "bearer",
       "Password": "token",
-      "CompareAttribute": "email"
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
     }
   }
 }
 ```
+`SyncSets` is configured the same as for basic authentication.
 
 #### Salesforce OAuth Authentication
 ```json
@@ -54,22 +68,150 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
   "Source": {
     "Type": "RestAPI",
     "ExtraJSON": {
-      "Method": "GET",
+      "ListMethod": "GET",
       "BaseURL": "https://login.salesforce.com/services/oauth2/token",
-      "Path": "/services/data/v20.0/query/",
       "ResultsJSONContainer": "records",
       "AuthType": "SalesforceOauth",
       "Username": "admin@example.com",
       "Password": "abc123def.ghiJKL",
       "ClientID": "ABCD1234abcd56789_ABCD1234abcd5678ABCD1234abcd5678ABCD1234abcd5678ABCD1.234abcd5678ABC",
       "ClientSecret": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
-      "CompareAttribute": "email"
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
+    }
+  },
+  "SyncSets": [
+    {
+      "Name": "Sync from Google Sheets to Xyz API",
+      "Source": {
+        "Paths": ["/services/data/v20.0/query/?q=SELECT%20Email,Name%20FROM%20Contacts"]
+      },
+      "Destination": {
+          "DisableAdd": false,
+          "DisableUpdate": false,
+          "DisableDelete": false
+      }
+    }
+  ]
+}
+```
+
+`SyncSets` is configured the same as for basic authentication.
+
+### Google Sheets
+The Google Sheets source reads records in rows from a Sheets document, where 
+the first row contains field names.
+
+If not specified in the configuration, the sheet name is "Sheet1"
+
+Example config:
+```json
+{
+  "Source": {
+    "Type": "GoogleSheets",
+    "ExtraJSON": {
+      "DelegatedAdminEmail": "admin@example.com",
+      "GoogleAuth": {
+        "type": "service_account",
+        "project_id": "abc-theme-123456",
+        "private_key_id": "abc123",
+        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIabc...\nabc...\n...xyz\n-----END PRIVATE KEY-----\n",
+        "client_email": "my-sync-bot@abc-theme-123456.iam.gserviceaccount.com",
+        "client_id": "123456789012345678901",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-sync-bot%40abc-theme-123456.iam.gserviceaccount.com"
+      }            
+    }
+  },
+  "AttributeMap": [
+    {
+      "Source": "email",
+      "Destination": "email"
+    },
+    {
+      "Source": "employee_id",
+      "Destination": "employee_id"
+    }
+  ],
+  "SyncSets": [
+    {
+      "Name": "Sync from Google Sheets to Xyz API",
+      "Source": {
+        "SheetID": "putAnActualSheetIDHerejD70xAjqPnOCHlDK3YomH",
+        "SheetName": "Sheet2",
+        "CompareAttribute": "employee_id"
+      },
+      "Destination": {
+          "DisableAdd": false,
+          "DisableUpdate": false,
+          "DisableDelete": false
+      }
+    }
+  ]
+}
+```
+
+## Destinations
+
+### REST API
+Destinations conforming to a simple REST API can use the `RestAPI` destination.
+Authentication is the same as for a REST API source, except that Salesforce
+OAuth is not supported.
+
+Here are some examples of how to configure it:
+
+#### Basic Authentication
+```json
+{
+  "Destination": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "ListMethod": "GET",
+      "CreateMethod": "POST",
+      "BaseURL": "https://example.com",
+      "ResultsJSONContainer": "Results",
+      "AuthType": "basic",
+      "Username": "username",
+      "Password": "password",
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
     }
   }
 }
 ```
 
-## Destinations
+#### Bearer Token Authentication
+```json
+{
+  "Destination": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "ListMethod": "GET",
+      "CreateMethod": "POST",
+      "BaseURL": "https://example.com",
+      "ResultsJSONContainer": "Results",
+      "AuthType": "bearer",
+      "Password": "token",
+      "CompareAttribute": "email",
+      "UserAgent": "personnel-sync"
+    }
+  },
+  "SyncSets": [
+    {
+      "Name": "Sync from personnel to REST API",
+      "Source": {
+          "Paths": ["/user-report"]
+      },
+      "Destination": {
+        "Paths": ["/users"],
+        "CreatePath": "/users"
+      }
+    }
+  ]
+}
+```
 
 ### Google Contacts
 This destination can create, update, and delete Contact records in the Google
@@ -232,7 +374,7 @@ of the destination configuration required for Google Groups:
     {
       "Name": "Sync from personnel to Google Groups",
       "Source": {
-          "Path": "/user-report"
+          "Path": ["/user-report"]
       },
       "Destination": {
           "GroupEmail": "group1@groups.domain.com",

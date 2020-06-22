@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"math/rand"
@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/api/googleapi"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
@@ -41,7 +41,6 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 			want: []personnel_sync.Person{
 				{
 					CompareValue: "user_one@example.com",
-					ID:           "",
 					Attributes: map[string]string{
 						"email":      "user_one@example.com",
 						"familyName": "one",
@@ -52,7 +51,6 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 				},
 				{
 					CompareValue: "user_two@example.com",
-					ID:           "",
 					Attributes: map[string]string{
 						"email":      "user_two@example.com",
 						"familyName": "two",
@@ -72,7 +70,7 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			got, err := g.ListUsers()
+			got, err := g.ListUsers([]string{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GoogleUsers.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -122,7 +120,6 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 					Update: []personnel_sync.Person{
 						{
 							CompareValue: "user@example.com",
-							ID:           "",
 							Attributes: map[string]string{
 								"email":      "user@example.com",
 								"familyName": strconv.Itoa(rand.Intn(1000)),

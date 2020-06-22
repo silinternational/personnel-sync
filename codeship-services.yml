@@ -1,0 +1,4 @@
+app:
+  build:
+    image: silinternational/personnel-sync
+    dockerfile: Dockerfile
