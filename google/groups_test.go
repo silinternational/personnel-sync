@@ -1,10 +1,10 @@
-package googledest
+package google
 
 import (
 	"reflect"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
@@ -100,7 +100,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			got, err := g.ListUsers()
+			got, err := g.ListUsers([]string{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GoogleGroups.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return

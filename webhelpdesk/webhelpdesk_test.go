@@ -9,9 +9,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/silinternational/personnel-sync/v3/restapi"
+	"github.com/silinternational/personnel-sync/v4/restapi"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 )
 
 func TestWebHelpDesk_ListUsers(t *testing.T) {
@@ -237,7 +237,7 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 				t.Error(err)
 				t.FailNow()
 			}
-			got, err := w.ListUsers()
+			got, err := w.ListUsers([]string{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("WebHelpDesk.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -265,7 +265,7 @@ func TestCreateChangeSet(t *testing.T) {
 		t.FailNow()
 	}
 
-	users, err := whd.ListUsers()
+	users, err := whd.ListUsers([]string{})
 	if err != nil {
 		t.Errorf("Failed to list whd users, error: %s", err.Error())
 		t.FailNow()
@@ -279,7 +279,7 @@ func TestCreateChangeSet(t *testing.T) {
 	sourcePeople, _ := source.ListUsers([]string{"email"})
 	log.Printf("found %v people in source", len(sourcePeople))
 
-	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users, testConfig, "id")
+	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users, testConfig)
 
 	log.Printf("ChangeSet ready %v to be created, %v to be deleted", len(changeSet.Create), len(changeSet.Delete))
 }

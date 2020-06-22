@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 	"golang.org/x/net/context"
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/googleapi"
@@ -48,10 +48,6 @@ func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfi
 	}
 
 	return &googleUsers, nil
-}
-
-func (g *GoogleUsers) GetIDField() string {
-	return "id"
 }
 
 func (g *GoogleUsers) ForSet(syncSetJson json.RawMessage) error {
@@ -142,7 +138,7 @@ func setStringFromInterface(i interface{}, m map[string]string, key string) {
 	}
 }
 
-func (g *GoogleUsers) ListUsers() ([]personnel_sync.Person, error) {
+func (g *GoogleUsers) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	var usersList []*admin.User
 	usersListCall := g.AdminService.Users.List()
 	usersListCall.Customer("my_customer") // query all domains in this GSuite

@@ -26,4 +26,4 @@ the Makefile to change the stage as desired.
 
 If you want to automate deployment with Codeship, encrypt the `.env` file to `.env.encrypted` and connect your private 
 project repo with Codeship. By default it is configured to only deploy _production_ when changes are pushed to the 
-`master` branch. 
+main branch. 

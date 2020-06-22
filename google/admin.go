@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"encoding/json"

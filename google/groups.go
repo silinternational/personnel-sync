@@ -1,4 +1,4 @@
-package googledest
+package google
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 
 	admin "google.golang.org/api/admin/directory/v1"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 	"golang.org/x/net/context"
 )
 
@@ -68,10 +68,6 @@ func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConf
 	return &googleGroups, nil
 }
 
-func (g *GoogleGroups) GetIDField() string {
-	return "email"
-}
-
 func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
 	var syncSetConfig GroupSyncSet
 	err := json.Unmarshal(syncSetJson, &syncSetConfig)
@@ -88,7 +84,7 @@ func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleGroups) ListUsers() ([]personnel_sync.Person, error) {
+func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	var membersList []*admin.Member
 	membersListCall := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail)
 	err := membersListCall.Pages(context.TODO(), func(members *admin.Members) error {

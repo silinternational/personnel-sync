@@ -11,7 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 )
 
 const DefaultBatchSize = 50
@@ -60,16 +60,12 @@ func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfi
 	return &webHelpDesk, nil
 }
 
-func (w *WebHelpDesk) GetIDField() string {
-	return "id"
-}
-
 func (w *WebHelpDesk) ForSet(syncSetJson json.RawMessage) error {
 	// unused in WebHelpDesk
 	return nil
 }
 
-func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
+func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
 	var allClients []User
 	page := 1
 
@@ -79,7 +75,7 @@ func (w *WebHelpDesk) ListUsers() ([]personnel_sync.Person, error) {
 			"page":  fmt.Sprintf("%v", page),
 		}
 
-		listUsersResp, err := w.makeHttpRequest(ClientsAPIPath, "GET", "", additionalParams)
+		listUsersResp, err := w.makeHttpRequest(ClientsAPIPath, http.MethodGet, "", additionalParams)
 		if err != nil {
 			return []personnel_sync.Person{}, err
 		}
