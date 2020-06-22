@@ -9,7 +9,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 
-	sync "github.com/silinternational/personnel-sync/v3"
+	sync "github.com/silinternational/personnel-sync/v4"
 )
 
 const DefaultSheetName = "Sheet1"

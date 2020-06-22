@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v3"
+	personnel_sync "github.com/silinternational/personnel-sync/v4"
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
