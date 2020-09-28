@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -33,12 +35,11 @@ func main() {
 	case personnel_sync.SourceTypeGoogleSheets:
 		source, err = google.NewGoogleSheetsSource(appConfig.Source)
 	default:
-		log.Println("Unrecognized source type:", appConfig.Source.Type)
-		os.Exit(1)
+		err = errors.New("unrecognized source type")
 	}
 
 	if err != nil {
-		log.Printf("Unable to initialize %s source, error: %s", appConfig.Source.Type, err.Error())
+		log.Printf("Unable to initialize %s source, error: %s", appConfig.Source.Type, err)
 		os.Exit(1)
 	}
 
@@ -58,41 +59,35 @@ func main() {
 	case personnel_sync.DestinationTypeWebHelpDesk:
 		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
 	default:
-		log.Println("Unrecognized destination type:", appConfig.Destination.Type)
-		os.Exit(1)
+		err = errors.New("unrecognized destination type")
 	}
 
 	if err != nil {
-		log.Println("Unable to load config, error: ", err.Error())
+		log.Printf("Unable to initialize %s destination, error: %s", appConfig.Destination.Type, err)
 		os.Exit(1)
 	}
 
+	maxNameLength := appConfig.MaxSyncSetNameLength()
+
 	// Iterate through SyncSets and process changes
 	for i, syncSet := range appConfig.SyncSets {
-		log.Printf("\n\n%v/%v: Beginning sync set: %s\n", i+1, len(appConfig.SyncSets), syncSet.Name)
+		prefix := fmt.Sprintf("[%-*s] ", maxNameLength, syncSet.Name)
+		syncSetLogger := log.New(os.Stdout, prefix, 0)
+		syncSetLogger.Printf("(%v/%v) Beginning sync set", i+1, len(appConfig.SyncSets))
 
 		// Apply SyncSet configs (excluding source/destination as appropriate)
 		err = source.ForSet(syncSet.Source)
 		if err != nil {
-			log.Printf("Error setting source set: %s", err.Error())
+			syncSetLogger.Printf("Error setting source set: %s", err.Error())
 		}
 
 		err = destination.ForSet(syncSet.Destination)
 		if err != nil {
-			log.Printf("Error setting destination set: %s", err.Error())
+			syncSetLogger.Printf("Error setting destination set: %s", err.Error())
 		}
 
-		// Perform sync and get results
-		changeResults := personnel_sync.SyncPeople(source, destination, appConfig)
-
-		log.Printf("Sync results: %v users added, %v users updated, %v users removed, %v errors\n",
-			changeResults.Created, changeResults.Updated, changeResults.Deleted, len(changeResults.Errors))
-
-		if len(changeResults.Errors) > 0 {
-			log.Println("Errors:")
-			for _, msg := range changeResults.Errors {
-				log.Printf("  %s\n", msg)
-			}
+		if err := personnel_sync.SyncPeople(syncSetLogger, source, destination, appConfig); err != nil {
+			syncSetLogger.Printf("Failed with error: %s", err)
 		}
 	}
 

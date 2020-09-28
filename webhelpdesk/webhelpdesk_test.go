@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 
@@ -279,7 +280,8 @@ func TestCreateChangeSet(t *testing.T) {
 	sourcePeople, _ := source.ListUsers([]string{"email"})
 	log.Printf("found %v people in source", len(sourcePeople))
 
-	changeSet := personnel_sync.GenerateChangeSet(sourcePeople, users, testConfig)
+	logger := log.New(os.Stdout, "", 0)
+	changeSet := personnel_sync.GenerateChangeSet(logger, sourcePeople, users, testConfig)
 
 	log.Printf("ChangeSet ready %v to be created, %v to be deleted", len(changeSet.Create), len(changeSet.Delete))
 }
@@ -323,8 +325,5 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 	if changeResults.Created != 1 {
 		t.Errorf("Unable to create user, number of users created was %v", changeResults.Created)
 		log.Println("Errors creating user:")
-		for _, msg := range changeResults.Errors {
-			log.Println(msg)
-		}
 	}
 }
