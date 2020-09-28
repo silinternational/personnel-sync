@@ -213,6 +213,11 @@ func SyncPeople(source Source, destination Destination, config AppConfig) Change
 			Errors: []string{err.Error()},
 		}
 	}
+	if len(sourcePeople) == 0 {
+		return ChangeResults{
+			Errors: []string{"No people found in source"},
+		}
+	}
 	log.Printf("    Found %v people in source", len(sourcePeople))
 
 	// remap source people to destination attributes for comparison
