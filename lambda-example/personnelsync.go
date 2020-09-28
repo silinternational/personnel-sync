@@ -101,7 +101,6 @@ func handler(lambdaConfig LambdaConfig) error {
 			for _, msg := range changeResults.Errors {
 				log.Printf("  %s\n", msg)
 			}
-			return err
 		}
 	}
 
