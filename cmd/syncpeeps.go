@@ -93,7 +93,6 @@ func main() {
 			for _, msg := range changeResults.Errors {
 				log.Printf("  %s\n", msg)
 			}
-			os.Exit(1)
 		}
 	}
 
