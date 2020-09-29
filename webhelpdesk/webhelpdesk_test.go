@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/silinternational/personnel-sync/v4/restapi"
+	"github.com/silinternational/personnel-sync/v5/restapi"
 
 	personnel_sync "github.com/silinternational/personnel-sync/v4"
 )

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/silinternational/personnel-sync/v4/alert"
-	"github.com/silinternational/personnel-sync/v4/restapi"
+	"github.com/silinternational/personnel-sync/v5/alert"
+	"github.com/silinternational/personnel-sync/v5/restapi"
 
-	"github.com/silinternational/personnel-sync/v4/webhelpdesk"
+	"github.com/silinternational/personnel-sync/v5/webhelpdesk"
 
-	"github.com/silinternational/personnel-sync/v4/google"
+	"github.com/silinternational/personnel-sync/v5/google"
 
 	personnel_sync "github.com/silinternational/personnel-sync/v4"
 )

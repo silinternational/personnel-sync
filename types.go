@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log/syslog"
 
-	"github.com/silinternational/personnel-sync/v4/alert"
+	"github.com/silinternational/personnel-sync/v5/alert"
 )
 
 type Person struct {
