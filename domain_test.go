@@ -1,6 +1,8 @@
 package personnel_sync
 
 import (
+	"log"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -103,7 +105,8 @@ func TestGenerateChangeSet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GenerateChangeSet(tt.args.sourcePeople, tt.args.destinationPeople, config)
+			logger := log.New(os.Stdout, "", 0)
+			got := GenerateChangeSet(logger, tt.args.sourcePeople, tt.args.destinationPeople, config)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GenerateChangeSet() = %v, want %v", got, tt.want)
 			}
@@ -211,7 +214,8 @@ func TestIDSetForUpdate(t *testing.T) {
 		},
 	}
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config)
+	logger := log.New(os.Stdout, "", 0)
+	changeSet := GenerateChangeSet(logger, sourcePeople, destinationPeople, config)
 	if len(changeSet.Create) != 1 {
 		t.Error("Change set should include one person to be created.")
 	}

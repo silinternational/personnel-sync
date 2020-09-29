@@ -1,6 +1,9 @@
 package personnel_sync
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"log/syslog"
+)
 
 type Person struct {
 	CompareValue   string
@@ -64,7 +67,27 @@ type ChangeResults struct {
 	Created uint64
 	Updated uint64
 	Deleted uint64
-	Errors  []string
+}
+
+type EventLogItem struct {
+	Event   string
+	Message string
+	Level   syslog.Priority
+}
+
+func (l *EventLogItem) String() string {
+	return LogLevels[l.Level] + ": " + l.Message
+}
+
+var LogLevels = map[syslog.Priority]string{
+	syslog.LOG_EMERG:   "Emerg",
+	syslog.LOG_ALERT:   "Alert",
+	syslog.LOG_CRIT:    "Critical",
+	syslog.LOG_ERR:     "Error",
+	syslog.LOG_WARNING: "Warning",
+	syslog.LOG_NOTICE:  "Notice",
+	syslog.LOG_INFO:    "Info",
+	syslog.LOG_DEBUG:   "Debug",
 }
 
 type Destination interface {

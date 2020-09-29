@@ -166,7 +166,6 @@ func (r *RestAPI) ApplyChangeSet(changes psync.ChangeSet, eventLog chan<- psync.
 
 	wg.Wait()
 
-	// TODO: add errors to results.Errors (or remove ChangeResults.Errors since no destination uses it)
 	return results
 }
 
