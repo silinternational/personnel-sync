@@ -3,6 +3,7 @@ package google
 import (
 	"encoding/json"
 	"fmt"
+	"log/syslog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -206,14 +207,14 @@ func (g *GoogleGroups) addMember(
 	_, err := g.AdminService.Members.Insert(g.GroupSyncSet.GroupEmail, &newMember).Do()
 	if err != nil && !strings.Contains(err.Error(), "409") { // error code 409 is for existing user
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to insert %s in Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
 		return
 	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "AddMember",
-		Message: email,
+		Level:   syslog.LOG_INFO,
+		Message: "AddMember " + email,
 	}
 
 	atomic.AddUint64(counter, 1)
@@ -230,14 +231,14 @@ func (g *GoogleGroups) removeMember(
 	err := g.AdminService.Members.Delete(g.GroupSyncSet.GroupEmail, email).Do()
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to delete %s from Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
 		return
 	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "RemoveMember",
-		Message: email,
+		Level:   syslog.LOG_INFO,
+		Message: "RemoveMember " + email,
 	}
 
 	atomic.AddUint64(counter, 1)

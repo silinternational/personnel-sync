@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"log/syslog"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -314,14 +315,14 @@ func (g *GoogleContacts) addContact(
 	headers := map[string]string{"Content-Type": "application/atom+xml"}
 	if _, err := g.httpRequest(http.MethodPost, href, body, headers); err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to insert %s in Google contacts: %s", person.CompareValue, err)}
 		return
 	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "AddContact",
-		Message: person.CompareValue,
+		Level:   syslog.LOG_INFO,
+		Message: "AddContact " + person.CompareValue,
 	}
 
 	atomic.AddUint64(counter, 1)
@@ -405,7 +406,7 @@ func (g *GoogleContacts) updateContact(
 	contact, err := g.getContact(url)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
 		return
 	}
@@ -418,7 +419,7 @@ func (g *GoogleContacts) updateContact(
 	})
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("updateContact failed updating user %s: %s", person.CompareValue, err)}
 		return
 	}
@@ -454,7 +455,7 @@ func (g *GoogleContacts) deleteContact(
 	contact, err := g.getContact(url)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
 		return
 	}
@@ -464,7 +465,7 @@ func (g *GoogleContacts) deleteContact(
 	})
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("deleteContact failed deleting user %s: %s", person.CompareValue, err)}
 		return
 	}
