@@ -5,10 +5,13 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"log/syslog"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/silinternational/personnel-sync/v4/alert"
 )
 
 const (
@@ -239,7 +242,7 @@ func SyncPeople(logger *log.Logger, source Source, destination Destination, conf
 
 	// Create a channel to pass activity logs for printing
 	eventLog := make(chan EventLogItem, 50)
-	go processEventLog(logger, eventLog)
+	go processEventLog(logger, config.Alert, eventLog)
 
 	results := destination.ApplyChangeSet(changeSet, eventLog)
 
@@ -270,9 +273,12 @@ func GetDestinationAttributes(attrMap []AttributeMap) []string {
 	return keys
 }
 
-func processEventLog(logger *log.Logger, eventLog <-chan EventLogItem) {
+func processEventLog(logger *log.Logger, config alert.Config, eventLog <-chan EventLogItem) {
 	for msg := range eventLog {
-		logger.Printf("%s %s\n", msg.Event, msg.Message)
+		logger.Println(msg)
+		if msg.Level == syslog.LOG_ALERT || msg.Level == syslog.LOG_EMERG {
+			alert.SendEmail(config, msg.String())
+		}
 	}
 }
 

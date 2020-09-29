@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/silinternational/personnel-sync/v4/alert"
 	"github.com/silinternational/personnel-sync/v4/restapi"
 
 	"github.com/silinternational/personnel-sync/v4/webhelpdesk"
@@ -23,7 +25,9 @@ func main() {
 
 	appConfig, err := personnel_sync.LoadConfig("")
 	if err != nil {
-		log.Println("Unable to load config, error: ", err.Error())
+		msg := fmt.Sprintf("Unable to load config, error: %s", err)
+		log.Println(msg)
+		alert.SendEmail(appConfig.Alert, msg)
 		os.Exit(1)
 	}
 
@@ -39,7 +43,9 @@ func main() {
 	}
 
 	if err != nil {
-		log.Printf("Unable to initialize %s source, error: %s", appConfig.Source.Type, err)
+		msg := fmt.Sprintf("Unable to initialize %s source, error: %s", appConfig.Source.Type, err)
+		log.Println(msg)
+		alert.SendEmail(appConfig.Alert, msg)
 		os.Exit(1)
 	}
 
@@ -63,11 +69,14 @@ func main() {
 	}
 
 	if err != nil {
-		log.Printf("Unable to initialize %s destination, error: %s", appConfig.Destination.Type, err)
+		msg := fmt.Sprintf("Unable to initialize %s destination, error: %s", appConfig.Destination.Type, err)
+		log.Println(msg)
+		alert.SendEmail(appConfig.Alert, msg)
 		os.Exit(1)
 	}
 
 	maxNameLength := appConfig.MaxSyncSetNameLength()
+	var errors []string
 
 	// Iterate through SyncSets and process changes
 	for i, syncSet := range appConfig.SyncSets {
@@ -78,17 +87,27 @@ func main() {
 		// Apply SyncSet configs (excluding source/destination as appropriate)
 		err = source.ForSet(syncSet.Source)
 		if err != nil {
-			syncSetLogger.Printf("Error setting source set: %s", err.Error())
+			msg := fmt.Sprintf("Error setting source set on syncSet %s: %s", syncSet.Name, err)
+			syncSetLogger.Println(msg)
+			errors = append(errors, msg)
 		}
 
 		err = destination.ForSet(syncSet.Destination)
 		if err != nil {
-			syncSetLogger.Printf("Error setting destination set: %s", err.Error())
+			msg := fmt.Sprintf("Error setting destination set on syncSet %s: %s", syncSet.Name, err)
+			syncSetLogger.Println(msg)
+			errors = append(errors, msg)
 		}
 
 		if err := personnel_sync.SyncPeople(syncSetLogger, source, destination, appConfig); err != nil {
-			syncSetLogger.Printf("Failed with error: %s", err)
+			msg := fmt.Sprintf("Sync failed with error on syncSet %s: %s", syncSet.Name, err)
+			syncSetLogger.Println(msg)
+			errors = append(errors, msg)
 		}
+	}
+
+	if len(errors) > 0 {
+		alert.SendEmail(appConfig.Alert, fmt.Sprintf("Sync error(s):\n%s", strings.Join(errors, "\n")))
 	}
 
 	log.Printf("Personnel sync completed at %s", time.Now().UTC().Format(time.RFC1123Z))

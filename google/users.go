@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/syslog"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -277,7 +278,7 @@ func (g *GoogleUsers) updateUser(
 	oldUser, err := g.getUser(person.CompareValue)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to get old user %s, %s", email, err.Error())}
 		return
 	}
@@ -285,7 +286,7 @@ func (g *GoogleUsers) updateUser(
 	newUser, err2 := newUserForUpdate(person, oldUser)
 	if err2 != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to prepare update for %s in Users: %s", email, err2.Error())}
 		return
 	}
@@ -293,14 +294,14 @@ func (g *GoogleUsers) updateUser(
 	_, err3 := g.AdminService.Users.Update(email, &newUser).Do()
 	if err3 != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update %s in Users: %s", email, err3.Error())}
 		return
 	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "UpdateUser",
-		Message: email,
+		Level:   syslog.LOG_INFO,
+		Message: "UpdateUser " + email,
 	}
 
 	atomic.AddUint64(counter, 1)

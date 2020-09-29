@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log/syslog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -154,7 +155,7 @@ func (w *WebHelpDesk) CreateUser(
 	newClient, err := getWebHelpDeskClientFromPerson(person)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to create user, unable to convert string to int, error: %s", err.Error())}
 		return
 	}
@@ -162,7 +163,7 @@ func (w *WebHelpDesk) CreateUser(
 	jsonBody, err := json.Marshal(newClient)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to create user, unable to marshal json, error: %s", err.Error())}
 		return
 	}
@@ -171,15 +172,15 @@ func (w *WebHelpDesk) CreateUser(
 	if err != nil {
 		// Since WebHelpDesk APIs are garbage, just ignore errors, but don't count as a newly created user
 		eventLog <- personnel_sync.EventLogItem{
-			Event: "error",
+			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to create user (person=%v, client=%v), error calling api: %s",
 				person, newClient, err.Error())}
 		return
 	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "CreateUser",
-		Message: person.CompareValue,
+		Level:   syslog.LOG_INFO,
+		Message: "CreateUser " + person.CompareValue,
 	}
 
 	atomic.AddUint64(counter, 1)
@@ -196,7 +197,7 @@ func (w *WebHelpDesk) UpdateUser(
 	newClient, err := getWebHelpDeskClientFromPerson(person)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update user, unable to convert string to int, error: %s", err.Error())}
 		return
 	}
@@ -204,7 +205,7 @@ func (w *WebHelpDesk) UpdateUser(
 	jsonBody, err := json.Marshal(newClient)
 	if err != nil {
 		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update user, unable to marshal json, error: %s", err.Error())}
 		return
 	}
@@ -214,15 +215,15 @@ func (w *WebHelpDesk) UpdateUser(
 	if err != nil {
 		// Since WebHelpDesk APIs are garbage, just ignore errors, but don't count as a newly created user
 		eventLog <- personnel_sync.EventLogItem{
-			Event: "error",
+			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update user (person=%+v, client=%+v), error calling api, error: %s",
 				person, newClient, err.Error())}
 		return
 	}
 
 	eventLog <- personnel_sync.EventLogItem{
-		Event:   "UpdateUser",
-		Message: person.CompareValue,
+		Level:   syslog.LOG_INFO,
+		Message: "UpdateUser " + person.CompareValue,
 	}
 
 	atomic.AddUint64(counter, 1)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"log/syslog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -364,7 +365,7 @@ func (r *RestAPI) addContact(p psync.Person, n *uint64, wg *sync.WaitGroup, even
 	responseBody, err := r.httpRequest(r.CreateMethod, apiURL, attributesToJSON(p.Attributes), headers)
 	if err != nil {
 		eventLog <- psync.EventLogItem{
-			Event: "error",
+			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("addContact %s httpRequest error %s, response: %s", p.CompareValue, err,
 				responseBody),
 		}
@@ -372,8 +373,8 @@ func (r *RestAPI) addContact(p psync.Person, n *uint64, wg *sync.WaitGroup, even
 	}
 
 	eventLog <- psync.EventLogItem{
-		Event:   "AddContact",
-		Message: p.CompareValue,
+		Level:   syslog.LOG_INFO,
+		Message: "AddContact " + p.CompareValue,
 	}
 
 	atomic.AddUint64(n, 1)

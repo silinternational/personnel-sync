@@ -3,6 +3,7 @@ package google
 import (
 	"encoding/json"
 	"fmt"
+	"log/syslog"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
@@ -159,8 +160,8 @@ func (g *GoogleSheets) ApplyChangeSet(
 
 	if g.DestinationConfig.DisableAdd || g.DestinationConfig.DisableDelete || g.DestinationConfig.DisableUpdate {
 		eventLog <- sync.EventLogItem{
-			Event:   "ApplyChangeSet",
-			Message: fmt.Sprintf("Sync is disabled, no action taken"),
+			Level:   syslog.LOG_INFO,
+			Message: fmt.Sprintf("ApplyChangeSet Sync is disabled, no action taken"),
 		}
 		return sync.ChangeResults{}
 	}
@@ -168,7 +169,7 @@ func (g *GoogleSheets) ApplyChangeSet(
 	sheetData, err := g.readSheet()
 	if err != nil {
 		eventLog <- sync.EventLogItem{
-			Event:   "Error",
+			Level:   syslog.LOG_ALERT,
 			Message: fmt.Sprintf("unable to read sheet, error: %v", err),
 		}
 		return sync.ChangeResults{}
@@ -176,16 +177,16 @@ func (g *GoogleSheets) ApplyChangeSet(
 
 	if err := g.clearSheet(sheetData); err != nil {
 		eventLog <- sync.EventLogItem{
-			Event:   "Error",
-			Message: err.Error(),
+			Level:   syslog.LOG_ALERT,
+			Message: fmt.Sprintf("unable to clear sheet, error: %v", err),
 		}
 		return sync.ChangeResults{}
 	}
 
 	if err := g.updateSheet(getHeaderFromSheetData(sheetData), changes.Create); err != nil {
 		eventLog <- sync.EventLogItem{
-			Event:   "Error",
-			Message: err.Error(),
+			Level:   syslog.LOG_ALERT,
+			Message: fmt.Sprintf("unable to update sheet, error: %v", err),
 		}
 		return sync.ChangeResults{}
 	}

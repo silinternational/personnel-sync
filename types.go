@@ -3,6 +3,8 @@ package personnel_sync
 import (
 	"encoding/json"
 	"log/syslog"
+
+	"github.com/silinternational/personnel-sync/v4/alert"
 )
 
 type Person struct {
@@ -47,6 +49,7 @@ type AppConfig struct {
 	Runtime      RuntimeConfig
 	Source       SourceConfig
 	Destination  DestinationConfig
+	Alert        alert.Config
 	AttributeMap []AttributeMap
 	SyncSets     []SyncSet
 }
@@ -70,7 +73,6 @@ type ChangeResults struct {
 }
 
 type EventLogItem struct {
-	Event   string
 	Message string
 	Level   syslog.Priority
 }
