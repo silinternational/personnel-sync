@@ -55,22 +55,19 @@ func LoadConfig(configFile string) (AppConfig, error) {
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
-		return AppConfig{}, err
+		return config, err
 	}
 
 	if config.Source.Type == "" {
-		log.Printf("configuration appears to be missing a Source configuration")
-		return AppConfig{}, err
+		return config, errors.New("configuration appears to be missing a Source configuration")
 	}
 
 	if config.Destination.Type == "" {
-		log.Printf("configuration appears to be missing a Destination configuration")
-		return AppConfig{}, err
+		return config, errors.New("configuration appears to be missing a Destination configuration")
 	}
 
 	if len(config.AttributeMap) == 0 {
-		log.Printf("configuration appears to be missing an AttributeMap")
-		return AppConfig{}, err
+		return config, errors.New("configuration appears to be missing an AttributeMap")
 	}
 
 	log.Printf("Configuration loaded. Source type: %s, Destination type: %s\n", config.Source.Type, config.Destination.Type)

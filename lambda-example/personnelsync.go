@@ -96,20 +96,20 @@ func handler(lambdaConfig LambdaConfig) error {
 		// Apply SyncSet configs (excluding source/destination as appropriate)
 		err = source.ForSet(syncSet.Source)
 		if err != nil {
-			msg := fmt.Sprintf("Error setting source set on syncSet %s: %s", syncSet.Name, err)
+			msg := fmt.Sprintf(`Error setting source set on syncSet "%s": %s`, syncSet.Name, err)
 			syncSetLogger.Println(msg)
 			errors = append(errors, msg)
 		}
 
 		err = destination.ForSet(syncSet.Destination)
 		if err != nil {
-			msg := fmt.Sprintf("Error setting destination set on syncSet %s: %s", syncSet.Name, err)
+			msg := fmt.Sprintf(`Error setting destination set on syncSet "%s": %s`, syncSet.Name, err)
 			syncSetLogger.Println(msg)
 			errors = append(errors, msg)
 		}
 
 		if err := personnel_sync.SyncPeople(syncSetLogger, source, destination, appConfig); err != nil {
-			msg := fmt.Sprintf("Sync failed with error on syncSet %s: %s", syncSet.Name, err)
+			msg := fmt.Sprintf(`Sync failed with error on syncSet "%s": %s`, syncSet.Name, err)
 			syncSetLogger.Println(msg)
 			errors = append(errors, msg)
 		}
