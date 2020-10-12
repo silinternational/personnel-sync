@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	personnel_sync "github.com/silinternational/personnel-sync/v5"
 )
 
 const MaxQuerySize = 10000

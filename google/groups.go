@@ -10,7 +10,7 @@ import (
 
 	admin "google.golang.org/api/admin/directory/v1"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	personnel_sync "github.com/silinternational/personnel-sync/v5"
 	"golang.org/x/net/context"
 )
 

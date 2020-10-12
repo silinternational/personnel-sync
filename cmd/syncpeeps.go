@@ -15,7 +15,7 @@ import (
 
 	"github.com/silinternational/personnel-sync/v5/google"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	personnel_sync "github.com/silinternational/personnel-sync/v5"
 )
 
 func main() {

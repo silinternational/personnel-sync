@@ -12,7 +12,7 @@ import (
 
 	"github.com/silinternational/personnel-sync/v5/restapi"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	personnel_sync "github.com/silinternational/personnel-sync/v5"
 )
 
 func TestWebHelpDesk_ListUsers(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	personnel_sync "github.com/silinternational/personnel-sync/v5"
 	"github.com/silinternational/personnel-sync/v5/alert"
 	"github.com/silinternational/personnel-sync/v5/google"
 	"github.com/silinternational/personnel-sync/v5/restapi"

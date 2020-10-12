@@ -16,7 +16,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	psync "github.com/silinternational/personnel-sync/v4"
+	psync "github.com/silinternational/personnel-sync/v5"
 )
 
 const AuthTypeBasic = "basic"

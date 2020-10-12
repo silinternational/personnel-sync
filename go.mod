@@ -1,8 +1,8 @@
-module github.com/silinternational/personnel-sync/v4
+module github.com/silinternational/personnel-sync/v5
 
 go 1.14
 
-replace github.com/silinternational/personnel-sync/v4 => ./
+replace github.com/silinternational/personnel-sync/v5 => ./
 
 require (
 	github.com/Jeffail/gabs/v2 v2.5.1
