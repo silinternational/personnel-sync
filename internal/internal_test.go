@@ -1,4 +1,4 @@
-package personnel_sync
+package internal
 
 import (
 	"log"

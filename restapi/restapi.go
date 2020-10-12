@@ -16,7 +16,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	psync "github.com/silinternational/personnel-sync/v5"
+	internal "github.com/silinternational/personnel-sync/v5/internal"
 )
 
 const AuthTypeBasic = "basic"
@@ -40,7 +40,7 @@ type RestAPI struct {
 	UserAgent            string
 	BatchSize            int
 	BatchDelaySeconds    int
-	destinationConfig    psync.DestinationConfig
+	destinationConfig    internal.DestinationConfig
 	setConfig            SetConfig
 }
 
@@ -50,7 +50,7 @@ type SetConfig struct {
 }
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
-func NewRestAPISource(sourceConfig psync.SourceConfig) (psync.Source, error) {
+func NewRestAPISource(sourceConfig internal.SourceConfig) (internal.Source, error) {
 	var restAPI RestAPI
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
 	err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI)
@@ -74,7 +74,7 @@ func NewRestAPISource(sourceConfig psync.SourceConfig) (psync.Source, error) {
 }
 
 // NewRestAPIDestination unmarshals the destinationConfig's ExtraJson into a RestApi struct
-func NewRestAPIDestination(destinationConfig psync.DestinationConfig) (psync.Destination, error) {
+func NewRestAPIDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
 	var restAPI RestAPI
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &restAPI)
@@ -118,9 +118,9 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 
 // ListUsers makes an http request and uses the response to populate
 // and return a slice of Person instances
-func (r *RestAPI) ListUsers(desiredAttrs []string) ([]psync.Person, error) {
+func (r *RestAPI) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	errLog := make(chan string, 1000)
-	people := make(chan psync.Person, 20000)
+	people := make(chan internal.Person, 20000)
 	var wg sync.WaitGroup
 
 	for _, p := range r.setConfig.Paths {
@@ -137,10 +137,10 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]psync.Person, error) {
 		for msg := range errLog {
 			errs = append(errs, msg)
 		}
-		return []psync.Person{}, fmt.Errorf("errors listing users from %s: %s", r.BaseURL, strings.Join(errs, ","))
+		return []internal.Person{}, fmt.Errorf("errors listing users from %s: %s", r.BaseURL, strings.Join(errs, ","))
 	}
 
-	var results []psync.Person
+	var results []internal.Person
 
 	for person := range people {
 		results = append(results, person)
@@ -149,11 +149,11 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]psync.Person, error) {
 	return results, nil
 }
 
-func (r *RestAPI) ApplyChangeSet(changes psync.ChangeSet, eventLog chan<- psync.EventLogItem) psync.ChangeResults {
-	var results psync.ChangeResults
+func (r *RestAPI) ApplyChangeSet(changes internal.ChangeSet, eventLog chan<- internal.EventLogItem) internal.ChangeResults {
+	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
-	batchTimer := psync.NewBatchTimer(r.BatchSize, r.BatchDelaySeconds)
+	batchTimer := internal.NewBatchTimer(r.BatchSize, r.BatchDelaySeconds)
 
 	if r.destinationConfig.DisableAdd {
 		log.Println("Contact creation is disabled.")
@@ -174,7 +174,7 @@ func (r *RestAPI) listUsersForPath(
 	desiredAttrs []string,
 	path string,
 	wg *sync.WaitGroup,
-	people chan<- psync.Person,
+	people chan<- internal.Person,
 	errLog chan<- string) {
 
 	defer wg.Done()
@@ -230,11 +230,11 @@ func (r *RestAPI) listUsersForPath(
 	}
 }
 
-func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, desiredAttrs []string) []psync.Person {
-	sourcePeople := make([]psync.Person, 0)
+func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, desiredAttrs []string) []internal.Person {
+	sourcePeople := make([]internal.Person, 0)
 
 	for _, person := range peopleList {
-		peep := psync.Person{
+		peep := internal.Person{
 			Attributes: map[string]string{},
 		}
 
@@ -357,14 +357,14 @@ func (r *RestAPI) setDefaults() {
 	}
 }
 
-func (r *RestAPI) addContact(p psync.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- psync.EventLogItem) {
+func (r *RestAPI) addContact(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
 	defer wg.Done()
 
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, r.setConfig.CreatePath)
 	headers := map[string]string{"Content-Type": "application/json"}
 	responseBody, err := r.httpRequest(r.CreateMethod, apiURL, attributesToJSON(p.Attributes), headers)
 	if err != nil {
-		eventLog <- psync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("addContact %s httpRequest error %s, response: %s", p.CompareValue, err,
 				responseBody),
@@ -372,7 +372,7 @@ func (r *RestAPI) addContact(p psync.Person, n *uint64, wg *sync.WaitGroup, even
 		return
 	}
 
-	eventLog <- psync.EventLogItem{
+	eventLog <- internal.EventLogItem{
 		Level:   syslog.LOG_INFO,
 		Message: "AddContact " + p.CompareValue,
 	}
@@ -390,11 +390,11 @@ func attributesToJSON(attr map[string]string) string {
 	return jsonObj.String()
 }
 
-func (r *RestAPI) updateContact(p psync.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- psync.EventLogItem) {
+func (r *RestAPI) updateContact(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
 	wg.Done()
 }
 
-func (r *RestAPI) deleteContact(p psync.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- psync.EventLogItem) {
+func (r *RestAPI) deleteContact(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
 	wg.Done()
 }
 

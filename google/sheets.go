@@ -10,14 +10,14 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 
-	sync "github.com/silinternational/personnel-sync/v5"
+	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
 const DefaultSheetName = "Sheet1"
 
 type GoogleSheets struct {
-	DestinationConfig sync.DestinationConfig
-	SourceConfig      sync.SourceConfig
+	DestinationConfig internal.DestinationConfig
+	SourceConfig      internal.SourceConfig
 	GoogleConfig      GoogleConfig
 	Service           *sheets.Service
 	SheetsSyncSet     SheetsSyncSet
@@ -29,7 +29,7 @@ type SheetsSyncSet struct {
 	CompareAttribute string
 }
 
-func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.Destination, error) {
+func NewGoogleSheetsDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
 	s, err := readConfig(destinationConfig.ExtraJSON)
 	if err != nil {
 		return nil, fmt.Errorf("error reading GoogleSheets destination config: %s", err)
@@ -40,7 +40,7 @@ func NewGoogleSheetsDestination(destinationConfig sync.DestinationConfig) (sync.
 	return &s, nil
 }
 
-func NewGoogleSheetsSource(sourceConfig sync.SourceConfig) (sync.Source, error) {
+func NewGoogleSheetsSource(sourceConfig internal.SourceConfig) (internal.Source, error) {
 	s, err := readConfig(sourceConfig.ExtraJSON)
 	if err != nil {
 		return nil, fmt.Errorf("error reading GoogleSheets source config: %s", err)
@@ -107,7 +107,7 @@ func (g *GoogleSheets) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleSheets) ListUsers(desiredAttrs []string) ([]sync.Person, error) {
+func (g *GoogleSheets) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	if g.DestinationConfig.Type != "" {
 		// if this sheet is a destination, don't return the list of users since we don't have logic to do incremental
 		// updates to the sheet
@@ -122,10 +122,10 @@ func (g *GoogleSheets) ListUsers(desiredAttrs []string) ([]sync.Person, error) {
 	return getPersonsFromSheetData(sheetData, desiredAttrs, g.SheetsSyncSet.CompareAttribute), nil
 }
 
-func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, compareAttr string) []sync.Person {
+func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, compareAttr string) []internal.Person {
 	header := map[int]string{}
 	if len(sheetData) < 1 {
-		return []sync.Person{}
+		return []internal.Person{}
 	}
 
 	attrMap := make(map[string]bool, len(desiredAttrs))
@@ -133,7 +133,7 @@ func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, c
 		attrMap[a] = true
 	}
 
-	p := make([]sync.Person, len(sheetData)-1)
+	p := make([]internal.Person, len(sheetData)-1)
 	for i, row := range sheetData {
 		if i == 0 {
 			for j, cellValue := range row {
@@ -155,43 +155,43 @@ func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, c
 }
 
 func (g *GoogleSheets) ApplyChangeSet(
-	changes sync.ChangeSet,
-	eventLog chan<- sync.EventLogItem) sync.ChangeResults {
+	changes internal.ChangeSet,
+	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
 
 	if g.DestinationConfig.DisableAdd || g.DestinationConfig.DisableDelete || g.DestinationConfig.DisableUpdate {
-		eventLog <- sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_INFO,
 			Message: fmt.Sprintf("ApplyChangeSet Sync is disabled, no action taken"),
 		}
-		return sync.ChangeResults{}
+		return internal.ChangeResults{}
 	}
 
 	sheetData, err := g.readSheet()
 	if err != nil {
-		eventLog <- sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ALERT,
 			Message: fmt.Sprintf("unable to read sheet, error: %v", err),
 		}
-		return sync.ChangeResults{}
+		return internal.ChangeResults{}
 	}
 
 	if err := g.clearSheet(sheetData); err != nil {
-		eventLog <- sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ALERT,
 			Message: fmt.Sprintf("unable to clear sheet, error: %v", err),
 		}
-		return sync.ChangeResults{}
+		return internal.ChangeResults{}
 	}
 
 	if err := g.updateSheet(getHeaderFromSheetData(sheetData), changes.Create); err != nil {
-		eventLog <- sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ALERT,
 			Message: fmt.Sprintf("unable to update sheet, error: %v", err),
 		}
-		return sync.ChangeResults{}
+		return internal.ChangeResults{}
 	}
 
-	return sync.ChangeResults{Created: uint64(len(changes.Create))}
+	return internal.ChangeResults{Created: uint64(len(changes.Create))}
 }
 
 func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
@@ -241,7 +241,7 @@ func (g *GoogleSheets) clearSheet(data [][]interface{}) error {
 	return nil
 }
 
-func (g *GoogleSheets) updateSheet(header map[int]string, persons []sync.Person) error {
+func (g *GoogleSheets) updateSheet(header map[int]string, persons []internal.Person) error {
 	table := makeSheetDataFromPersons(header, persons)
 	v := &sheets.ValueRange{
 		Values: table,
@@ -257,7 +257,7 @@ func (g *GoogleSheets) updateSheet(header map[int]string, persons []sync.Person)
 	return nil
 }
 
-func makeSheetDataFromPersons(header map[int]string, persons []sync.Person) [][]interface{} {
+func makeSheetDataFromPersons(header map[int]string, persons []internal.Person) [][]interface{} {
 	if len(header) < 1 {
 		return [][]interface{}{}
 	}

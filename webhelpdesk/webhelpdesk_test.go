@@ -10,9 +10,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/silinternational/personnel-sync/v5/internal"
 	"github.com/silinternational/personnel-sync/v5/restapi"
-
-	personnel_sync "github.com/silinternational/personnel-sync/v5"
 )
 
 func TestWebHelpDesk_ListUsers(t *testing.T) {
@@ -120,23 +119,23 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 	}
 
 	type fields struct {
-		DestinationConfig personnel_sync.DestinationConfig
+		DestinationConfig internal.DestinationConfig
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []personnel_sync.Person
+		want    []internal.Person
 		wantErr bool
 	}{
 		{
 			name: "all results",
 			fields: fields{
-				DestinationConfig: personnel_sync.DestinationConfig{
-					Type:      personnel_sync.DestinationTypeWebHelpDesk,
+				DestinationConfig: internal.DestinationConfig{
+					Type:      internal.DestinationTypeWebHelpDesk,
 					ExtraJSON: extraJson,
 				},
 			},
-			want: []personnel_sync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "c1",
 					Attributes: map[string]string{
@@ -254,7 +253,7 @@ func TestCreateChangeSet(t *testing.T) {
 	t.Skip("Requires integration with WHD so skipped by default")
 	t.SkipNow()
 
-	testConfig, err := personnel_sync.LoadConfig("./config.json")
+	testConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
@@ -281,7 +280,7 @@ func TestCreateChangeSet(t *testing.T) {
 	log.Printf("found %v people in source", len(sourcePeople))
 
 	logger := log.New(os.Stdout, "", 0)
-	changeSet := personnel_sync.GenerateChangeSet(logger, sourcePeople, users, testConfig)
+	changeSet := internal.GenerateChangeSet(logger, sourcePeople, users, testConfig)
 
 	log.Printf("ChangeSet ready %v to be created, %v to be deleted", len(changeSet.Create), len(changeSet.Delete))
 }
@@ -290,7 +289,7 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 	t.Skip("Requires integration with WHD so skipped by default")
 	t.SkipNow()
 
-	testConfig, err := personnel_sync.LoadConfig("./config.json")
+	testConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
@@ -302,7 +301,7 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 		t.FailNow()
 	}
 
-	personToCreate := personnel_sync.Person{
+	personToCreate := internal.Person{
 		Attributes: map[string]string{
 			"firstName": "testing123456",
 			"lastName":  "test-for-phillip",
@@ -311,13 +310,13 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 		},
 	}
 
-	changeSet := personnel_sync.ChangeSet{
-		Create: []personnel_sync.Person{
+	changeSet := internal.ChangeSet{
+		Create: []internal.Person{
 			personToCreate,
 		},
 	}
 
-	eventLog := make(chan personnel_sync.EventLogItem, 50)
+	eventLog := make(chan internal.EventLogItem, 50)
 	changeResults := whd.ApplyChangeSet(changeSet, eventLog)
 	close(eventLog)
 	log.Println(changeResults)

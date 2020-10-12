@@ -1,4 +1,4 @@
-package personnel_sync
+package internal
 
 import (
 	"encoding/json"
@@ -201,13 +201,13 @@ func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Per
 	return changeSet
 }
 
-// SyncPeople calls a number of functions to do the following ...
+// RunSyncSet calls a number of functions to do the following ...
 //  - it gets the list of people from the source
 //  - it remaps their attributes to match the keys used in the destination
 //  - it gets the list of people from the destination
 //  - it generates the lists of people to change, update and delete
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
-func SyncPeople(logger *log.Logger, source Source, destination Destination, config AppConfig) error {
+func RunSyncSet(logger *log.Logger, source Source, destination Destination, config AppConfig) error {
 	sourcePeople, err := source.ListUsers(GetSourceAttributes(config.AttributeMap))
 	if err != nil {
 		return err

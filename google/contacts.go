@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v5"
+	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
 const MaxQuerySize = 10000
@@ -39,7 +39,7 @@ const (
 type GoogleContacts struct {
 	BatchSize         int
 	BatchDelaySeconds int
-	DestinationConfig personnel_sync.DestinationConfig
+	DestinationConfig internal.DestinationConfig
 	GoogleConfig      GoogleConfig
 	Client            http.Client
 }
@@ -103,10 +103,10 @@ type Where struct {
 }
 
 // NewGoogleContactsDestination creates a new GoogleContacts instance
-func NewGoogleContactsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination,
+func NewGoogleContactsDestination(destinationConfig internal.DestinationConfig) (internal.Destination,
 	error) {
 
-	if destinationConfig.Type != personnel_sync.DestinationTypeGoogleContacts {
+	if destinationConfig.Type != internal.DestinationTypeGoogleContacts {
 		return nil, fmt.Errorf("invalid config type: %s", destinationConfig.Type)
 	}
 
@@ -143,21 +143,21 @@ func (g *GoogleContacts) ForSet(syncSetJson json.RawMessage) error {
 }
 
 // ListUsers returns all users (contacts) in the destination
-func (g *GoogleContacts) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+func (g *GoogleContacts) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	href := fmt.Sprintf("https://www.google.com/m8/feeds/contacts/%s/full?max-results=%d",
 		g.GoogleConfig.Domain, MaxQuerySize)
 	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})
 	if err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
+		return []internal.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
 	}
 
 	var parsed Entries
 
 	if err := xml.Unmarshal([]byte(body), &parsed); err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
+		return []internal.Person{}, fmt.Errorf("failed to parse xml for user list: %s", err)
 	}
 	if parsed.Total >= MaxQuerySize {
-		return []personnel_sync.Person{}, fmt.Errorf("too many entries in Google Contacts directory")
+		return []internal.Person{}, fmt.Errorf("too many entries in Google Contacts directory")
 	}
 
 	return g.extractPersonsFromResponse(parsed.Entries)
@@ -165,13 +165,13 @@ func (g *GoogleContacts) ListUsers(desiredAttrs []string) ([]personnel_sync.Pers
 
 // ApplyChangeSet executes all of the configured sync tasks (create, update, and/or delete)
 func (g *GoogleContacts) ApplyChangeSet(
-	changes personnel_sync.ChangeSet,
-	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
+	changes internal.ChangeSet,
+	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
 
-	var results personnel_sync.ChangeResults
+	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
-	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize,
+	batchTimer := internal.NewBatchTimer(g.BatchSize,
 		g.BatchDelaySeconds)
 
 	if g.DestinationConfig.DisableAdd {
@@ -248,11 +248,11 @@ func (g *GoogleContacts) httpRequest(verb, url, body string, headers map[string]
 	return bodyString, nil
 }
 
-func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]personnel_sync.Person, error) {
-	persons := make([]personnel_sync.Person, len(contacts))
+func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]internal.Person, error) {
+	persons := make([]internal.Person, len(contacts))
 	for i, entry := range contacts {
 		id := findSelfLink(entry)
-		persons[i] = personnel_sync.Person{
+		persons[i] = internal.Person{
 			CompareValue: findPrimaryEmail(entry),
 			ID:           id,
 			Attributes: map[string]string{
@@ -303,10 +303,10 @@ func findPrimaryPhoneNumber(entry Contact) string {
 }
 
 func (g *GoogleContacts) addContact(
-	person personnel_sync.Person,
+	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
@@ -314,13 +314,13 @@ func (g *GoogleContacts) addContact(
 	body := g.createBody(person)
 	headers := map[string]string{"Content-Type": "application/atom+xml"}
 	if _, err := g.httpRequest(http.MethodPost, href, body, headers); err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to insert %s in Google contacts: %s", person.CompareValue, err)}
 		return
 	}
 
-	eventLog <- personnel_sync.EventLogItem{
+	eventLog <- internal.EventLogItem{
 		Level:   syslog.LOG_INFO,
 		Message: "AddContact " + person.CompareValue,
 	}
@@ -353,7 +353,7 @@ func (g *GoogleContacts) initGoogleClient() error {
 // tag names.
 // WARNING: This updates all fields, even if omitted in the field mapping. A safer implementation would be to
 // merge the data retrieved from Google with the data coming from the source.
-func (g *GoogleContacts) createBody(person personnel_sync.Person) string {
+func (g *GoogleContacts) createBody(person internal.Person) string {
 	const bodyTemplate = `<atom:entry xmlns:atom='http://www.w3.org/2005/Atom' xmlns:gd='http://schemas.google.com/g/2005'>
 	<atom:category scheme='http://schemas.google.com/g/2005#kind' term='http://schemas.google.com/contact/2008#contact' />
 	<atom:content type='text'>%s</atom:content>
@@ -394,10 +394,10 @@ func escapeForXML(s string) string {
 }
 
 func (g *GoogleContacts) updateContact(
-	person personnel_sync.Person,
+	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
@@ -405,7 +405,7 @@ func (g *GoogleContacts) updateContact(
 
 	contact, err := g.getContact(url)
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
 		return
@@ -418,7 +418,7 @@ func (g *GoogleContacts) updateContact(
 		"Content-Type": "application/atom+xml",
 	})
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("updateContact failed updating user %s: %s", person.CompareValue, err)}
 		return
@@ -443,10 +443,10 @@ func (g *GoogleContacts) getContact(url string) (Contact, error) {
 }
 
 func (g *GoogleContacts) deleteContact(
-	person personnel_sync.Person,
+	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
@@ -454,7 +454,7 @@ func (g *GoogleContacts) deleteContact(
 
 	contact, err := g.getContact(url)
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
 		return
@@ -464,7 +464,7 @@ func (g *GoogleContacts) deleteContact(
 		"If-Match": contact.Etag,
 	})
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
+		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("deleteContact failed deleting user %s: %s", person.CompareValue, err)}
 		return
