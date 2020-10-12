@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	sync "github.com/silinternational/personnel-sync/v5"
+	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
 func TestNewGoogleSheetsDestination(t *testing.T) {
@@ -28,14 +28,14 @@ func TestNewGoogleSheetsDestination(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		destinationConfig sync.DestinationConfig
+		destinationConfig internal.DestinationConfig
 		want              GoogleSheets
 		wantErr           bool
 	}{
 		{
 			name: "test 1",
-			destinationConfig: sync.DestinationConfig{
-				Type:          sync.DestinationTypeGoogleSheets,
+			destinationConfig: internal.DestinationConfig{
+				Type:          internal.DestinationTypeGoogleSheets,
 				DisableAdd:    true,
 				DisableDelete: true,
 				DisableUpdate: true,
@@ -63,8 +63,8 @@ func TestNewGoogleSheetsDestination(t *testing.T) {
 		},
 		{
 			name: "wrong type",
-			destinationConfig: sync.DestinationConfig{
-				Type:          sync.DestinationTypeGoogleGroups,
+			destinationConfig: internal.DestinationConfig{
+				Type:          internal.DestinationTypeGoogleGroups,
 				DisableAdd:    true,
 				DisableDelete: true,
 				DisableUpdate: true,
@@ -113,14 +113,14 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		sourceConfig sync.SourceConfig
+		sourceConfig internal.SourceConfig
 		want         GoogleSheets
 		wantErr      bool
 	}{
 		{
 			name: "test 1",
-			sourceConfig: sync.SourceConfig{
-				Type:      sync.SourceTypeGoogleSheets,
+			sourceConfig: internal.SourceConfig{
+				Type:      internal.SourceTypeGoogleSheets,
 				ExtraJSON: json.RawMessage(extraJSON),
 			},
 			want: GoogleSheets{
@@ -145,8 +145,8 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 		},
 		{
 			name: "wrong type",
-			sourceConfig: sync.SourceConfig{
-				Type: sync.SourceTypeRestAPI,
+			sourceConfig: internal.SourceConfig{
+				Type: internal.SourceTypeRestAPI,
 			},
 			wantErr: true,
 		},
@@ -178,13 +178,13 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 		sheetData    [][]interface{}
 		desiredAttrs []string
 		compareAttr  string
-		want         []sync.Person
+		want         []internal.Person
 	}{
 		{
 			name:         "empty sheet data",
 			sheetData:    [][]interface{}{},
 			desiredAttrs: []string{"a", "b"},
-			want:         []sync.Person{},
+			want:         []internal.Person{},
 		},
 		{
 			name: "only a header row",
@@ -192,7 +192,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 				{"a", "b", "c"},
 			},
 			desiredAttrs: []string{"a", "b"},
-			want:         []sync.Person{},
+			want:         []internal.Person{},
 		},
 		{
 			name: "no desired attributes",
@@ -201,7 +201,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 				{"valueA", "valueB", "valueC"},
 			},
 			desiredAttrs: []string{},
-			want: []sync.Person{{
+			want: []internal.Person{{
 				Attributes: map[string]string{},
 			}},
 		},
@@ -213,7 +213,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 			},
 			desiredAttrs: []string{"a", "b"},
 			compareAttr:  "b",
-			want: []sync.Person{{
+			want: []internal.Person{{
 				Attributes: map[string]string{
 					"a": "valueA",
 					"b": "valueB",
@@ -287,19 +287,19 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 	tests := []struct {
 		name    string
 		header  map[int]string
-		persons []sync.Person
+		persons []internal.Person
 		want    [][]interface{}
 	}{
 		{
 			name:    "empty input",
 			header:  map[int]string{},
-			persons: []sync.Person{},
+			persons: []internal.Person{},
 			want:    [][]interface{}{},
 		},
 		{
 			name:   "empty header",
 			header: map[int]string{},
-			persons: []sync.Person{
+			persons: []internal.Person{
 				{
 					Attributes:     map[string]string{"a": "valueA"},
 					DisableChanges: false,
@@ -310,13 +310,13 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 		{
 			name:    "empty persons list",
 			header:  map[int]string{0: "a"},
-			persons: []sync.Person{},
+			persons: []internal.Person{},
 			want:    [][]interface{}{},
 		},
 		{
 			name:   "2 persons, 2 attributes",
 			header: map[int]string{0: "a", 1: "b"},
-			persons: []sync.Person{
+			persons: []internal.Person{
 				{
 					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1"},
 					DisableChanges: false,
@@ -334,7 +334,7 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 		{
 			name:   "extra header column",
 			header: map[int]string{0: "a", 1: "b", 2: "c"},
-			persons: []sync.Person{
+			persons: []internal.Person{
 				{
 					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1"},
 					DisableChanges: false,
@@ -352,7 +352,7 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 		{
 			name:   "unused attribute",
 			header: map[int]string{0: "a", 1: "b"},
-			persons: []sync.Person{
+			persons: []internal.Person{
 				{
 					Attributes:     map[string]string{"a": "valueA1", "b": "valueB1", "c": "valueC1"},
 					DisableChanges: false,

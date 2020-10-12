@@ -17,3 +17,5 @@ config.google.json
 .idea/
 node_modules/
 .vscode
+
+lambda-example/go.mod
