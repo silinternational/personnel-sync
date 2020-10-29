@@ -1,13 +1,17 @@
-package personnel_sync
+package internal
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
+	"log/syslog"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/silinternational/personnel-sync/v5/alert"
 )
 
 const (
@@ -51,22 +55,19 @@ func LoadConfig(configFile string) (AppConfig, error) {
 	err = json.Unmarshal(data, &config)
 	if err != nil {
 		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
-		return AppConfig{}, err
+		return config, err
 	}
 
 	if config.Source.Type == "" {
-		log.Printf("configuration appears to be missing a Source configuration")
-		return AppConfig{}, err
+		return config, errors.New("configuration appears to be missing a Source configuration")
 	}
 
 	if config.Destination.Type == "" {
-		log.Printf("configuration appears to be missing a Destination configuration")
-		return AppConfig{}, err
+		return config, errors.New("configuration appears to be missing a Destination configuration")
 	}
 
 	if len(config.AttributeMap) == 0 {
-		log.Printf("configuration appears to be missing an AttributeMap")
-		return AppConfig{}, err
+		return config, errors.New("configuration appears to be missing an AttributeMap")
 	}
 
 	log.Printf("Configuration loaded. Source type: %s, Destination type: %s\n", config.Source.Type, config.Destination.Type)
@@ -83,7 +84,7 @@ func LoadConfig(configFile string) (AppConfig, error) {
 // only the desired attributes based on the destination attribute keys.
 // If a required attribute is missing for a Person, then their disableChanges
 // value is set to true.
-func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []AttributeMap) ([]Person, error) {
+func RemapToDestinationAttributes(logger *log.Logger, sourcePersons []Person, attributeMap []AttributeMap) ([]Person, error) {
 	var peopleForDestination []Person
 
 	for _, person := range sourcePersons {
@@ -96,7 +97,7 @@ func RemapToDestinationAttributes(sourcePersons []Person, attributeMap []Attribu
 				attrs[attrMap.Destination] = value
 			} else if attrMap.Required {
 				jsonAttrs, _ := json.Marshal(attrs)
-				log.Printf("user missing attribute %s. Rest of data: %s", attrMap.Source, jsonAttrs)
+				logger.Printf("user missing attribute %s. Rest of data: %s", attrMap.Source, jsonAttrs)
 				disableChanges = true
 			}
 		}
@@ -125,17 +126,17 @@ func getPersonFromList(compareValue string, peopleList []Person) Person {
 	return Person{}
 }
 
-func personAttributesAreEqual(sp, dp Person, config AppConfig) bool {
+func personAttributesAreEqual(logger *log.Logger, sp, dp Person, config AppConfig) bool {
 	caseSensitivityList := getCaseSensitivitySourceAttributeList(config.AttributeMap)
 	equal := true
 	for key, val := range sp.Attributes {
 		if !stringsAreEqual(val, dp.Attributes[key], caseSensitivityList[key]) {
 			if config.Runtime.Verbosity >= VerbosityMedium {
-				log.Printf(`User: "%s", "%s" not equal, CaseSensitive: "%t", Source: "%s", Dest: "%s"`+"\n",
+				logger.Printf(`User: "%s", "%s" not equal, CaseSensitive: "%t", Source: "%s", Dest: "%s"`+"\n",
 					sp.CompareValue, key, caseSensitivityList[key], val, dp.Attributes[key])
 				equal = false
 			} else {
-				log.Printf(`User: "%s" not equal`+"\n", key)
+				logger.Printf(`User: "%s" not equal`+"\n", key)
 				return false
 			}
 		}
@@ -166,7 +167,7 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 // (Create, Update and Delete) based on whether they are in the slice
 //  of destination Person instances.
 // It skips all source Person instances that have DisableChanges set to true
-func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfig) ChangeSet {
+func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Person, config AppConfig) ChangeSet {
 	var changeSet ChangeSet
 
 	// Find users who need to be created or updated
@@ -182,7 +183,7 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfi
 			continue
 		}
 
-		if !personAttributesAreEqual(sp, destinationPerson, config) {
+		if !personAttributesAreEqual(logger, sp, destinationPerson, config) {
 			sp.ID = destinationPerson.Attributes["id"]
 			changeSet.Update = append(changeSet.Update, sp)
 			continue
@@ -200,59 +201,55 @@ func GenerateChangeSet(sourcePeople, destinationPeople []Person, config AppConfi
 	return changeSet
 }
 
-// SyncPeople calls a number of functions to do the following ...
+// RunSyncSet calls a number of functions to do the following ...
 //  - it gets the list of people from the source
 //  - it remaps their attributes to match the keys used in the destination
 //  - it gets the list of people from the destination
 //  - it generates the lists of people to change, update and delete
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
-func SyncPeople(source Source, destination Destination, config AppConfig) ChangeResults {
+func RunSyncSet(logger *log.Logger, source Source, destination Destination, config AppConfig) error {
 	sourcePeople, err := source.ListUsers(GetSourceAttributes(config.AttributeMap))
 	if err != nil {
-		return ChangeResults{
-			Errors: []string{err.Error()},
-		}
+		return err
 	}
-	log.Printf("    Found %v people in source", len(sourcePeople))
+	if len(sourcePeople) == 0 {
+		return errors.New("no people found in source")
+	}
+	logger.Printf("    Found %v people in source", len(sourcePeople))
 
 	// remap source people to destination attributes for comparison
-	sourcePeople, err = RemapToDestinationAttributes(sourcePeople, config.AttributeMap)
+	sourcePeople, err = RemapToDestinationAttributes(logger, sourcePeople, config.AttributeMap)
 	if err != nil {
-		return ChangeResults{
-			Errors: []string{err.Error()},
-		}
+		return err
 	}
 
 	destinationPeople, err := destination.ListUsers(GetDestinationAttributes(config.AttributeMap))
 	if err != nil {
-		return ChangeResults{
-			Errors: []string{err.Error()},
-		}
+		return err
 	}
-	log.Printf("    Found %v people in destination", len(destinationPeople))
+	logger.Printf("    Found %v people in destination", len(destinationPeople))
 
-	changeSet := GenerateChangeSet(sourcePeople, destinationPeople, config)
+	changeSet := GenerateChangeSet(logger, sourcePeople, destinationPeople, config)
 
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if config.Runtime.DryRunMode {
-		printChangeSet(changeSet)
-		return ChangeResults{
-			Created: uint64(len(changeSet.Create)),
-			Updated: uint64(len(changeSet.Update)),
-			Deleted: uint64(len(changeSet.Delete)),
-		}
+		printChangeSet(logger, changeSet)
+		return nil
 	}
 
 	// Create a channel to pass activity logs for printing
 	eventLog := make(chan EventLogItem, 50)
-	go processEventLog(eventLog)
+	go processEventLog(logger, config.Alert, eventLog)
 
 	results := destination.ApplyChangeSet(changeSet, eventLog)
+
+	logger.Printf("Sync results: %v users added, %v users updated, %v users removed\n",
+		results.Created, results.Updated, results.Deleted)
 
 	time.Sleep(time.Millisecond * 10)
 	close(eventLog)
 
-	return results
+	return nil
 }
 
 func GetSourceAttributes(attrMap []AttributeMap) []string {
@@ -273,33 +270,32 @@ func GetDestinationAttributes(attrMap []AttributeMap) []string {
 	return keys
 }
 
-type EventLogItem struct {
-	Event   string
-	Message string
-}
-
-func processEventLog(eventLog <-chan EventLogItem) {
+func processEventLog(logger *log.Logger, config alert.Config, eventLog <-chan EventLogItem) {
 	for msg := range eventLog {
-		log.Printf("%s %s\n", msg.Event, msg.Message)
+		logger.Println(msg)
+		if msg.Level == syslog.LOG_ALERT || msg.Level == syslog.LOG_EMERG {
+			alert.SendEmail(config, msg.String())
+		}
 	}
 }
 
-func printChangeSet(changeSet ChangeSet) {
-	log.Printf("ChangeSet Plans: Create %v, Update %v, Delete %v\n", len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
+func printChangeSet(logger *log.Logger, changeSet ChangeSet) {
+	logger.Printf("ChangeSet Plans: Create %v, Update %v, Delete %v\n",
+		len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
 
-	log.Println("Users to be created...")
+	logger.Println("Users to be created...")
 	for i, user := range changeSet.Create {
-		log.Printf("  %v) %s", i+1, user.CompareValue)
+		logger.Printf("  %v) %s", i+1, user.CompareValue)
 	}
 
-	log.Println("Users to be updated...")
+	logger.Println("Users to be updated...")
 	for i, user := range changeSet.Update {
-		log.Printf("  %v) %s", i+1, user.CompareValue)
+		logger.Printf("  %v) %s", i+1, user.CompareValue)
 	}
 
-	log.Println("Users to be deleted...")
+	logger.Println("Users to be deleted...")
 	for i, user := range changeSet.Delete {
-		log.Printf("  %v) %s", i+1, user.CompareValue)
+		logger.Printf("  %v) %s", i+1, user.CompareValue)
 	}
 }
 
@@ -407,4 +403,14 @@ func (b *BatchTimer) WaitOnBatch() {
 		time.Sleep(time.Second)
 	}
 	b.Init(b.BatchSize, b.SecondsPerBatch)
+}
+
+func (a *AppConfig) MaxSyncSetNameLength() int {
+	maxLength := 0
+	for _, set := range a.SyncSets {
+		if maxLength < len(set.Name) {
+			maxLength = len(set.Name)
+		}
+	}
+	return maxLength
 }

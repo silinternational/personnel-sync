@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
 func TestNewGoogleContactsDestination(t *testing.T) {
@@ -32,14 +32,14 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		destinationConfig personnel_sync.DestinationConfig
+		destinationConfig internal.DestinationConfig
 		want              GoogleContacts
 		wantErr           bool
 	}{
 		{
 			name: "test 1",
-			destinationConfig: personnel_sync.DestinationConfig{
-				Type:          personnel_sync.DestinationTypeGoogleContacts,
+			destinationConfig: internal.DestinationConfig{
+				Type:          internal.DestinationTypeGoogleContacts,
 				DisableAdd:    true,
 				DisableDelete: true,
 				DisableUpdate: true,
@@ -69,8 +69,8 @@ func TestNewGoogleContactsDestination(t *testing.T) {
 		},
 		{
 			name: "wrong type",
-			destinationConfig: personnel_sync.DestinationConfig{
-				Type:          personnel_sync.DestinationTypeGoogleGroups,
+			destinationConfig: internal.DestinationConfig{
+				Type:          internal.DestinationTypeGoogleGroups,
 				DisableAdd:    true,
 				DisableDelete: true,
 				DisableUpdate: true,
@@ -103,12 +103,12 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 	tests := []struct {
 		name     string
 		contacts []Contact
-		want     []personnel_sync.Person
+		want     []internal.Person
 		wantErr  bool
 	}{
 		{
 			name: "no data",
-			want: []personnel_sync.Person{},
+			want: []internal.Person{},
 		},
 		{
 			name: "one contact, all fields",
@@ -168,7 +168,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					Notes: "some notes",
 				},
 			},
-			want: []personnel_sync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "alfred@example.com",
 					ID:           "https://www.google.com/m8/feeds/contacts/example.org/full/204e599dcd6d3605",
@@ -202,7 +202,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					Emails: []Email{{Address: "ironman@example.com", Primary: true}},
 				},
 			},
-			want: []personnel_sync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "alfred@example.com",
 					ID:           "https://www.google.com/m8/feeds/contacts/example.org/full/204e599dcd6d3605",
@@ -262,57 +262,57 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 func TestGoogleContacts_createBody(t *testing.T) {
 	tests := []struct {
 		name   string
-		person personnel_sync.Person
+		person internal.Person
 		want   string
 	}{
 		{
 			name:   "fullName",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldFullName: "Fred J. Smith"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldFullName: "Fred J. Smith"}},
 			want:   "<gd:fullName>Fred J. Smith</gd:fullName>",
 		},
 		{
 			name:   "givenName",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldGivenName: "Fred"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldGivenName: "Fred"}},
 			want:   "<gd:givenName>Fred</gd:givenName>",
 		},
 		{
 			name:   "familyName",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldFamilyName: "Smith"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldFamilyName: "Smith"}},
 			want:   "<gd:familyName>Smith</gd:familyName>",
 		},
 		{
 			name:   "email",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldEmail: "fred@example.com"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldEmail: "fred@example.com"}},
 			want:   "<gd:email rel='http://schemas.google.com/g/2005#work' primary='true' address='fred@example.com'/>",
 		},
 		{
 			name:   "phoneNumber",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldPhoneNumber: "555-1212"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldPhoneNumber: "555-1212"}},
 			want:   "<gd:phoneNumber rel='http://schemas.google.com/g/2005#work' primary='true'>555-1212</gd:phoneNumber>",
 		},
 		{
 			name:   "organization",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldOrganization: "Acme, Inc."}},
+			person: internal.Person{Attributes: map[string]string{contactFieldOrganization: "Acme, Inc."}},
 			want:   "<gd:orgName>Acme, Inc.</gd:orgName>",
 		},
 		{
 			name:   "department",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldDepartment: "Operations"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldDepartment: "Operations"}},
 			want:   "<gd:orgDepartment>Operations</gd:orgDepartment>",
 		},
 		{
 			name:   "title",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldTitle: "VP of Operations"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldTitle: "VP of Operations"}},
 			want:   "<gd:orgTitle>VP of Operations</gd:orgTitle>",
 		},
 		{
 			name:   "jobDescription",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldJobDescription: "does important stuff"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldJobDescription: "does important stuff"}},
 			want:   "<gd:orgJobDescription>does important stuff</gd:orgJobDescription>",
 		},
 		{
 			name:   "notes",
-			person: personnel_sync.Person{Attributes: map[string]string{contactFieldNotes: "these are some notes"}},
+			person: internal.Person{Attributes: map[string]string{contactFieldNotes: "these are some notes"}},
 			want:   "<atom:content type='text'>these are some notes</atom:content>",
 		},
 	}

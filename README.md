@@ -661,6 +661,27 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 
 `ListClientsPageLimit`, `BatchSize` and `BatchDelaySeconds` are optional. Their defaults are as shown in the example config.
 
+### Email Alerts
+
+Event Log events with a level of LOG_ALERT or LOG_EMERG will result in an email 
+alert sent via AWS SES. Note that the LOG_EMERG level is 0, which is the Go
+zero-value. Any new event log created without a Level assigned will default to
+LOG_EMERG and could result in email alerts being sent. 
+
+The following is an example configuration:
+
+```
+  "Alert": {
+    "AWSRegion": "us-east-1",
+    "CharSet": "UTF-8",
+    "ReturnToAddr": "no-reply@example.org",
+    "SubjectText": "personnel-sync alert",
+    "RecipientEmails":  ["admin@example.org"],
+    "AWSAccessKeyID": "ABCD1234",
+    "AWSSecretAccessKey": "abcd1234!@#$"
+  },
+```
+
 ### Exporting logs from CloudWatch
 
 The log messages in CloudWatch can be viewed on the AWS Management Console. If

@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log/syslog"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
 const DefaultBatchSize = 50
@@ -37,7 +38,7 @@ type WebHelpDesk struct {
 	BatchDelaySeconds    int
 }
 
-func NewWebHelpDeskDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+func NewWebHelpDeskDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
 	var webHelpDesk WebHelpDesk
 
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &webHelpDesk)
@@ -65,7 +66,7 @@ func (w *WebHelpDesk) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	var allClients []User
 	page := 1
 
@@ -77,13 +78,13 @@ func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]personnel_sync.Person,
 
 		listUsersResp, err := w.makeHttpRequest(ClientsAPIPath, http.MethodGet, "", additionalParams)
 		if err != nil {
-			return []personnel_sync.Person{}, err
+			return []internal.Person{}, err
 		}
 
 		var whdClients []User
 		err = json.Unmarshal(listUsersResp, &whdClients)
 		if err != nil {
-			return []personnel_sync.Person{}, err
+			return []internal.Person{}, err
 		}
 
 		// Append the new users to the master list of users
@@ -97,9 +98,9 @@ func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]personnel_sync.Person,
 		page++
 	}
 
-	var users []personnel_sync.Person
+	var users []internal.Person
 	for _, nextClient := range allClients {
-		users = append(users, personnel_sync.Person{
+		users = append(users, internal.Person{
 			CompareValue: nextClient.Username,
 			Attributes: map[string]string{
 				"id":        strconv.Itoa(nextClient.ID),
@@ -115,14 +116,14 @@ func (w *WebHelpDesk) ListUsers(desiredAttrs []string) ([]personnel_sync.Person,
 }
 
 func (w *WebHelpDesk) ApplyChangeSet(
-	changes personnel_sync.ChangeSet,
-	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
+	changes internal.ChangeSet,
+	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
 
-	var results personnel_sync.ChangeResults
+	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(w.BatchSize, w.BatchDelaySeconds)
+	batchTimer := internal.NewBatchTimer(w.BatchSize, w.BatchDelaySeconds)
 
 	for _, cp := range changes.Create {
 		wg.Add(1)
@@ -144,25 +145,25 @@ func (w *WebHelpDesk) ApplyChangeSet(
 }
 
 func (w *WebHelpDesk) CreateUser(
-	person personnel_sync.Person,
+	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to create user, unable to convert string to int, error: %s", err.Error())}
 		return
 	}
 
 	jsonBody, err := json.Marshal(newClient)
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to create user, unable to marshal json, error: %s", err.Error())}
 		return
 	}
@@ -170,41 +171,41 @@ func (w *WebHelpDesk) CreateUser(
 	_, err = w.makeHttpRequest(ClientsAPIPath, http.MethodPost, string(jsonBody), map[string]string{})
 	if err != nil {
 		// Since WebHelpDesk APIs are garbage, just ignore errors, but don't count as a newly created user
-		eventLog <- personnel_sync.EventLogItem{
-			Event: "error",
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to create user (person=%v, client=%v), error calling api: %s",
 				person, newClient, err.Error())}
 		return
 	}
 
-	eventLog <- personnel_sync.EventLogItem{
-		Event:   "CreateUser",
-		Message: person.CompareValue,
+	eventLog <- internal.EventLogItem{
+		Level:   syslog.LOG_INFO,
+		Message: "CreateUser " + person.CompareValue,
 	}
 
 	atomic.AddUint64(counter, 1)
 }
 
 func (w *WebHelpDesk) UpdateUser(
-	person personnel_sync.Person,
+	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
 	newClient, err := getWebHelpDeskClientFromPerson(person)
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update user, unable to convert string to int, error: %s", err.Error())}
 		return
 	}
 
 	jsonBody, err := json.Marshal(newClient)
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update user, unable to marshal json, error: %s", err.Error())}
 		return
 	}
@@ -213,16 +214,16 @@ func (w *WebHelpDesk) UpdateUser(
 	_, err = w.makeHttpRequest(updatePath, http.MethodPut, string(jsonBody), map[string]string{})
 	if err != nil {
 		// Since WebHelpDesk APIs are garbage, just ignore errors, but don't count as a newly created user
-		eventLog <- personnel_sync.EventLogItem{
-			Event: "error",
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update user (person=%+v, client=%+v), error calling api, error: %s",
 				person, newClient, err.Error())}
 		return
 	}
 
-	eventLog <- personnel_sync.EventLogItem{
-		Event:   "UpdateUser",
-		Message: person.CompareValue,
+	eventLog <- internal.EventLogItem{
+		Level:   syslog.LOG_INFO,
+		Message: "UpdateUser " + person.CompareValue,
 	}
 
 	atomic.AddUint64(counter, 1)
@@ -266,7 +267,7 @@ func (w *WebHelpDesk) makeHttpRequest(path, method, body string, additionalQuery
 	return responseBody, nil
 }
 
-func getWebHelpDeskClientFromPerson(person personnel_sync.Person) (User, error) {
+func getWebHelpDeskClientFromPerson(person internal.Person) (User, error) {
 	newClient := User{
 		FirstName: person.Attributes["firstName"],
 		LastName:  person.Attributes["lastName"],

@@ -36,6 +36,15 @@
       }
     }
   },
+  "Alert": {
+    "AWSRegion": "us-east-1",
+    "CharSet": "UTF-8",
+    "ReturnToAddr": "no-reply@example.org",
+    "SubjectText": "personnel-sync alert",
+    "RecipientEmails":  ["admin@example.org"],
+    "AWSAccessKeyID": "ABCD1234",
+    "AWSSecretAccessKey": "abcd1234!@#$"
+  },
   "AttributeMap": [
     {
       "Source": "First_Name",

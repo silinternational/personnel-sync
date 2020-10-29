@@ -9,7 +9,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	psync "github.com/silinternational/personnel-sync/v4"
+	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
 func TestRestAPI_ListUsers(t *testing.T) {
@@ -21,16 +21,16 @@ func TestRestAPI_ListUsers(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		sourceConfig psync.SourceConfig
+		sourceConfig internal.SourceConfig
 		syncSet      string
 		desiredAttrs []string
-		want         []psync.Person
+		want         []internal.Person
 		wantErr      bool
 	}{
 		{
 			name: "workday-like results",
-			sourceConfig: psync.SourceConfig{
-				Type: psync.SourceTypeRestAPI,
+			sourceConfig: internal.SourceConfig{
+				Type: internal.SourceTypeRestAPI,
 				ExtraJSON: []byte(fmt.Sprintf(extraJSONtemplate,
 					workday.method,
 					server.URL,
@@ -54,7 +54,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				"requireMfa",
 				"Company",
 			},
-			want: []psync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "mickey_mouse@acme.com",
 					Attributes: map[string]string{
@@ -90,8 +90,8 @@ func TestRestAPI_ListUsers(t *testing.T) {
 		},
 		{
 			name: "other results",
-			sourceConfig: psync.SourceConfig{
-				Type: psync.SourceTypeRestAPI,
+			sourceConfig: internal.SourceConfig{
+				Type: internal.SourceTypeRestAPI,
 				ExtraJSON: []byte(fmt.Sprintf(extraJSONtemplate,
 					other.method,
 					server.URL,
@@ -111,7 +111,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				"username",
 				"email",
 			},
-			want: []psync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "mickey_mouse@acme.com",
 					Attributes: map[string]string{
@@ -139,8 +139,8 @@ func TestRestAPI_ListUsers(t *testing.T) {
 		},
 		{
 			name: "sfdc results",
-			sourceConfig: psync.SourceConfig{
-				Type: psync.SourceTypeRestAPI,
+			sourceConfig: internal.SourceConfig{
+				Type: internal.SourceTypeRestAPI,
 				ExtraJSON: []byte(fmt.Sprintf(extraJSONtemplate,
 					salesforce.method,
 					server.URL,
@@ -155,7 +155,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			desiredAttrs: []string{
 				"fHCM2__User__r.Email",
 			},
-			want: []psync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "mickey_mouse@acme.com",
 					Attributes: map[string]string{
@@ -210,7 +210,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 		name string
 		r    RestAPI
 		args args
-		want []psync.Person
+		want []internal.Person
 	}{
 		{
 			name: "Workday",
@@ -238,7 +238,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 				},
 				path: "/workday",
 			},
-			want: []psync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "mickey_mouse@acme.com",
 					Attributes: map[string]string{
@@ -275,7 +275,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			errLog := make(chan string, 1000)
-			people := make(chan psync.Person, 20000)
+			people := make(chan internal.Person, 20000)
 			var wg sync.WaitGroup
 
 			wg.Add(1)
@@ -294,7 +294,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 				t.FailNow()
 			}
 
-			var results []psync.Person
+			var results []internal.Person
 
 			for person := range people {
 				results = append(results, person)
@@ -320,35 +320,35 @@ func Test_getPersonsFromResults(t *testing.T) {
 		peopleList   []*gabs.Container
 		compareAttr  string
 		desiredAttrs []string
-		want         []psync.Person
+		want         []internal.Person
 	}{
 		{
 			name:         "compareAttr not present",
 			peopleList:   []*gabs.Container{person1},
 			compareAttr:  "field",
 			desiredAttrs: []string{"field1"},
-			want:         []psync.Person{},
+			want:         []internal.Person{},
 		},
 		{
 			name:         "no match in desiredAttrs",
 			peopleList:   []*gabs.Container{person1},
 			compareAttr:  "field1",
 			desiredAttrs: []string{"field"},
-			want:         []psync.Person{},
+			want:         []internal.Person{},
 		},
 		{
 			name:         "empty person list",
 			peopleList:   []*gabs.Container{},
 			compareAttr:  "field1",
 			desiredAttrs: []string{"field1"},
-			want:         []psync.Person{},
+			want:         []internal.Person{},
 		},
 		{
 			name:         "one field",
 			peopleList:   []*gabs.Container{person1},
 			compareAttr:  "field1",
 			desiredAttrs: []string{"field1"},
-			want: []psync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "value1",
 					Attributes:   map[string]string{"field1": "value1"},
@@ -360,7 +360,7 @@ func Test_getPersonsFromResults(t *testing.T) {
 			peopleList:   []*gabs.Container{person1, person2},
 			compareAttr:  "field1",
 			desiredAttrs: []string{"field1", "field2"},
-			want: []psync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "value1",
 					Attributes:   map[string]string{"field1": "value1", "field2": "value2"},

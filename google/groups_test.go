@@ -4,7 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	"github.com/silinternational/personnel-sync/v5/internal"
+
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
@@ -12,27 +13,27 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := personnel_sync.LoadConfig("./config.json")
+	testConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
 	type fields struct {
-		DestinationConfig personnel_sync.DestinationConfig
+		DestinationConfig internal.DestinationConfig
 	}
 	type args struct {
-		changes personnel_sync.ChangeSet
+		changes internal.ChangeSet
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
-		want   personnel_sync.ChangeResults
+		want   internal.ChangeResults
 	}{
 		{
 			name: "expect two created, one deleted",
-			want: personnel_sync.ChangeResults{
+			want: internal.ChangeResults{
 				Created: uint64(0),
 				Deleted: uint64(1),
 			},
@@ -40,9 +41,9 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 				DestinationConfig: testConfig.Destination,
 			},
 			args: args{
-				changes: personnel_sync.ChangeSet{
-					Delete: []personnel_sync.Person{},
-					Create: []personnel_sync.Person{},
+				changes: internal.ChangeSet{
+					Delete: []internal.Person{},
+					Create: []internal.Person{},
 				},
 			},
 		},
@@ -54,7 +55,7 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			eventLog := make(chan personnel_sync.EventLogItem, 50)
+			eventLog := make(chan internal.EventLogItem, 50)
 			if got := g.ApplyChangeSet(tt.args.changes, eventLog); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GoogleGroups.ApplyChangeSet() = %v, want %v", got, tt.want)
 			}
@@ -67,21 +68,21 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := personnel_sync.LoadConfig("./config.json")
+	testConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
 	type fields struct {
-		DestinationConfig  personnel_sync.DestinationConfig
+		DestinationConfig  internal.DestinationConfig
 		GoogleGroupsConfig GoogleConfig
 		AdminService       admin.Service
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []personnel_sync.Person
+		want    []internal.Person
 		wantErr bool
 	}{
 		{
@@ -89,7 +90,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 			fields: fields{
 				DestinationConfig: testConfig.Destination,
 			},
-			want:    []personnel_sync.Person{},
+			want:    []internal.Person{},
 			wantErr: false,
 		},
 	}

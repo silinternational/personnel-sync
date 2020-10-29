@@ -3,13 +3,15 @@ package google
 import (
 	"encoding/json"
 	"fmt"
+	"log/syslog"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	admin "google.golang.org/api/admin/directory/v1"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	"github.com/silinternational/personnel-sync/v5/internal"
+
 	"golang.org/x/net/context"
 )
 
@@ -18,7 +20,7 @@ const RoleOwner = "OWNER"
 const RoleManager = "MANAGER"
 
 type GoogleGroups struct {
-	DestinationConfig personnel_sync.DestinationConfig
+	DestinationConfig internal.DestinationConfig
 	GoogleConfig      GoogleConfig
 	AdminService      admin.Service
 	GroupSyncSet      GroupSyncSet
@@ -38,7 +40,7 @@ type GroupSyncSet struct {
 	DisableDelete bool
 }
 
-func NewGoogleGroupsDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+func NewGoogleGroupsDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
 	var googleGroups GoogleGroups
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleGroups.GoogleConfig)
@@ -84,7 +86,7 @@ func (g *GoogleGroups) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	var membersList []*admin.Member
 	membersListCall := g.AdminService.Members.List(g.GroupSyncSet.GroupEmail)
 	err := membersListCall.Pages(context.TODO(), func(members *admin.Members) error {
@@ -92,24 +94,24 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]personnel_sync.Person
 		return nil
 	})
 	if err != nil {
-		return []personnel_sync.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupSyncSet.GroupEmail, err.Error())
+		return []internal.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupSyncSet.GroupEmail, err.Error())
 	}
 
-	var members []personnel_sync.Person
+	var members []internal.Person
 
 	for _, nextMember := range membersList {
 		// Do not include Extra Managers or ExtraOwners in list to prevent inclusion in delete list
-		if isExtraManager, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraManagers); isExtraManager {
+		if isExtraManager, _ := internal.InArray(nextMember.Email, g.GroupSyncSet.ExtraManagers); isExtraManager {
 			continue
 		}
-		if isExtraOwner, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraOwners); isExtraOwner {
+		if isExtraOwner, _ := internal.InArray(nextMember.Email, g.GroupSyncSet.ExtraOwners); isExtraOwner {
 			continue
 		}
-		if isExtraMember, _ := personnel_sync.InArray(nextMember.Email, g.GroupSyncSet.ExtraMembers); isExtraMember {
+		if isExtraMember, _ := internal.InArray(nextMember.Email, g.GroupSyncSet.ExtraMembers); isExtraMember {
 			continue
 		}
 
-		members = append(members, personnel_sync.Person{
+		members = append(members, internal.Person{
 			CompareValue: nextMember.Email,
 			Attributes: map[string]string{
 				"Email": strings.ToLower(nextMember.Email),
@@ -121,10 +123,10 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]personnel_sync.Person
 }
 
 func (g *GoogleGroups) ApplyChangeSet(
-	changes personnel_sync.ChangeSet,
-	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
+	changes internal.ChangeSet,
+	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
 
-	var results personnel_sync.ChangeResults
+	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
 	// key = email, value = role
@@ -157,7 +159,7 @@ func (g *GoogleGroups) ApplyChangeSet(
 	}
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
+	batchTimer := internal.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
 	if !g.GroupSyncSet.DisableAdd {
 		for email, role := range toBeCreated {
@@ -170,13 +172,13 @@ func (g *GoogleGroups) ApplyChangeSet(
 	if !g.GroupSyncSet.DisableDelete {
 		for _, dp := range changes.Delete {
 			// Do not delete ExtraManagers, ExtraOwners, or ExtraMembers
-			if isExtraManager, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraManagers); isExtraManager {
+			if isExtraManager, _ := internal.InArray(dp.CompareValue, g.GroupSyncSet.ExtraManagers); isExtraManager {
 				continue
 			}
-			if isExtraOwner, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
+			if isExtraOwner, _ := internal.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
 				continue
 			}
-			if isExtraMember, _ := personnel_sync.InArray(dp.CompareValue, g.GroupSyncSet.ExtraMembers); isExtraMember {
+			if isExtraMember, _ := internal.InArray(dp.CompareValue, g.GroupSyncSet.ExtraMembers); isExtraMember {
 				continue
 			}
 			wg.Add(1)
@@ -194,7 +196,7 @@ func (g *GoogleGroups) addMember(
 	email, role string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
@@ -205,15 +207,15 @@ func (g *GoogleGroups) addMember(
 
 	_, err := g.AdminService.Members.Insert(g.GroupSyncSet.GroupEmail, &newMember).Do()
 	if err != nil && !strings.Contains(err.Error(), "409") { // error code 409 is for existing user
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to insert %s in Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
 		return
 	}
 
-	eventLog <- personnel_sync.EventLogItem{
-		Event:   "AddMember",
-		Message: email,
+	eventLog <- internal.EventLogItem{
+		Level:   syslog.LOG_INFO,
+		Message: "AddMember " + email,
 	}
 
 	atomic.AddUint64(counter, 1)
@@ -223,21 +225,21 @@ func (g *GoogleGroups) removeMember(
 	email string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
 	err := g.AdminService.Members.Delete(g.GroupSyncSet.GroupEmail, email).Do()
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to delete %s from Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
 		return
 	}
 
-	eventLog <- personnel_sync.EventLogItem{
-		Event:   "RemoveMember",
-		Message: email,
+	eventLog <- internal.EventLogItem{
+		Level:   syslog.LOG_INFO,
+		Message: "RemoveMember " + email,
 	}
 
 	atomic.AddUint64(counter, 1)

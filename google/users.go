@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/syslog"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	"github.com/silinternational/personnel-sync/v5/internal"
+
 	"golang.org/x/net/context"
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/googleapi"
@@ -21,7 +23,7 @@ type GoogleUsers struct {
 	AdminService      admin.Service
 }
 
-func NewGoogleUsersDestination(destinationConfig personnel_sync.DestinationConfig) (personnel_sync.Destination, error) {
+func NewGoogleUsersDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
 	var googleUsers GoogleUsers
 	// Unmarshal ExtraJSON into GoogleConfig struct
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &googleUsers.GoogleConfig)
@@ -55,8 +57,8 @@ func (g *GoogleUsers) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-func extractData(user admin.User) personnel_sync.Person {
-	newPerson := personnel_sync.Person{
+func extractData(user admin.User) internal.Person {
+	newPerson := internal.Person{
 		CompareValue: user.PrimaryEmail,
 		Attributes: map[string]string{
 			"email": strings.ToLower(user.PrimaryEmail),
@@ -138,7 +140,7 @@ func setStringFromInterface(i interface{}, m map[string]string, key string) {
 	}
 }
 
-func (g *GoogleUsers) ListUsers(desiredAttrs []string) ([]personnel_sync.Person, error) {
+func (g *GoogleUsers) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	var usersList []*admin.User
 	usersListCall := g.AdminService.Users.List()
 	usersListCall.Customer("my_customer") // query all domains in this GSuite
@@ -151,7 +153,7 @@ func (g *GoogleUsers) ListUsers(desiredAttrs []string) ([]personnel_sync.Person,
 		return nil, fmt.Errorf("unable to get users: %s", err)
 	}
 
-	var people []personnel_sync.Person
+	var people []internal.Person
 	for _, nextUser := range usersList {
 		if nextUser != nil {
 			people = append(people, extractData(*nextUser))
@@ -161,14 +163,14 @@ func (g *GoogleUsers) ListUsers(desiredAttrs []string) ([]personnel_sync.Person,
 }
 
 func (g *GoogleUsers) ApplyChangeSet(
-	changes personnel_sync.ChangeSet,
-	eventLog chan<- personnel_sync.EventLogItem) personnel_sync.ChangeResults {
+	changes internal.ChangeSet,
+	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
 
-	var results personnel_sync.ChangeResults
+	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
 	// One minute per batch
-	batchTimer := personnel_sync.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
+	batchTimer := internal.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
 	for _, toUpdate := range changes.Update {
 		wg.Add(1)
@@ -181,7 +183,7 @@ func (g *GoogleUsers) ApplyChangeSet(
 	return results
 }
 
-func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.User, error) {
+func newUserForUpdate(person internal.Person, oldUser admin.User) (admin.User, error) {
 	user := admin.User{}
 	var err error
 	var organization admin.UserOrganization
@@ -265,10 +267,10 @@ func newUserForUpdate(person personnel_sync.Person, oldUser admin.User) (admin.U
 }
 
 func (g *GoogleUsers) updateUser(
-	person personnel_sync.Person,
+	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- personnel_sync.EventLogItem) {
+	eventLog chan<- internal.EventLogItem) {
 
 	defer wg.Done()
 
@@ -276,31 +278,31 @@ func (g *GoogleUsers) updateUser(
 
 	oldUser, err := g.getUser(person.CompareValue)
 	if err != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to get old user %s, %s", email, err.Error())}
 		return
 	}
 
 	newUser, err2 := newUserForUpdate(person, oldUser)
 	if err2 != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to prepare update for %s in Users: %s", email, err2.Error())}
 		return
 	}
 
 	_, err3 := g.AdminService.Users.Update(email, &newUser).Do()
 	if err3 != nil {
-		eventLog <- personnel_sync.EventLogItem{
-			Event:   "error",
+		eventLog <- internal.EventLogItem{
+			Level:   syslog.LOG_ERR,
 			Message: fmt.Sprintf("unable to update %s in Users: %s", email, err3.Error())}
 		return
 	}
 
-	eventLog <- personnel_sync.EventLogItem{
-		Event:   "UpdateUser",
-		Message: email,
+	eventLog <- internal.EventLogItem{
+		Level:   syslog.LOG_INFO,
+		Message: "UpdateUser " + email,
 	}
 
 	atomic.AddUint64(counter, 1)

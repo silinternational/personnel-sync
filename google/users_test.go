@@ -8,7 +8,8 @@ import (
 
 	"google.golang.org/api/googleapi"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v4"
+	"github.com/silinternational/personnel-sync/v5/internal"
+
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
@@ -16,21 +17,21 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := personnel_sync.LoadConfig("../cmd/config.json")
+	testConfig, err := internal.LoadConfig("../cmd/config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
 	type fields struct {
-		DestinationConfig personnel_sync.DestinationConfig
+		DestinationConfig internal.DestinationConfig
 		GoogleConfig      GoogleConfig
 		AdminService      admin.Service
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []personnel_sync.Person
+		want    []internal.Person
 		wantErr bool
 	}{
 		{
@@ -38,7 +39,7 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 			fields: fields{
 				DestinationConfig: testConfig.Destination,
 			},
-			want: []personnel_sync.Person{
+			want: []internal.Person{
 				{
 					CompareValue: "user_one@example.com",
 					Attributes: map[string]string{
@@ -86,27 +87,27 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := personnel_sync.LoadConfig("./config.json")
+	testConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
 	type fields struct {
-		DestinationConfig personnel_sync.DestinationConfig
+		DestinationConfig internal.DestinationConfig
 	}
 	type args struct {
-		changes personnel_sync.ChangeSet
+		changes internal.ChangeSet
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
-		want   personnel_sync.ChangeResults
+		want   internal.ChangeResults
 	}{
 		{
 			name: "expect one updated",
-			want: personnel_sync.ChangeResults{
+			want: internal.ChangeResults{
 				Created: uint64(0),
 				Updated: uint64(1),
 				Deleted: uint64(0),
@@ -115,9 +116,9 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 				DestinationConfig: testConfig.Destination,
 			},
 			args: args{
-				changes: personnel_sync.ChangeSet{
-					Create: []personnel_sync.Person{},
-					Update: []personnel_sync.Person{
+				changes: internal.ChangeSet{
+					Create: []internal.Person{},
+					Update: []internal.Person{
 						{
 							CompareValue: "user@example.com",
 							Attributes: map[string]string{
@@ -128,7 +129,7 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 							DisableChanges: false,
 						},
 					},
-					Delete: []personnel_sync.Person{},
+					Delete: []internal.Person{},
 				},
 			},
 		},
@@ -140,7 +141,7 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
 				t.FailNow()
 			}
-			eventLog := make(chan personnel_sync.EventLogItem, 50)
+			eventLog := make(chan internal.EventLogItem, 50)
 			if got := g.ApplyChangeSet(tt.args.changes, eventLog); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GoogleUsers.ApplyChangeSet() = %v, want %v", got, tt.want)
 			}
@@ -153,7 +154,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 	tests := []struct {
 		name string
 		user admin.User
-		want personnel_sync.Person
+		want internal.Person
 	}{
 		{
 			name: "minimum",
@@ -166,7 +167,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 				PrimaryEmail:  "email@example.com",
 				Relations:     nil,
 			},
-			want: personnel_sync.Person{
+			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes:   map[string]string{"email": "email@example.com"},
 			},
@@ -205,7 +206,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"Location": []byte(`{"Building":"A building"}`),
 				},
 			},
-			want: personnel_sync.Person{
+			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
 					"email":             "email@example.com",
@@ -237,7 +238,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 				},
 				PrimaryEmail: "email@example.com",
 			},
-			want: personnel_sync.Person{
+			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
 					"email": "email@example.com",
@@ -260,7 +261,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					},
 				},
 			},
-			want: personnel_sync.Person{
+			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
 					"email": "email@example.com",
@@ -283,7 +284,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					},
 				},
 			},
-			want: personnel_sync.Person{
+			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
 					"email": "email@example.com",
@@ -317,7 +318,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"value": []string{"manager@example.com"},
 				}},
 			},
-			want: personnel_sync.Person{
+			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
 					"email": "email@example.com",
@@ -337,12 +338,12 @@ func TestGoogleUsers_extractData(t *testing.T) {
 func Test_newUserForUpdate(t *testing.T) {
 	tests := []struct {
 		name   string
-		person personnel_sync.Person
+		person internal.Person
 		want   admin.User
 	}{
 		{
 			name: "basic",
-			person: personnel_sync.Person{
+			person: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
 					"email":             "email@example.com",
