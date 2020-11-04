@@ -74,10 +74,11 @@ func sendAnEmail(emailMsg ses.Message, recipient string, config Config) error {
 		Source:  aws.String(config.ReturnToAddr),
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(config.AWSAccessKeyID, config.AWSSecretAccessKey, ""),
-		Region:      aws.String(config.AWSRegion)},
-	)
+	cfg := &aws.Config{Region: aws.String(config.AWSRegion)}
+	if config.AWSAccessKeyID != "" && config.AWSSecretAccessKey != "" {
+		cfg.Credentials = credentials.NewStaticCredentials(config.AWSAccessKeyID, config.AWSSecretAccessKey, "")
+	}
+	sess, err := session.NewSession(cfg)
 	if err != nil {
 		return fmt.Errorf("error creating AWS session: %s", err)
 	}
