@@ -682,6 +682,21 @@ The following is an example configuration:
   },
 ```
 
+Alternatively, AWS credentials can be supplied by the Serverless framework by adding
+the following configuration to `serverless.yml`:
+
+```
+provider:
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 'ses:SendEmail'
+      Resource: "*"
+```
+
+Both authentication mechanisms are provided in the `lamdda-example` directory, 
+but only one is needed.
+
 ### Exporting logs from CloudWatch
 
 The log messages in CloudWatch can be viewed on the AWS Management Console. If
