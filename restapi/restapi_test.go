@@ -26,6 +26,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 		desiredAttrs []string
 		want         []internal.Person
 		wantErr      bool
+		errMsg       string
 	}{
 		{
 			name: "workday-like results",
@@ -171,6 +172,33 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "auth error",
+			sourceConfig: internal.SourceConfig{
+				Type: internal.SourceTypeRestAPI,
+				ExtraJSON: []byte(fmt.Sprintf(extraJSONtemplate,
+					other.method,
+					server.URL,
+					other.resultsContainer,
+					other.authType,
+					other.username,
+					other.password+"bad",
+					other.compareAttr,
+				)),
+			},
+			syncSet: `{"Paths":["` + other.path + `"]}`,
+			desiredAttrs: []string{
+				"employeeID",
+				"first",
+				"last",
+				"display",
+				"username",
+				"email",
+			},
+			want:    []internal.Person{},
+			wantErr: true,
+			errMsg:  "Not Authorized",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,11 +215,17 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			got, err := r.ListUsers(tt.desiredAttrs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RestAPI.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.FailNow()
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RestAPI.ListUsers() = %v, want %v", got, tt.want)
+			}
+
+			if err != nil {
+				if !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf(`Unexpected error message "%s", expected: "%v"`, err, tt.errMsg)
+				}
 			}
 		})
 	}
