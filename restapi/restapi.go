@@ -52,7 +52,7 @@ type SetConfig struct {
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
 func NewRestAPISource(sourceConfig internal.SourceConfig) (internal.Source, error) {
 	var restAPI RestAPI
-	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
+	// Unmarshal ExtraJSON into RestAPI struct
 	err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI)
 	if err != nil {
 		return &RestAPI{}, err
@@ -203,6 +203,13 @@ func (r *RestAPI) listUsersForPath(
 	bodyText, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		errLog <- "error reading response body: " + err.Error()
+		return
+	}
+
+	if resp.StatusCode > 299 {
+		msg := fmt.Sprintf("response status code: %d response body: %s", resp.StatusCode, bodyText)
+		log.Print(msg)
+		errLog <- msg
 		return
 	}
 
