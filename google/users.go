@@ -17,6 +17,7 @@ import (
 )
 
 type GoogleUsers struct {
+	DestinationConfig internal.DestinationConfig
 	BatchSize         int
 	BatchDelaySeconds int
 	GoogleConfig      GoogleConfig
@@ -38,6 +39,8 @@ func NewGoogleUsersDestination(destinationConfig internal.DestinationConfig) (in
 	if googleUsers.BatchDelaySeconds <= 0 {
 		googleUsers.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
+
+	googleUsers.DestinationConfig = destinationConfig
 
 	// Initialize AdminService object
 	googleUsers.AdminService, err = initGoogleAdminService(
@@ -172,10 +175,12 @@ func (g *GoogleUsers) ApplyChangeSet(
 	// One minute per batch
 	batchTimer := internal.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
-	for _, toUpdate := range changes.Update {
-		wg.Add(1)
-		go g.updateUser(toUpdate, &results.Updated, &wg, eventLog)
-		batchTimer.WaitOnBatch()
+	if !g.DestinationConfig.DisableUpdate {
+		for _, toUpdate := range changes.Update {
+			wg.Add(1)
+			go g.updateUser(toUpdate, &results.Updated, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
 	}
 
 	wg.Wait()
