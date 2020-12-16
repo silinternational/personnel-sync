@@ -218,14 +218,13 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				t.FailNow()
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RestAPI.ListUsers() = %v, want %v", got, tt.want)
+			if err != nil && !strings.Contains(err.Error(), tt.errMsg) {
+				t.Errorf(`Unexpected error message "%s", expected: "%v"`, err, tt.errMsg)
+				t.FailNow()
 			}
 
-			if err != nil {
-				if !strings.Contains(err.Error(), tt.errMsg) {
-					t.Errorf(`Unexpected error message "%s", expected: "%v"`, err, tt.errMsg)
-				}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("RestAPI.ListUsers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
