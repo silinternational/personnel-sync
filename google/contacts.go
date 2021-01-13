@@ -471,13 +471,6 @@ func (g *GoogleContacts) createBody(person internal.Person) (string, error) {
 				Address: person.Attributes[contactFieldEmail],
 			},
 		},
-		PhoneNumbers: []phoneNumberMarshal{
-			{
-				Rel:     relPhoneWork,
-				Primary: true,
-				Value:   person.Attributes[contactFieldPhoneNumber],
-			},
-		},
 		Organization: organizationMarshal{
 			Rel:            relPhoneWork,
 			Name:           person.Attributes[contactFieldOrganization],
@@ -513,6 +506,7 @@ func getPhonesFromAttributes(attributes map[string]string) []phoneNumberMarshal 
 				Primary: true,
 				Value:   val,
 			})
+			continue
 		}
 		if !strings.HasPrefix(key, contactFieldPhoneNumber) {
 			continue

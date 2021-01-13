@@ -277,17 +277,17 @@ func TestGoogleContacts_createBody(t *testing.T) {
 		{
 			name:   "fullName",
 			person: internal.Person{Attributes: map[string]string{contactFieldFullName: "Fred J. Smith"}},
-			want:   `<gd:fullName>Fred J. Smith</gd:fullName>`,
+			want:   "<gd:fullName>Fred J. Smith</gd:fullName>",
 		},
 		{
 			name:   "givenName",
 			person: internal.Person{Attributes: map[string]string{contactFieldGivenName: "Fred"}},
-			want:   `<gd:givenName>Fred</gd:givenName>`,
+			want:   "<gd:givenName>Fred</gd:givenName>",
 		},
 		{
 			name:   "familyName",
 			person: internal.Person{Attributes: map[string]string{contactFieldFamilyName: "Smith"}},
-			want:   `<gd:familyName>Smith</gd:familyName>`,
+			want:   "<gd:familyName>Smith</gd:familyName>",
 		},
 		{
 			name:   "email",
@@ -302,22 +302,22 @@ func TestGoogleContacts_createBody(t *testing.T) {
 		{
 			name:   "organization",
 			person: internal.Person{Attributes: map[string]string{contactFieldOrganization: "Acme, Inc."}},
-			want:   `<gd:orgName>Acme, Inc.</gd:orgName>`,
+			want:   "<gd:orgName>Acme, Inc.</gd:orgName>",
 		},
 		{
 			name:   "department",
 			person: internal.Person{Attributes: map[string]string{contactFieldDepartment: "Operations"}},
-			want:   `<gd:orgDepartment>Operations</gd:orgDepartment>`,
+			want:   "<gd:orgDepartment>Operations</gd:orgDepartment>",
 		},
 		{
 			name:   "title",
 			person: internal.Person{Attributes: map[string]string{contactFieldTitle: "VP of Operations"}},
-			want:   `<gd:orgTitle>VP of Operations</gd:orgTitle>`,
+			want:   "<gd:orgTitle>VP of Operations</gd:orgTitle>",
 		},
 		{
 			name:   "jobDescription",
 			person: internal.Person{Attributes: map[string]string{contactFieldJobDescription: "does important stuff"}},
-			want:   `<gd:orgJobDescription>does important stuff</gd:orgJobDescription>`,
+			want:   "<gd:orgJobDescription>does important stuff</gd:orgJobDescription>",
 		},
 		{
 			name:   "where",
