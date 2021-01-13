@@ -237,6 +237,12 @@ exception is `fullName` which is filled in by Google with
 | jobDescription | organization.orgJobDescription |
 | where          | where.valueString              |
 
+Certain properties can be extended by adding a Google `rel` string to the 
+property in the config.json file. By omitting the `rel` string, only the `primary` value
+will be used. For example: `phoneNumber http://schemas.google.com/g/2005#work`
+or `phoneNumber http://schemas.google.com/g/2005#mobile`. At this time, only the
+`phoneNumber` property supports this feature.
+
 Google reference: https://developers.google.com/gdata/docs/2.0/elements#gdContactKind
 
 Below is an example of the destination configuration required for Google Shared
