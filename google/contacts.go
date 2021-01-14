@@ -10,6 +10,7 @@ import (
 	"log"
 	"log/syslog"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -34,6 +35,11 @@ const (
 	contactFieldJobDescription = "jobDescription"
 	contactFieldDepartment     = "department"
 	contactFieldNotes          = "notes"
+)
+
+const (
+	relPhoneWork   = "http://schemas.google.com/g/2005#work"
+	relPhoneMobile = "http://schemas.google.com/g/2005#mobile"
 )
 
 type GoogleContacts struct {
@@ -66,14 +72,15 @@ type Contact struct {
 
 type Email struct {
 	XMLName xml.Name `xml:"email"`
-	Address string   `xml:"address,attr"`
 	Primary bool     `xml:"primary,attr"`
+	Address string   `xml:"address,attr"`
 }
 
 type PhoneNumber struct {
 	XMLName xml.Name `xml:"phoneNumber"`
-	Value   string   `xml:",chardata"`
+	Rel     string   `xml:"rel,attr"`
 	Primary bool     `xml:"primary,attr"`
+	Value   string   `xml:",chardata"`
 }
 
 type Name struct {
@@ -100,6 +107,61 @@ type Link struct {
 type Where struct {
 	XMLName     xml.Name `xml:"where"`
 	ValueString string   `xml:"valueString,attr"`
+}
+
+// These "Marshal" types included because the Go XML encoder isn't able to use the same struct for marshalling and
+// unmarshalling with namespace prefixes
+type contactMarshal struct {
+	XMLName      xml.Name             `xml:"atom:entry"`
+	XmlNSAtom    string               `xml:"xmlns:atom,attr"`
+	XmlNSGd      string               `xml:"xmlns:gd,attr"`
+	AtomCategory atomCategory         `xml:"atom:category"`
+	Name         nameMarshal          `xml:"gd:name"`
+	Emails       []emailMarshal       `xml:"gd:email"`
+	PhoneNumbers []phoneNumberMarshal `xml:"gd:phoneNumber"`
+	Organization organizationMarshal  `xml:"gd:organization"`
+	Where        whereMarshal         `xml:"gd:where"`
+	Notes        notesMarshal         `xml:"atom:content"`
+}
+
+type atomCategory struct {
+	Scheme string `xml:"scheme,attr"`
+	Term   string `xml:"term,attr"`
+}
+
+type emailMarshal struct {
+	Rel     string `xml:"rel,attr"`
+	Primary bool   `xml:"primary,attr"`
+	Address string `xml:"address,attr"`
+}
+
+type phoneNumberMarshal struct {
+	Rel     string `xml:"rel,attr"`
+	Primary bool   `xml:"primary,attr"`
+	Value   string `xml:",chardata"`
+}
+
+type nameMarshal struct {
+	FullName   string `xml:"gd:fullName"`
+	GivenName  string `xml:"gd:givenName"`
+	FamilyName string `xml:"gd:familyName"`
+}
+
+type organizationMarshal struct {
+	Rel            string `xml:"rel,attr"`
+	Name           string `xml:"gd:orgName"`
+	Title          string `xml:"gd:orgTitle"`
+	JobDescription string `xml:"gd:orgJobDescription"`
+	Department     string `xml:"gd:orgDepartment"`
+}
+
+type whereMarshal struct {
+	ValueString string `xml:"valueString,attr"`
+}
+
+type notesMarshal struct {
+	Type  string `xml:"type,attr"`
+	Notes string `xml:",chardata"`
 }
 
 // NewGoogleContactsDestination creates a new GoogleContacts instance
@@ -252,27 +314,42 @@ func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]inter
 	persons := make([]internal.Person, len(contacts))
 	for i, entry := range contacts {
 		id := findSelfLink(entry)
+
+		attributes := map[string]string{
+			contactFieldID:             id,
+			contactFieldEmail:          findPrimaryEmail(entry),
+			contactFieldFullName:       entry.Title,
+			contactFieldGivenName:      entry.Name.GivenName,
+			contactFieldFamilyName:     entry.Name.FamilyName,
+			contactFieldWhere:          entry.Where.ValueString,
+			contactFieldOrganization:   entry.Organization.Name,
+			contactFieldTitle:          entry.Organization.Title,
+			contactFieldJobDescription: entry.Organization.JobDescription,
+			contactFieldDepartment:     entry.Organization.Department,
+			contactFieldNotes:          entry.Notes,
+		}
+
+		attributes = mergeAttributeMaps(attributes, getPhoneNumbers(entry))
+
 		persons[i] = internal.Person{
 			CompareValue: findPrimaryEmail(entry),
 			ID:           id,
-			Attributes: map[string]string{
-				contactFieldID:             id,
-				contactFieldEmail:          findPrimaryEmail(entry),
-				contactFieldPhoneNumber:    findPrimaryPhoneNumber(entry),
-				contactFieldFullName:       entry.Title,
-				contactFieldGivenName:      entry.Name.GivenName,
-				contactFieldFamilyName:     entry.Name.FamilyName,
-				contactFieldWhere:          entry.Where.ValueString,
-				contactFieldOrganization:   entry.Organization.Name,
-				contactFieldTitle:          entry.Organization.Title,
-				contactFieldJobDescription: entry.Organization.JobDescription,
-				contactFieldDepartment:     entry.Organization.Department,
-				contactFieldNotes:          entry.Notes,
-			},
+			Attributes:   attributes,
 		}
 	}
 
 	return persons, nil
+}
+
+func mergeAttributeMaps(a, b map[string]string) map[string]string {
+	out := map[string]string{}
+	for k, v := range a {
+		out[k] = v
+	}
+	for k, v := range b {
+		out[k] = v
+	}
+	return out
 }
 
 func findSelfLink(entry Contact) string {
@@ -293,6 +370,19 @@ func findPrimaryEmail(entry Contact) string {
 	return ""
 }
 
+func getPhoneNumbers(contact Contact) map[string]string {
+	y := map[string]string{}
+
+	for _, phone := range contact.PhoneNumbers {
+		key := contactFieldPhoneNumber + " " + phone.Rel
+		y[key] = phone.Value
+	}
+
+	y[contactFieldPhoneNumber] = findPrimaryPhoneNumber(contact)
+
+	return y
+}
+
 func findPrimaryPhoneNumber(entry Contact) string {
 	for _, phone := range entry.PhoneNumbers {
 		if phone.Primary {
@@ -311,7 +401,15 @@ func (g *GoogleContacts) addContact(
 	defer wg.Done()
 
 	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleConfig.Domain + "/full"
-	body := g.createBody(person)
+	body, err := g.createBody(person)
+	if err != nil {
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
+			Message: fmt.Sprintf("error creating addContact request for '%s' in Google contacts: %s",
+				person.CompareValue, err)}
+		return
+	}
+
 	headers := map[string]string{"Content-Type": "application/atom+xml"}
 	if _, err := g.httpRequest(http.MethodPost, href, body, headers); err != nil {
 		eventLog <- internal.EventLogItem{
@@ -348,49 +446,82 @@ func (g *GoogleContacts) initGoogleClient() error {
 	return nil
 }
 
-// createBody inserts attributes into an XML request body. This might be possible using the Go XML library, but
-// it would probably take some sort of hack or workaround to get it to insert the "gd:" namespace prefix on the
-// tag names.
+// createBody inserts attributes into an XML request body.
+//
 // WARNING: This updates all fields, even if omitted in the field mapping. A safer implementation would be to
 // merge the data retrieved from Google with the data coming from the source.
-func (g *GoogleContacts) createBody(person internal.Person) string {
-	const bodyTemplate = `<atom:entry xmlns:atom='http://www.w3.org/2005/Atom' xmlns:gd='http://schemas.google.com/g/2005'>
-	<atom:category scheme='http://schemas.google.com/g/2005#kind' term='http://schemas.google.com/contact/2008#contact' />
-	<atom:content type='text'>%s</atom:content>
-	<gd:name>
-		<gd:fullName>%s</gd:fullName>
-		<gd:givenName>%s</gd:givenName>
-		<gd:familyName>%s</gd:familyName>
-	</gd:name>
-	<gd:email rel='http://schemas.google.com/g/2005#work' primary='true' address='%s'/>
-	<gd:phoneNumber rel='http://schemas.google.com/g/2005#work' primary='true'>%s</gd:phoneNumber>
-	<gd:where valueString='%s'/>
-	<gd:organization rel="http://schemas.google.com/g/2005#work" label="Work" primary="true">
-		  <gd:orgName>%s</gd:orgName>
-		  <gd:orgTitle>%s</gd:orgTitle>
-		  <gd:orgJobDescription>%s</gd:orgJobDescription>
-		  <gd:orgDepartment>%s</gd:orgDepartment>
-	</gd:organization> 
-</atom:entry>`
+func (g *GoogleContacts) createBody(person internal.Person) (string, error) {
 
-	return fmt.Sprintf(bodyTemplate,
-		escapeForXML(person.Attributes[contactFieldNotes]),
-		escapeForXML(person.Attributes[contactFieldFullName]),
-		escapeForXML(person.Attributes[contactFieldGivenName]),
-		escapeForXML(person.Attributes[contactFieldFamilyName]),
-		escapeForXML(person.Attributes[contactFieldEmail]),
-		escapeForXML(person.Attributes[contactFieldPhoneNumber]),
-		escapeForXML(person.Attributes[contactFieldWhere]),
-		escapeForXML(person.Attributes[contactFieldOrganization]),
-		escapeForXML(person.Attributes[contactFieldTitle]),
-		escapeForXML(person.Attributes[contactFieldJobDescription]),
-		escapeForXML(person.Attributes[contactFieldDepartment]))
+	contact := contactMarshal{
+		XmlNSAtom: "http://www.w3.org/2005/Atom",
+		XmlNSGd:   "http://schemas.google.com/g/2005",
+		AtomCategory: atomCategory{
+			Scheme: "http://schemas.google.com/g/2005#kind",
+			Term:   "http://schemas.google.com/contact/2008#contact",
+		},
+		Name: nameMarshal{
+			FullName:   person.Attributes[contactFieldFullName],
+			GivenName:  person.Attributes[contactFieldGivenName],
+			FamilyName: person.Attributes[contactFieldFamilyName],
+		},
+		Emails: []emailMarshal{
+			{
+				Rel:     relPhoneWork,
+				Primary: true,
+				Address: person.Attributes[contactFieldEmail],
+			},
+		},
+		Organization: organizationMarshal{
+			Rel:            relPhoneWork,
+			Name:           person.Attributes[contactFieldOrganization],
+			Title:          person.Attributes[contactFieldTitle],
+			JobDescription: person.Attributes[contactFieldJobDescription],
+			Department:     person.Attributes[contactFieldDepartment],
+		},
+		Where: whereMarshal{
+			ValueString: person.Attributes[contactFieldWhere],
+		},
+		Notes: notesMarshal{
+			Type:  "text",
+			Notes: person.Attributes[contactFieldNotes],
+		},
+	}
+
+	contact.PhoneNumbers = getPhonesFromAttributes(person.Attributes)
+
+	output, err := xml.Marshal(&contact)
+
+	//For debug, this can be used to improve XML readability
+	//output, err := xml.MarshalIndent(&contact, "", "  ")
+
+	return string(output), err
 }
 
-func escapeForXML(s string) string {
-	buf := new(bytes.Buffer)
-	_ = xml.EscapeText(buf, []byte(s))
-	return buf.String()
+func getPhonesFromAttributes(attributes map[string]string) []phoneNumberMarshal {
+	var phones []phoneNumberMarshal
+	for key, val := range attributes {
+		if key == contactFieldPhoneNumber {
+			phones = append(phones, phoneNumberMarshal{
+				Rel:     relPhoneWork,
+				Primary: true,
+				Value:   val,
+			})
+			continue
+		}
+		if !strings.HasPrefix(key, contactFieldPhoneNumber) {
+			continue
+		}
+		split := strings.Split(key, " ")
+		if len(split) < 2 {
+			continue
+		}
+		phones = append(phones, phoneNumberMarshal{
+			Rel:     split[1],
+			Primary: false,
+			Value:   val,
+		})
+	}
+	return phones
 }
 
 func (g *GoogleContacts) updateContact(
@@ -411,7 +542,14 @@ func (g *GoogleContacts) updateContact(
 		return
 	}
 
-	body := g.createBody(person)
+	body, err := g.createBody(person)
+	if err != nil {
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
+			Message: fmt.Sprintf("error creating updateContact request for '%s' in Google contacts: %s",
+				person.CompareValue, err)}
+		return
+	}
 
 	_, err = g.httpRequest(http.MethodPut, url, body, map[string]string{
 		"If-Match":     contact.Etag,
