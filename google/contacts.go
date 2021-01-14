@@ -37,6 +37,8 @@ const (
 	contactFieldNotes          = "notes"
 )
 
+const delim = ","
+
 const (
 	relPhoneWork   = "http://schemas.google.com/g/2005#work"
 	relPhoneMobile = "http://schemas.google.com/g/2005#mobile"
@@ -79,6 +81,7 @@ type Email struct {
 type PhoneNumber struct {
 	XMLName xml.Name `xml:"phoneNumber"`
 	Rel     string   `xml:"rel,attr"`
+	Label   string   `xml:"label,attr"`
 	Primary bool     `xml:"primary,attr"`
 	Value   string   `xml:",chardata"`
 }
@@ -131,13 +134,14 @@ type atomCategory struct {
 
 type emailMarshal struct {
 	Rel     string `xml:"rel,attr"`
-	Primary bool   `xml:"primary,attr"`
+	Primary bool   `xml:"primary,attr,omitempty"`
 	Address string `xml:"address,attr"`
 }
 
 type phoneNumberMarshal struct {
-	Rel     string `xml:"rel,attr"`
-	Primary bool   `xml:"primary,attr"`
+	Rel     string `xml:"rel,attr,omitempty"`
+	Label   string `xml:"label,attr,omitempty"`
+	Primary bool   `xml:"primary,attr,omitempty"`
 	Value   string `xml:",chardata"`
 }
 
@@ -374,7 +378,16 @@ func getPhoneNumbers(contact Contact) map[string]string {
 	y := map[string]string{}
 
 	for _, phone := range contact.PhoneNumbers {
-		key := contactFieldPhoneNumber + " " + phone.Rel
+		key := contactFieldPhoneNumber
+
+		// Google supports only `rel` or `label` but not both, so the order here does not matter
+		if phone.Rel != "" {
+			key += delim + phone.Rel
+		}
+		if phone.Label != "" {
+			key += delim + phone.Label
+		}
+
 		y[key] = phone.Value
 	}
 
@@ -511,13 +524,21 @@ func getPhonesFromAttributes(attributes map[string]string) []phoneNumberMarshal 
 		if !strings.HasPrefix(key, contactFieldPhoneNumber) {
 			continue
 		}
-		split := strings.Split(key, " ")
+		split := strings.Split(key, delim)
 		if len(split) < 2 {
 			continue
 		}
+		label := ""
+		rel := ""
+		if strings.HasPrefix(split[1], "http") {
+			rel = split[1]
+		} else {
+			label = split[1]
+		}
 		phones = append(phones, phoneNumberMarshal{
-			Rel:     split[1],
+			Rel:     rel,
 			Primary: false,
+			Label:   label,
 			Value:   val,
 		})
 	}

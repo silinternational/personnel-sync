@@ -150,7 +150,7 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					PhoneNumbers: []PhoneNumber{
 						{
 							XMLName: xml.Name{Space: "http://www.w3.org/2005/Atom", Local: "phoneNumber"},
-							Rel:     relPhoneMobile,
+							Label:   "Personal Phone",
 							Value:   "555-1212",
 							Primary: true,
 						},
@@ -192,8 +192,8 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 						contactFieldDepartment:     "Marketing",
 						contactFieldWhere:          "some place",
 						contactFieldNotes:          "some notes",
-						contactFieldPhoneNumber + " http://schemas.google.com/g/2005#mobile": "555-1212",
-						contactFieldPhoneNumber + " http://schemas.google.com/g/2005#work":   "123-4567",
+						contactFieldPhoneNumber + delim + "http://schemas.google.com/g/2005#work": "123-4567",
+						contactFieldPhoneNumber + delim + "Personal Phone":                        "555-1212",
 					},
 					DisableChanges: false,
 				},
@@ -300,6 +300,20 @@ func TestGoogleContacts_createBody(t *testing.T) {
 			want:   `<gd:phoneNumber rel="` + relPhoneWork + `" primary="true">555-1212</gd:phoneNumber>`,
 		},
 		{
+			name: "phoneNumber+rel",
+			person: internal.Person{Attributes: map[string]string{
+				contactFieldPhoneNumber + delim + relPhoneMobile: "555-1212",
+			}},
+			want: `<gd:phoneNumber rel="` + relPhoneMobile + `">555-1212</gd:phoneNumber>`,
+		},
+		{
+			name: "phoneNumber+label",
+			person: internal.Person{Attributes: map[string]string{
+				contactFieldPhoneNumber + delim + "a label": "555-1212",
+			}},
+			want: `<gd:phoneNumber label="a label">555-1212</gd:phoneNumber>`,
+		},
+		{
 			name:   "organization",
 			person: internal.Person{Attributes: map[string]string{contactFieldOrganization: "Acme, Inc."}},
 			want:   "<gd:orgName>Acme, Inc.</gd:orgName>",
@@ -387,8 +401,8 @@ func TestGoogleContacts_getPhonesFromAttributes(t *testing.T) {
 		{
 			name: "two phones, one is primary",
 			attributes: map[string]string{
-				contactFieldPhoneNumber:                        "555-1212",
-				contactFieldPhoneNumber + " " + relPhoneMobile: "123-4567",
+				contactFieldPhoneNumber:                          "555-1212",
+				contactFieldPhoneNumber + delim + relPhoneMobile: "123-4567",
 			},
 
 			want: []phoneNumberMarshal{
@@ -407,8 +421,8 @@ func TestGoogleContacts_getPhonesFromAttributes(t *testing.T) {
 		{
 			name: "two phones, no primary",
 			attributes: map[string]string{
-				contactFieldPhoneNumber + " " + relPhoneWork:   "555-1212",
-				contactFieldPhoneNumber + " " + relPhoneMobile: "123-4567",
+				contactFieldPhoneNumber + delim + relPhoneWork:   "555-1212",
+				contactFieldPhoneNumber + delim + relPhoneMobile: "123-4567",
 			},
 
 			want: []phoneNumberMarshal{
@@ -421,6 +435,20 @@ func TestGoogleContacts_getPhonesFromAttributes(t *testing.T) {
 					Rel:     relPhoneMobile,
 					Primary: false,
 					Value:   "123-4567",
+				},
+			},
+		},
+		{
+			name: "with label",
+			attributes: map[string]string{
+				contactFieldPhoneNumber + delim + "label text": "555-1212",
+			},
+
+			want: []phoneNumberMarshal{
+				{
+					Primary: false,
+					Label:   "label text",
+					Value:   "555-1212",
 				},
 			},
 		},
