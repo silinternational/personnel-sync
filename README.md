@@ -227,17 +227,24 @@ exception is `fullName` which is filled in by Google with
 |----------------|--------------------------------|
 | id             | id                             | 
 | email          | email.address                  |
-| phone          | phoneNumber.text               | 
+| phoneNumber    | phoneNumber.text               | 
 | familyName     | name.familyName                |
 | givenName      | name.givenName                 |
 | fullName       | name.fullName                  |
-| orgName        | organization.orgName           |
+| organization   | organization.orgName           |
 | department     | organization.orgDepartment     |
 | title          | organization.orgTitle          |
 | jobDescription | organization.orgJobDescription |
 | where          | where.valueString              |
+| notes          | content                        |
 
-Google reference: https://developers.google.com/gdata/docs/2.0/elements#gdContactKind
+`phoneNumber` can be extended by adding a Google `rel` or a label to the 
+property name in the config.json AttributeMap. For example:
+`phoneNumber,http://schemas.google.com/g/2005#work` or
+`phoneNumber,Personal Phone`. If neither are supplied, the "work" rel will be
+applied and the `primary` attribute will be set.
+
+Consult the [Google API reference](https://developers.google.com/gdata/docs/2.0/elements#gdContactKind) for details.
 
 Below is an example of the destination configuration required for Google Shared
 Contacts:

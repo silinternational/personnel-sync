@@ -150,8 +150,15 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 					PhoneNumbers: []PhoneNumber{
 						{
 							XMLName: xml.Name{Space: "http://www.w3.org/2005/Atom", Local: "phoneNumber"},
+							Label:   "Personal Phone",
 							Value:   "555-1212",
 							Primary: true,
+						},
+						{
+							XMLName: xml.Name{Space: "http://www.w3.org/2005/Atom", Local: "phoneNumber"},
+							Rel:     relPhoneWork,
+							Value:   "123-4567",
+							Primary: false,
 						},
 					},
 					Organization: Organization{
@@ -185,6 +192,8 @@ func TestGoogleContacts_extractPersonsFromResponse(t *testing.T) {
 						contactFieldDepartment:     "Marketing",
 						contactFieldWhere:          "some place",
 						contactFieldNotes:          "some notes",
+						contactFieldPhoneNumber + delim + "http://schemas.google.com/g/2005#work": "123-4567",
+						contactFieldPhoneNumber + delim + "Personal Phone":                        "555-1212",
 					},
 					DisableChanges: false,
 				},
@@ -283,12 +292,26 @@ func TestGoogleContacts_createBody(t *testing.T) {
 		{
 			name:   "email",
 			person: internal.Person{Attributes: map[string]string{contactFieldEmail: "fred@example.com"}},
-			want:   "<gd:email rel='http://schemas.google.com/g/2005#work' primary='true' address='fred@example.com'/>",
+			want:   `<gd:email rel="` + relPhoneWork + `" primary="true" address="fred@example.com">`,
 		},
 		{
 			name:   "phoneNumber",
 			person: internal.Person{Attributes: map[string]string{contactFieldPhoneNumber: "555-1212"}},
-			want:   "<gd:phoneNumber rel='http://schemas.google.com/g/2005#work' primary='true'>555-1212</gd:phoneNumber>",
+			want:   `<gd:phoneNumber rel="` + relPhoneWork + `" primary="true">555-1212</gd:phoneNumber>`,
+		},
+		{
+			name: "phoneNumber+rel",
+			person: internal.Person{Attributes: map[string]string{
+				contactFieldPhoneNumber + delim + relPhoneMobile: "555-1212",
+			}},
+			want: `<gd:phoneNumber rel="` + relPhoneMobile + `">555-1212</gd:phoneNumber>`,
+		},
+		{
+			name: "phoneNumber+label",
+			person: internal.Person{Attributes: map[string]string{
+				contactFieldPhoneNumber + delim + "a label": "555-1212",
+			}},
+			want: `<gd:phoneNumber label="a label">555-1212</gd:phoneNumber>`,
 		},
 		{
 			name:   "organization",
@@ -311,24 +334,145 @@ func TestGoogleContacts_createBody(t *testing.T) {
 			want:   "<gd:orgJobDescription>does important stuff</gd:orgJobDescription>",
 		},
 		{
+			name:   "where",
+			person: internal.Person{Attributes: map[string]string{contactFieldWhere: "building A"}},
+			want:   `<gd:where valueString="building A">`,
+		},
+		{
 			name:   "notes",
 			person: internal.Person{Attributes: map[string]string{contactFieldNotes: "these are some notes"}},
-			want:   "<atom:content type='text'>these are some notes</atom:content>",
+			want:   `<atom:content type="text">these are some notes</atom:content>`,
 		},
 	}
 	for _, tt := range tests {
 		g := GoogleContacts{}
 		t.Run(tt.name, func(t *testing.T) {
-			body := g.createBody(tt.person)
+			body, err := g.createBody(tt.person)
+			if err != nil {
+				t.Errorf("unexpected error in createBody: %s", err)
+				return
+			}
 			if !strings.Contains(body, tt.want) {
-				t.Errorf(`no "%v" in body: \n%v`, tt.want, body)
+				t.Errorf("no '%v' in body: \n%v", tt.want, body)
+				return
 			}
-			if !strings.HasPrefix(body, `<atom:entry xmlns:atom='http://www.w3.org/2005/Atom' xmlns:gd='http://schemas.google.com/g/2005'>`) {
-				t.Errorf("missing <atom:entry> tag")
+			if !strings.HasPrefix(body, `<atom:entry xmlns:atom="http://www.w3.org/2005/Atom" xmlns:gd="http://schemas.google.com/g/2005">`) {
+				t.Errorf("missing <atom:entry> tag in body: \n%s", body)
+				return
 			}
-			if !strings.Contains(body, `<atom:category scheme='http://schemas.google.com/g/2005#kind' term='http://schemas.google.com/contact/2008#contact' />`) {
-				t.Errorf("missing <atom:entry> tag")
+			if !strings.Contains(body, `<atom:category scheme="http://schemas.google.com/g/2005#kind" term="http://schemas.google.com/contact/2008#contact">`) {
+				t.Errorf("missing <atom:category> tag in body: \n%s", body)
+				return
 			}
 		})
 	}
+}
+
+func TestGoogleContacts_getPhonesFromAttributes(t *testing.T) {
+	tests := []struct {
+		name       string
+		attributes map[string]string
+		want       []phoneNumberMarshal
+	}{
+		{
+			name:       "no attributes",
+			attributes: nil,
+			want:       nil,
+		},
+		{
+			name: "no phone attributes",
+			attributes: map[string]string{
+				"key": "val",
+			},
+			want: nil,
+		},
+		{
+			name: "only primary phone",
+			attributes: map[string]string{
+				contactFieldPhoneNumber: "555-1212",
+			},
+
+			want: []phoneNumberMarshal{{
+				Rel:     relPhoneWork,
+				Primary: true,
+				Value:   "555-1212",
+			}},
+		},
+		{
+			name: "two phones, one is primary",
+			attributes: map[string]string{
+				contactFieldPhoneNumber:                          "555-1212",
+				contactFieldPhoneNumber + delim + relPhoneMobile: "123-4567",
+			},
+
+			want: []phoneNumberMarshal{
+				{
+					Rel:     relPhoneWork,
+					Primary: true,
+					Value:   "555-1212",
+				},
+				{
+					Rel:     relPhoneMobile,
+					Primary: false,
+					Value:   "123-4567",
+				},
+			},
+		},
+		{
+			name: "two phones, no primary",
+			attributes: map[string]string{
+				contactFieldPhoneNumber + delim + relPhoneWork:   "555-1212",
+				contactFieldPhoneNumber + delim + relPhoneMobile: "123-4567",
+			},
+
+			want: []phoneNumberMarshal{
+				{
+					Rel:     relPhoneWork,
+					Primary: false,
+					Value:   "555-1212",
+				},
+				{
+					Rel:     relPhoneMobile,
+					Primary: false,
+					Value:   "123-4567",
+				},
+			},
+		},
+		{
+			name: "with label",
+			attributes: map[string]string{
+				contactFieldPhoneNumber + delim + "label text": "555-1212",
+			},
+
+			want: []phoneNumberMarshal{
+				{
+					Primary: false,
+					Label:   "label text",
+					Value:   "555-1212",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getPhonesFromAttributes(tt.attributes)
+			if len(got) != len(tt.want) {
+				t.Errorf("wrong number of phoneNumbers returned from getPhonesFromAttributes")
+				return
+			}
+			for _, w := range tt.want {
+				found := false
+				for _, g := range got {
+					if reflect.DeepEqual(g, w) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("getPhonesFromAttributes did not find: %#v", w)
+				}
+			}
+		})
+	}
+
 }
