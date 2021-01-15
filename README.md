@@ -227,15 +227,16 @@ exception is `fullName` which is filled in by Google with
 |----------------|--------------------------------|
 | id             | id                             | 
 | email          | email.address                  |
-| phone          | phoneNumber.text               | 
+| phoneNumber    | phoneNumber.text               | 
 | familyName     | name.familyName                |
 | givenName      | name.givenName                 |
 | fullName       | name.fullName                  |
-| orgName        | organization.orgName           |
+| organization   | organization.orgName           |
 | department     | organization.orgDepartment     |
 | title          | organization.orgTitle          |
 | jobDescription | organization.orgJobDescription |
 | where          | where.valueString              |
+| notes          | content                        |
 
 `phoneNumber` can be extended by adding a Google `rel` or a label to the 
 property name in the config.json AttributeMap. For example:
