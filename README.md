@@ -466,12 +466,13 @@ Note: `Source` fields should be adjusted to fit the actual source adapter.
 
 ### Google Users
 This destination can update User records in the Google Directory. The compare
-attribute is `primaryEmail`. A limited subset of user properties are available
-to be updated. 
+attribute is `email` (`primaryEmail`). A limited subset of user properties are
+available to be updated. 
 
 | property   | Google property | Google sub-property | Google type  |
 |------------|-----------------|---------------------|--------------|
-| id         | externalIds     | value               | organization | 
+| id         | externalIds     | value               | organization |
+| email      | primaryEmail    |                     |              |
 | area       | locations       | area                | desk         |
 | costCenter | organizations*  | costCenter          | (not set)    |
 | department | organizations*  | department          | (not set)    |

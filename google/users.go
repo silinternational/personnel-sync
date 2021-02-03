@@ -61,49 +61,76 @@ func (g *GoogleUsers) ForSet(syncSetJson json.RawMessage) error {
 }
 
 func extractData(user admin.User) internal.Person {
-	newPerson := internal.Person{
-		CompareValue: user.PrimaryEmail,
-		Attributes: map[string]string{
-			"email": strings.ToLower(user.PrimaryEmail),
-		},
-	}
+	attributes := map[string]string{"email": strings.ToLower(user.PrimaryEmail)}
 
 	if found := findFirstMatchingType(user.ExternalIds, "organization"); found != nil {
-		setStringFromInterface(found["value"], newPerson.Attributes, "id")
+		setStringFromInterface(found["value"], attributes, "id")
 	}
 
 	if found := findFirstMatchingType(user.Locations, "desk"); found != nil {
-		setStringFromInterface(found["area"], newPerson.Attributes, "area")
+		setStringFromInterface(found["area"], attributes, "area")
 	}
 
 	if found := findFirstMatchingType(user.Organizations, ""); found != nil {
-		setStringFromInterface(found["costCenter"], newPerson.Attributes, "costCenter")
-		setStringFromInterface(found["department"], newPerson.Attributes, "department")
-		setStringFromInterface(found["title"], newPerson.Attributes, "title")
+		setStringFromInterface(found["costCenter"], attributes, "costCenter")
+		setStringFromInterface(found["department"], attributes, "department")
+		setStringFromInterface(found["title"], attributes, "title")
 	}
 
-	if found := findFirstMatchingType(user.Phones, "work"); found != nil {
-		setStringFromInterface(found["value"], newPerson.Attributes, "phone")
-	}
+	//if found := findFirstMatchingType(user.Phones, "work"); found != nil {
+	//	setStringFromInterface(found["value"], attributes, "phone")
+	//}
 
 	if found := findFirstMatchingType(user.Relations, "manager"); found != nil {
-		setStringFromInterface(found["value"], newPerson.Attributes, "manager")
+		setStringFromInterface(found["value"], attributes, "manager")
 	}
 
 	if user.Name != nil {
-		newPerson.Attributes["familyName"] = user.Name.FamilyName
-		newPerson.Attributes["givenName"] = user.Name.GivenName
+		attributes["familyName"] = user.Name.FamilyName
+		attributes["givenName"] = user.Name.GivenName
 	}
 
 	for schemaKey, schemaVal := range user.CustomSchemas {
 		var schema map[string]string
 		_ = json.Unmarshal(schemaVal, &schema)
 		for propertyKey, propertyVal := range schema {
-			newPerson.Attributes[schemaKey+"."+propertyKey] = propertyVal
+			attributes[schemaKey+"."+propertyKey] = propertyVal
 		}
 	}
 
-	return newPerson
+	attributes = mergeAttributeMaps(attributes, getPhoneNumbersFromUser(user))
+
+	return internal.Person{CompareValue: user.PrimaryEmail, Attributes: attributes}
+}
+
+func getPhoneNumbersFromUser(user admin.User) map[string]string {
+	attributes := map[string]string{}
+
+	phones, ok := user.Phones.([]interface{})
+	if !ok {
+		return attributes
+	}
+
+	for _, phoneAsInterface := range phones {
+		phone := phoneAsInterface.(map[string]interface{})
+
+		key, ok := phone["type"].(string)
+		if !ok {
+			continue
+		}
+		val, ok := phone["value"].(string)
+		if !ok {
+			continue
+		}
+		attributes["phone,"+key] = val
+
+		// add without the type for backward compatibility
+		if key == "work" {
+			attributes["phone"] = val
+		}
+	}
+
+	return attributes
 }
 
 // findFirstMatchingType iterates through a slice of interfaces until it finds a matching key. The underlying type

@@ -218,6 +218,7 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"department":        "A department",
 					"title":             "A title",
 					"phone":             "555-1212",
+					"phone,work":        "555-1212",
 					"manager":           "manager@example.com",
 					"Location.Building": "A building",
 				},
@@ -264,8 +265,10 @@ func TestGoogleUsers_extractData(t *testing.T) {
 			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email": "email@example.com",
-					"phone": "888-5555",
+					"email":      "email@example.com",
+					"phone,home": "555-1212",
+					"phone":      "888-5555",
+					"phone,work": "888-5555",
 				},
 			},
 		},

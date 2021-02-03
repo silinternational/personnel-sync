@@ -333,7 +333,7 @@ func (g *GoogleContacts) extractPersonsFromResponse(contacts []Contact) ([]inter
 			contactFieldNotes:          entry.Notes,
 		}
 
-		attributes = mergeAttributeMaps(attributes, getPhoneNumbers(entry))
+		attributes = mergeAttributeMaps(attributes, getPhoneNumbersFromContact(entry))
 
 		persons[i] = internal.Person{
 			CompareValue: findPrimaryEmail(entry),
@@ -374,7 +374,7 @@ func findPrimaryEmail(entry Contact) string {
 	return ""
 }
 
-func getPhoneNumbers(contact Contact) map[string]string {
+func getPhoneNumbersFromContact(contact Contact) map[string]string {
 	y := map[string]string{}
 
 	for _, phone := range contact.PhoneNumbers {
