@@ -596,8 +596,8 @@ func Test_updatePhones(t *testing.T) {
 		{
 			name: "work+custom",
 			phones: map[string]string{
-				"phone,work":               "1",
-				"phone,custom,foo,primary": "2",
+				"phone,work":       "1",
+				"phone,custom,foo": "2",
 			},
 			want: []admin.UserPhone{
 				{
@@ -608,16 +608,15 @@ func Test_updatePhones(t *testing.T) {
 					Type:       "custom",
 					CustomType: "foo",
 					Value:      "2",
-					Primary:    true,
 				},
 			},
 		},
 		{
 			name: "work*3",
 			phones: map[string]string{
-				"phone,work":         "1",
-				"phone,work,primary": "2",
-				"phone,work~1":       "3",
+				"phone,work":   "1",
+				"phone,work~1": "2",
+				"phone,work~2": "3",
 			},
 			want: []admin.UserPhone{
 				{
@@ -625,9 +624,8 @@ func Test_updatePhones(t *testing.T) {
 					Value: "1",
 				},
 				{
-					Type:    "work",
-					Value:   "2",
-					Primary: true,
+					Type:  "work",
+					Value: "2",
 				},
 				{
 					Type:  "work",
@@ -787,13 +785,12 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 						"type":       "custom",
 						"customType": "foo",
 						"value":      "2",
-						"primary":    true,
 					},
 				},
 			},
 			want: map[string]string{
-				"phone,work":               "555-1212",
-				"phone,custom,foo,primary": "2",
+				"phone,work":       "555-1212",
+				"phone,custom,foo": "2",
 			},
 		},
 		{
@@ -805,9 +802,8 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 						"value": "555-1212",
 					},
 					map[string]interface{}{
-						"type":    "work",
-						"value":   "123-4567",
-						"primary": true,
+						"type":  "work",
+						"value": "123-4567",
 					},
 					map[string]interface{}{
 						"type":  "work",
@@ -816,9 +812,9 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 				},
 			},
 			want: map[string]string{
-				"phone,work":         "555-1212",
-				"phone,work,primary": "123-4567",
-				"phone,work~1":       "999-999-9999",
+				"phone,work":   "555-1212",
+				"phone,work~1": "123-4567",
+				"phone,work~2": "999-999-9999",
 			},
 		},
 		{

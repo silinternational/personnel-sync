@@ -104,6 +104,7 @@ func extractData(user admin.User) internal.Person {
 	return internal.Person{CompareValue: user.PrimaryEmail, Attributes: attributes}
 }
 
+// getPhoneNumbersFromUser converts phone attributes from an admin.User struct and saves attributes in a string map
 func getPhoneNumbersFromUser(user admin.User) map[string]string {
 	attributes := map[string]string{}
 
@@ -124,56 +125,32 @@ func getPhoneNumbersFromUser(user admin.User) map[string]string {
 			continue
 		}
 		custom, _ := phone["customType"].(string)
-		primary, ok := phone["primary"].(bool)
 
-		//i := 0
-		//key := phoneKey(phoneType, custom, primary, i)
-		//_, ok = attributes[key]
-		//for ok {
-		//	i++
-		//	key = phoneKey(phoneType, custom, primary, i)
-		//	_, ok = attributes[key]
-		//}
-		key := phoneKeyR(phoneType, custom, primary, attributes)
+		key := phoneKey(phoneType, custom, attributes)
 		attributes[key] = val
 	}
 
 	return attributes
 }
 
-func phoneKey(phoneType, custom string, primary bool, i int) string {
-	key := "phone" + delim + phoneType
-	if i > 0 {
-		key += "~" + strconv.Itoa(i)
-	}
-	if phoneType == "custom" && custom != "" {
-		key += delim + custom
-	}
-	if primary {
-		key += delim + "primary"
-	}
-	return key
-}
-
-func phoneKeyR(phoneType, custom string, primary bool, attributes map[string]string) string {
+// phoneKey generates a key that includes the phone type and custom type. It recursively searches attributes for
+// duplicate keys, incrementing a numeric suffix when necessary to make it unique.
+func phoneKey(phoneType, custom string, attributes map[string]string) string {
 	key := "phone" + delim + phoneType
 
 	if strings.HasPrefix(phoneType, "custom") && custom != "" {
 		key += delim + custom
 	}
-	if primary {
-		key += delim + "primary"
-	}
+
 	_, ok := attributes[key]
 	if ok {
 		split := strings.SplitN(phoneType, "~", 2)
-		i := 1
+		n := 0
 		if len(split) > 1 {
-			n, _ := strconv.Atoi(split[1])
-			i = n + 1
+			n, _ = strconv.Atoi(split[1])
 		}
 
-		return phoneKeyR(fmt.Sprintf("%s~%d", split[0], i), custom, primary, attributes)
+		return phoneKey(fmt.Sprintf("%s~%d", split[0], n+1), custom, attributes)
 	}
 
 	return key
@@ -514,18 +491,10 @@ func attributesToUserPhones(phones map[string]string) ([]admin.UserPhone, error)
 		}
 		phoneType := strings.TrimRight(split[1], "~0123456789")
 		custom := ""
-		primary := false
-		if len(split) > 2 {
-			nPrimary := 2
-			if phoneType == "custom" {
-				custom = split[2]
-				nPrimary = 3
-			}
-			if len(split) > nPrimary {
-				primary = true
-			}
+		if len(split) > 2 && phoneType == "custom" {
+			custom = split[2]
 		}
-		userPhones = append(userPhones, admin.UserPhone{Type: phoneType, CustomType: custom, Primary: primary, Value: val})
+		userPhones = append(userPhones, admin.UserPhone{Type: phoneType, CustomType: custom, Value: val})
 	}
 
 	return userPhones, nil
