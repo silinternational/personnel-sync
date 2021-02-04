@@ -488,6 +488,8 @@ is represented as `Location.Building`.
              
 Phone types are represented by separating the property name from its type with a comma (`,`). For example: `phone,home` or `phone,work`. Multiple phones of the same type can be referenced by adding a tilde (`~`) and a number. For example: `phone,work` and `phone,work~1`. Types other than those defined by the [Google API spec](https://developers.google.com/admin-sdk/directory/reference/rest/v1/users#User.FIELDS.phones) should be referenced using a custom type as follows: `phone,custom,sat`. One phone property can be marked as "primary" by adding `,primary` to the end like `phone,work,primary`.
 
+NOTE: phone types other than 'work', 'mobile' and 'home' and the 'primary' flag may not appear in the standard Google user interface.
+
 __\* CAUTION:__ updating any field in `organizations` will overwrite all
 existing organizations
              
