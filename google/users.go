@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/syslog"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -114,7 +115,7 @@ func getPhoneNumbersFromUser(user admin.User) map[string]string {
 	for _, phoneAsInterface := range phones {
 		phone := phoneAsInterface.(map[string]interface{})
 
-		key, ok := phone["type"].(string)
+		phoneType, ok := phone["type"].(string)
 		if !ok {
 			continue
 		}
@@ -122,15 +123,60 @@ func getPhoneNumbersFromUser(user admin.User) map[string]string {
 		if !ok {
 			continue
 		}
-		attributes["phone,"+key] = val
+		custom, _ := phone["customType"].(string)
+		primary, ok := phone["primary"].(bool)
 
-		// add without the type for backward compatibility
-		if key == "work" {
-			attributes["phone"] = val
-		}
+		//i := 0
+		//key := phoneKey(phoneType, custom, primary, i)
+		//_, ok = attributes[key]
+		//for ok {
+		//	i++
+		//	key = phoneKey(phoneType, custom, primary, i)
+		//	_, ok = attributes[key]
+		//}
+		key := phoneKeyR(phoneType, custom, primary, attributes)
+		attributes[key] = val
 	}
 
 	return attributes
+}
+
+func phoneKey(phoneType, custom string, primary bool, i int) string {
+	key := "phone" + delim + phoneType
+	if i > 0 {
+		key += "~" + strconv.Itoa(i)
+	}
+	if phoneType == "custom" && custom != "" {
+		key += delim + custom
+	}
+	if primary {
+		key += delim + "primary"
+	}
+	return key
+}
+
+func phoneKeyR(phoneType, custom string, primary bool, attributes map[string]string) string {
+	key := "phone" + delim + phoneType
+
+	if strings.HasPrefix(phoneType, "custom") && custom != "" {
+		key += delim + custom
+	}
+	if primary {
+		key += delim + "primary"
+	}
+	_, ok := attributes[key]
+	if ok {
+		split := strings.SplitN(phoneType, "~", 2)
+		i := 1
+		if len(split) > 1 {
+			n, _ := strconv.Atoi(split[1])
+			i = n + 1
+		}
+
+		return phoneKeyR(fmt.Sprintf("%s~%d", split[0], i), custom, primary, attributes)
+	}
+
+	return key
 }
 
 // findFirstMatchingType iterates through a slice of interfaces until it finds a matching key. The underlying type
@@ -221,8 +267,10 @@ func newUserForUpdate(person internal.Person, oldUser admin.User) (admin.User, e
 	var organization admin.UserOrganization
 	isOrgModified := false
 
+	phones := getPhoneNumbersFromUser(oldUser)
+
 	for key, val := range person.Attributes {
-		switch key {
+		switch beforeComma(key) {
 		case "givenName":
 			if user.Name == nil {
 				user.Name = &admin.UserName{GivenName: val}
@@ -262,10 +310,7 @@ func newUserForUpdate(person internal.Person, oldUser admin.User) (admin.User, e
 			isOrgModified = true
 
 		case "phone":
-			user.Phones, err = updatePhones(val, oldUser.Phones)
-			if err != nil {
-				return admin.User{}, err
-			}
+			phones[key] = val
 
 		case "manager":
 			user.Relations, err = updateRelations(val, oldUser.Relations)
@@ -290,12 +335,22 @@ func newUserForUpdate(person internal.Person, oldUser admin.User) (admin.User, e
 		}
 	}
 
+	user.Phones, err = attributesToUserPhones(phones)
+	if err != nil {
+		return admin.User{}, err
+	}
+
 	if isOrgModified {
 		// NOTICE: this will overwrite any and all existing Organizations
 		user.Organizations = []admin.UserOrganization{organization}
 	}
 
 	return user, nil
+}
+
+func beforeComma(s string) string {
+	split := strings.SplitN(s, ",", 2)
+	return split[0]
 }
 
 func (g *GoogleUsers) updateUser(
@@ -312,7 +367,8 @@ func (g *GoogleUsers) updateUser(
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("unable to get old user %s, %s", email, err.Error())}
+			Message: fmt.Sprintf("unable to get old user %s, %s", email, err.Error()),
+		}
 		return
 	}
 
@@ -320,7 +376,8 @@ func (g *GoogleUsers) updateUser(
 	if err2 != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("unable to prepare update for %s in Users: %s", email, err2.Error())}
+			Message: fmt.Sprintf("unable to prepare update for %s in Users: %s", email, err2.Error()),
+		}
 		return
 	}
 
@@ -328,7 +385,8 @@ func (g *GoogleUsers) updateUser(
 	if err3 != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("unable to update %s in Users: %s", email, err3.Error())}
+			Message: fmt.Sprintf("unable to update %s in Users: %s", email, err3.Error()),
+		}
 		return
 	}
 
@@ -441,45 +499,36 @@ func updateLocations(newArea string, oldLocations interface{}) ([]admin.UserLoca
 	return locations, nil
 }
 
-func updatePhones(newPhone string, oldPhones interface{}) ([]admin.UserPhone, error) {
-	phones := []admin.UserPhone{{Type: "work", Value: newPhone}}
+func attributesToUserPhones(phones map[string]string) ([]admin.UserPhone, error) {
+	userPhones := []admin.UserPhone{}
 
-	if oldPhones == nil {
-		return phones, nil
-	}
-
-	interfaces, ok := oldPhones.([]interface{})
-	if !ok {
-		return nil, errors.New("no slice in Google API Phones")
-	}
-
-	for i := range interfaces {
-		phoneMap, ok := interfaces[i].(map[string]interface{})
-		if !ok {
-			return nil, errors.New("unexpected data in Google API phone list")
+	for key, val := range phones {
+		split := strings.Split(key, ",")
+		if split[0] != "phone" {
+			return userPhones, fmt.Errorf("phone key doesn't start with 'phone': %s", key)
 		}
-
-		thisType, ok := phoneMap["type"].(string)
-		if !ok {
-			return nil, errors.New("unexpected data in Google API phone list entry")
-		}
-
-		if thisType == "work" {
+		if len(split) < 2 {
+			// for backward compatibility
+			userPhones = append(userPhones, admin.UserPhone{Type: "work", Value: val})
 			continue
 		}
-
-		value, _ := phoneMap["value"].(string)
-		customType, _ := phoneMap["customType"].(string)
-		primary, _ := phoneMap["primary"].(bool)
-		phones = append(phones, admin.UserPhone{
-			Type:       thisType,
-			Value:      value,
-			CustomType: customType,
-			Primary:    primary,
-		})
+		phoneType := strings.TrimRight(split[1], "~0123456789")
+		custom := ""
+		primary := false
+		if len(split) > 2 {
+			nPrimary := 2
+			if phoneType == "custom" {
+				custom = split[2]
+				nPrimary = 3
+			}
+			if len(split) > nPrimary {
+				primary = true
+			}
+		}
+		userPhones = append(userPhones, admin.UserPhone{Type: phoneType, CustomType: custom, Primary: primary, Value: val})
 	}
 
-	return phones, nil
+	return userPhones, nil
 }
 
 func updateRelations(newRelation string, oldRelations interface{}) ([]admin.UserRelation, error) {

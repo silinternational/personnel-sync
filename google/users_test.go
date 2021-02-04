@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/api/googleapi"
 
 	"github.com/silinternational/personnel-sync/v5/internal"
@@ -217,7 +218,6 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					"costCenter":        "A cost center",
 					"department":        "A department",
 					"title":             "A title",
-					"phone":             "555-1212",
 					"phone,work":        "555-1212",
 					"manager":           "manager@example.com",
 					"Location.Building": "A building",
@@ -267,7 +267,6 @@ func TestGoogleUsers_extractData(t *testing.T) {
 				Attributes: map[string]string{
 					"email":      "email@example.com",
 					"phone,home": "555-1212",
-					"phone":      "888-5555",
 					"phone,work": "888-5555",
 				},
 			},
@@ -357,7 +356,7 @@ func Test_newUserForUpdate(t *testing.T) {
 					"costCenter":        "A cost center",
 					"department":        "A department",
 					"title":             "A title",
-					"phone":             "555-1212",
+					"phone,work":        "555-1212",
 					"manager":           "manager@example.com",
 					"Location.Building": "A building",
 				},
@@ -589,86 +588,99 @@ func Test_updateLocations(t *testing.T) {
 
 func Test_updatePhones(t *testing.T) {
 	tests := []struct {
-		name      string
-		newPhone  string
-		oldPhones interface{}
-		want      []admin.UserPhone
+		name    string
+		phones  map[string]string
+		want    []admin.UserPhone
+		wantErr bool
 	}{
 		{
-			name:     "work and custom",
-			newPhone: "555-1212",
-			oldPhones: []interface{}{
-				map[string]interface{}{
-					"type":  "work",
-					"value": "222-333-4444",
-				},
-				map[string]interface{}{
-					"type":       "custom",
-					"customType": "foo",
-					"value":      "999-111-2222",
-					"primary":    true,
-				},
+			name: "work+custom",
+			phones: map[string]string{
+				"phone,work":               "1",
+				"phone,custom,foo,primary": "2",
 			},
 			want: []admin.UserPhone{
 				{
 					Type:  "work",
-					Value: "555-1212",
+					Value: "1",
 				},
 				{
 					Type:       "custom",
 					CustomType: "foo",
-					Value:      "999-111-2222",
+					Value:      "2",
 					Primary:    true,
 				},
 			},
 		},
 		{
-			name:     "work only",
-			newPhone: "555-1212",
-			oldPhones: []interface{}{
-				map[string]interface{}{
-					"type":  "work",
-					"value": "222-333-4444",
-				},
+			name: "work*3",
+			phones: map[string]string{
+				"phone,work":         "1",
+				"phone,work,primary": "2",
+				"phone,work~1":       "3",
 			},
 			want: []admin.UserPhone{
 				{
 					Type:  "work",
-					Value: "555-1212",
+					Value: "1",
+				},
+				{
+					Type:    "work",
+					Value:   "2",
+					Primary: true,
+				},
+				{
+					Type:  "work",
+					Value: "3",
 				},
 			},
 		},
 		{
-			name:     "custom only",
-			newPhone: "555-1212",
-			oldPhones: []interface{}{
-				map[string]interface{}{
-					"type":       "custom",
-					"customType": "foo",
-					"value":      "999-111-2222",
-					"primary":    true,
-				},
+			name: "custom*3",
+			phones: map[string]string{
+				"phone,custom,other":   "1",
+				"phone,custom~1,other": "2",
+				"phone,custom~2,other": "3",
 			},
 			want: []admin.UserPhone{
 				{
-					Type:  "work",
-					Value: "555-1212",
+					Type:       "custom",
+					CustomType: "other",
+					Value:      "1",
 				},
 				{
 					Type:       "custom",
-					CustomType: "foo",
-					Value:      "999-111-2222",
-					Primary:    true,
+					CustomType: "other",
+					Value:      "2",
+				},
+				{
+					Type:       "custom",
+					CustomType: "other",
+					Value:      "3",
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updatePhones(tt.newPhone, tt.oldPhones); err != nil {
-				t.Errorf("updatePhones() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updatePhones():\n%+v\nwant:\n%+v", got, tt.want)
+			got, err := attributesToUserPhones(tt.phones)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("attributesToUserPhones() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			assert.Equal(t, len(tt.want), len(got),
+				"got wrong number of phones (got %d, want %d)", len(got), len(tt.want))
+
+			for w := range tt.want {
+				found := false
+				for g := range got {
+					if reflect.DeepEqual(w, g) {
+						found = true
+						continue
+					}
+				}
+				assert.True(t, found, "didn't find %v in phone list", w)
 			}
 		})
 	}
@@ -752,6 +764,95 @@ func Test_updateRelations(t *testing.T) {
 				t.Errorf("updateRelations() error: %s", err)
 			} else if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("updateRelations():\n%+v\nwant:\n%+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getPhoneNumbersFromUser(t *testing.T) {
+	tests := []struct {
+		name string
+		user admin.User
+		want map[string]string
+	}{
+		{
+			name: "work+custom",
+			user: admin.User{
+				Phones: []interface{}{
+					map[string]interface{}{
+						"type":  "work",
+						"value": "555-1212",
+					},
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "foo",
+						"value":      "2",
+						"primary":    true,
+					},
+				},
+			},
+			want: map[string]string{
+				"phone,work":               "555-1212",
+				"phone,custom,foo,primary": "2",
+			},
+		},
+		{
+			name: "work*3",
+			user: admin.User{
+				Phones: []interface{}{
+					map[string]interface{}{
+						"type":  "work",
+						"value": "555-1212",
+					},
+					map[string]interface{}{
+						"type":    "work",
+						"value":   "123-4567",
+						"primary": true,
+					},
+					map[string]interface{}{
+						"type":  "work",
+						"value": "999-999-9999",
+					},
+				},
+			},
+			want: map[string]string{
+				"phone,work":         "555-1212",
+				"phone,work,primary": "123-4567",
+				"phone,work~1":       "999-999-9999",
+			},
+		},
+		{
+			name: "custom*3",
+			user: admin.User{
+				Phones: []interface{}{
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "other",
+						"value":      "555-1212",
+					},
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "other",
+						"value":      "123-4567",
+					},
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "other",
+						"value":      "999-999-9999",
+					},
+				},
+			},
+			want: map[string]string{
+				"phone,custom,other":   "555-1212",
+				"phone,custom~1,other": "123-4567",
+				"phone,custom~2,other": "999-999-9999",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getPhoneNumbersFromUser(tt.user); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getPhoneNumbersFromUser():\n  %v\nwant:\n  %v\n", got, tt.want)
 			}
 		})
 	}
