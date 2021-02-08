@@ -7,7 +7,11 @@ import (
 )
 
 func main() {
-	if err := personnel_sync.RunSync(""); err != nil {
+	configFile := ""
+	if len(os.Args) > 1 {
+		configFile = os.Args[1]
+	}
+	if err := personnel_sync.RunSync(configFile); err != nil {
 		os.Exit(1)
 	}
 	os.Exit(0)
