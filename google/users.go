@@ -78,10 +78,6 @@ func extractData(user admin.User) internal.Person {
 		setStringFromInterface(found["title"], attributes, "title")
 	}
 
-	//if found := findFirstMatchingType(user.Phones, "work"); found != nil {
-	//	setStringFromInterface(found["value"], attributes, "phone")
-	//}
-
 	if found := findFirstMatchingType(user.Relations, "manager"); found != nil {
 		setStringFromInterface(found["value"], attributes, "manager")
 	}
