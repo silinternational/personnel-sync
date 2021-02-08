@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/api/googleapi"
 
 	"github.com/silinternational/personnel-sync/v5/internal"
@@ -68,18 +68,10 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := NewGoogleUsersDestination(tt.fields.DestinationConfig)
-			if err != nil {
-				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
-				t.FailNow()
-			}
+			require.NoErrorf(t, err, "Failed to get new googleUsers instance, error: %s", err.Error())
 			got, err := g.ListUsers([]string{})
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GoogleUsers.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GoogleUsers.ListUsers() = %v, want %v", got, tt.want)
-			}
+			require.Equalf(t, tt.wantErr, err != nil, "GoogleUsers.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
+			require.Equalf(t, got, tt.want, "GoogleUsers.ListUsers() = %v, want %v", got, tt.want)
 		})
 	}
 }
@@ -138,14 +130,10 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := NewGoogleUsersDestination(tt.fields.DestinationConfig)
-			if err != nil {
-				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
-				t.FailNow()
-			}
+			require.NoErrorf(t, err, "Failed to get new googleUsers instance, error: %s", err.Error())
 			eventLog := make(chan internal.EventLogItem, 50)
-			if got := g.ApplyChangeSet(tt.args.changes, eventLog); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GoogleUsers.ApplyChangeSet() = %v, want %v", got, tt.want)
-			}
+			got := g.ApplyChangeSet(tt.args.changes, eventLog)
+			require.Equalf(t, tt.want, got, "GoogleUsers.ApplyChangeSet() = %v, want %v", got, tt.want)
 			close(eventLog)
 		})
 	}
@@ -330,9 +318,8 @@ func TestGoogleUsers_extractData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := extractData(tt.user); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("extractData() = %#v\nwant: %#v", got, tt.want)
-			}
+			got := extractData(tt.user)
+			require.Equalf(t, tt.want, got, "extractData() = %#v\nwant: %#v", got, tt.want)
 		})
 	}
 }
@@ -395,11 +382,9 @@ func Test_newUserForUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := newUserForUpdate(tt.person, admin.User{}); err != nil {
-				t.Errorf("newUserForUpdate() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newUserForUpdate() = %#v\nwant: %#v", got, tt.want)
-			}
+			got, err := newUserForUpdate(tt.person, admin.User{})
+			require.NoError(t, err)
+			require.Equalf(t, tt.want, got, "newUserForUpdate() = %#v\nwant: %#v", got, tt.want)
 		})
 	}
 }
@@ -478,11 +463,9 @@ func Test_updateIDs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updateIDs(tt.newID, tt.oldIDs); err != nil {
-				t.Errorf("updateIDs() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateIDs():\n%+v\nwant:\n%+v", got, tt.want)
-			}
+			got, err := updateIDs(tt.newID, tt.oldIDs)
+			require.NoError(t, err, "updateIDs() error")
+			require.Equal(t, tt.want, got, "updateIDs():\n%+v\nwant:\n%+v", got, tt.want)
 		})
 	}
 }
@@ -577,11 +560,9 @@ func Test_updateLocations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updateLocations(tt.newArea, tt.oldLocations); err != nil {
-				t.Errorf("updateLocations() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateLocations():\n%+v\nwant:\n%+v", got, tt.want)
-			}
+			got, err := updateLocations(tt.newArea, tt.oldLocations)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got, "updateLocations():\n%+v\nwant:\n%+v", got, tt.want)
 		})
 	}
 }
@@ -662,12 +643,10 @@ func Test_updatePhones(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := attributesToUserPhones(tt.phones)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("attributesToUserPhones() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			require.Equal(t, tt.wantErr, err != nil,
+				"attributesToUserPhones() error = %v, wantErr %v", err, tt.wantErr)
 
-			assert.Equal(t, len(tt.want), len(got),
+			require.Equal(t, len(tt.want), len(got),
 				"got wrong number of phones (got %d, want %d)", len(got), len(tt.want))
 
 			for w := range tt.want {
@@ -678,7 +657,7 @@ func Test_updatePhones(t *testing.T) {
 						continue
 					}
 				}
-				assert.True(t, found, "didn't find %v in phone list", w)
+				require.True(t, found, "didn't find %v in phone list", w)
 			}
 		})
 	}
@@ -758,11 +737,9 @@ func Test_updateRelations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updateRelations(tt.newRelation, tt.oldRelations); err != nil {
-				t.Errorf("updateRelations() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateRelations():\n%+v\nwant:\n%+v", got, tt.want)
-			}
+			got, err := updateRelations(tt.newRelation, tt.oldRelations)
+			require.NoError(t, err, "updateRelations() error")
+			require.Equal(t, tt.want, got, "updateRelations():\n%+v\nwant:\n%+v", got, tt.want)
 		})
 	}
 }
@@ -847,9 +824,8 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getPhoneNumbersFromUser(tt.user); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getPhoneNumbersFromUser():\n  %v\nwant:\n  %v\n", got, tt.want)
-			}
+			got := getPhoneNumbersFromUser(tt.user)
+			require.Equal(t, tt.want, got, "getPhoneNumbersFromUser():\n  %v\nwant:\n  %v\n", got, tt.want)
 		})
 	}
 }
