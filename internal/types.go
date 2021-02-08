@@ -77,7 +77,7 @@ type EventLogItem struct {
 	Level   syslog.Priority
 }
 
-func (l *EventLogItem) String() string {
+func (l EventLogItem) String() string {
 	return LogLevels[l.Level] + ": " + l.Message
 }
 
