@@ -476,6 +476,9 @@ func attributesToUserPhones(phones map[string]string) ([]admin.UserPhone, error)
 	userPhones := []admin.UserPhone{}
 
 	for key, val := range phones {
+		if val == "" {
+			continue
+		}
 		split := strings.Split(key, delim)
 		if split[0] != "phone" {
 			return userPhones, fmt.Errorf("phone key doesn't start with 'phone': %s", key)
