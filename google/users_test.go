@@ -198,17 +198,17 @@ func TestGoogleUsers_extractData(t *testing.T) {
 			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email":             "email@example.com",
-					"familyName":        "Jones",
-					"givenName":         "John",
-					"id":                "12345",
-					"area":              "An area",
-					"costCenter":        "A cost center",
-					"department":        "A department",
-					"title":             "A title",
-					"phone,work":        "555-1212",
-					"manager":           "manager@example.com",
-					"Location.Building": "A building",
+					"email":                  "email@example.com",
+					"familyName":             "Jones",
+					"givenName":              "John",
+					"id":                     "12345",
+					"area":                   "An area",
+					"costCenter":             "A cost center",
+					"department":             "A department",
+					"title":                  "A title",
+					"phone" + delim + "work": "555-1212",
+					"manager":                "manager@example.com",
+					"Location.Building":      "A building",
 				},
 			},
 		},
@@ -253,9 +253,9 @@ func TestGoogleUsers_extractData(t *testing.T) {
 			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email":      "email@example.com",
-					"phone,home": "555-1212",
-					"phone,work": "888-5555",
+					"email":                  "email@example.com",
+					"phone" + delim + "home": "555-1212",
+					"phone" + delim + "work": "888-5555",
 				},
 			},
 		},
@@ -335,17 +335,17 @@ func Test_newUserForUpdate(t *testing.T) {
 			person: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email":             "email@example.com",
-					"familyName":        "Jones",
-					"givenName":         "John",
-					"id":                "12345",
-					"area":              "An area",
-					"costCenter":        "A cost center",
-					"department":        "A department",
-					"title":             "A title",
-					"phone,work":        "555-1212",
-					"manager":           "manager@example.com",
-					"Location.Building": "A building",
+					"email":                  "email@example.com",
+					"familyName":             "Jones",
+					"givenName":              "John",
+					"id":                     "12345",
+					"area":                   "An area",
+					"costCenter":             "A cost center",
+					"department":             "A department",
+					"title":                  "A title",
+					"phone" + delim + "work": "555-1212",
+					"manager":                "manager@example.com",
+					"Location.Building":      "A building",
 				},
 			},
 			want: admin.User{
@@ -577,8 +577,8 @@ func Test_updatePhones(t *testing.T) {
 		{
 			name: "work+custom",
 			phones: map[string]string{
-				"phone,work":       "1",
-				"phone,custom,foo": "2",
+				"phone" + delim + "work":                   "1",
+				"phone" + delim + "custom" + delim + "foo": "2",
 			},
 			want: []admin.UserPhone{
 				{
@@ -595,9 +595,9 @@ func Test_updatePhones(t *testing.T) {
 		{
 			name: "work*3",
 			phones: map[string]string{
-				"phone,work":   "1",
-				"phone,work~1": "2",
-				"phone,work~2": "3",
+				"phone" + delim + "work":   "1",
+				"phone" + delim + "work~1": "2",
+				"phone" + delim + "work~2": "3",
 			},
 			want: []admin.UserPhone{
 				{
@@ -617,9 +617,9 @@ func Test_updatePhones(t *testing.T) {
 		{
 			name: "custom*3",
 			phones: map[string]string{
-				"phone,custom,other":   "1",
-				"phone,custom~1,other": "2",
-				"phone,custom~2,other": "3",
+				"phone" + delim + "custom" + delim + "other":   "1",
+				"phone" + delim + "custom~1" + delim + "other": "2",
+				"phone" + delim + "custom~2" + delim + "other": "3",
 			},
 			want: []admin.UserPhone{
 				{
@@ -766,8 +766,8 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 				},
 			},
 			want: map[string]string{
-				"phone,work":       "555-1212",
-				"phone,custom,foo": "2",
+				"phone" + delim + "work":                   "555-1212",
+				"phone" + delim + "custom" + delim + "foo": "2",
 			},
 		},
 		{
@@ -789,9 +789,9 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 				},
 			},
 			want: map[string]string{
-				"phone,work":   "555-1212",
-				"phone,work~1": "123-4567",
-				"phone,work~2": "999-999-9999",
+				"phone" + delim + "work":   "555-1212",
+				"phone" + delim + "work~1": "123-4567",
+				"phone" + delim + "work~2": "999-999-9999",
 			},
 		},
 		{
@@ -816,9 +816,9 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 				},
 			},
 			want: map[string]string{
-				"phone,custom,other":   "555-1212",
-				"phone,custom~1,other": "123-4567",
-				"phone,custom~2,other": "999-999-9999",
+				"phone" + delim + "custom" + delim + "other":   "555-1212",
+				"phone" + delim + "custom~1" + delim + "other": "123-4567",
+				"phone" + delim + "custom~2" + delim + "other": "999-999-9999",
 			},
 		},
 	}

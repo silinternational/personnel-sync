@@ -243,7 +243,7 @@ func newUserForUpdate(person internal.Person, oldUser admin.User) (admin.User, e
 	phones := getPhoneNumbersFromUser(oldUser)
 
 	for key, val := range person.Attributes {
-		switch beforeComma(key) {
+		switch beforeDelim(key) {
 		case "givenName":
 			if user.Name == nil {
 				user.Name = &admin.UserName{GivenName: val}
@@ -321,8 +321,8 @@ func newUserForUpdate(person internal.Person, oldUser admin.User) (admin.User, e
 	return user, nil
 }
 
-func beforeComma(s string) string {
-	split := strings.SplitN(s, ",", 2)
+func beforeDelim(s string) string {
+	split := strings.SplitN(s, delim, 2)
 	return split[0]
 }
 
@@ -476,7 +476,7 @@ func attributesToUserPhones(phones map[string]string) ([]admin.UserPhone, error)
 	userPhones := []admin.UserPhone{}
 
 	for key, val := range phones {
-		split := strings.Split(key, ",")
+		split := strings.Split(key, delim)
 		if split[0] != "phone" {
 			return userPhones, fmt.Errorf("phone key doesn't start with 'phone': %s", key)
 		}
