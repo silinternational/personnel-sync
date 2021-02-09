@@ -19,11 +19,13 @@ import (
 	internal "github.com/silinternational/personnel-sync/v5/internal"
 )
 
-const AuthTypeBasic = "basic"
-const AuthTypeBearer = "bearer"
-const AuthTypeSalesforceOauth = "SalesforceOauth"
-const DefaultBatchSize = 10
-const DefaultBatchDelaySeconds = 3
+const (
+	AuthTypeBasic            = "basic"
+	AuthTypeBearer           = "bearer"
+	AuthTypeSalesforceOauth  = "SalesforceOauth"
+	DefaultBatchSize         = 10
+	DefaultBatchDelaySeconds = 3
+)
 
 type RestAPI struct {
 	Method               string // DEPRECATED
@@ -406,7 +408,6 @@ func (r *RestAPI) deleteContact(p internal.Person, n *uint64, wg *sync.WaitGroup
 }
 
 func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (string, error) {
-
 	var req *http.Request
 	var err error
 	if body == "" {

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/api/googleapi"
 
 	"github.com/silinternational/personnel-sync/v5/internal"
@@ -67,18 +68,10 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := NewGoogleUsersDestination(tt.fields.DestinationConfig)
-			if err != nil {
-				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
-				t.FailNow()
-			}
+			require.NoErrorf(t, err, "Failed to get new googleUsers instance, error: %s", err.Error())
 			got, err := g.ListUsers([]string{})
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GoogleUsers.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GoogleUsers.ListUsers() = %v, want %v", got, tt.want)
-			}
+			require.Equalf(t, tt.wantErr, err != nil, "GoogleUsers.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
+			require.Equalf(t, got, tt.want, "GoogleUsers.ListUsers() = %v, want %v", got, tt.want)
 		})
 	}
 }
@@ -137,14 +130,10 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := NewGoogleUsersDestination(tt.fields.DestinationConfig)
-			if err != nil {
-				t.Errorf("Failed to get new googleUsers instance, error: %s", err.Error())
-				t.FailNow()
-			}
+			require.NoErrorf(t, err, "Failed to get new googleUsers instance, error: %s", err.Error())
 			eventLog := make(chan internal.EventLogItem, 50)
-			if got := g.ApplyChangeSet(tt.args.changes, eventLog); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GoogleUsers.ApplyChangeSet() = %v, want %v", got, tt.want)
-			}
+			got := g.ApplyChangeSet(tt.args.changes, eventLog)
+			require.Equalf(t, tt.want, got, "GoogleUsers.ApplyChangeSet() = %v, want %v", got, tt.want)
 			close(eventLog)
 		})
 	}
@@ -209,17 +198,17 @@ func TestGoogleUsers_extractData(t *testing.T) {
 			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email":             "email@example.com",
-					"familyName":        "Jones",
-					"givenName":         "John",
-					"id":                "12345",
-					"area":              "An area",
-					"costCenter":        "A cost center",
-					"department":        "A department",
-					"title":             "A title",
-					"phone":             "555-1212",
-					"manager":           "manager@example.com",
-					"Location.Building": "A building",
+					"email":                  "email@example.com",
+					"familyName":             "Jones",
+					"givenName":              "John",
+					"id":                     "12345",
+					"area":                   "An area",
+					"costCenter":             "A cost center",
+					"department":             "A department",
+					"title":                  "A title",
+					"phone" + delim + "work": "555-1212",
+					"manager":                "manager@example.com",
+					"Location.Building":      "A building",
 				},
 			},
 		},
@@ -264,8 +253,9 @@ func TestGoogleUsers_extractData(t *testing.T) {
 			want: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email": "email@example.com",
-					"phone": "888-5555",
+					"email":                  "email@example.com",
+					"phone" + delim + "home": "555-1212",
+					"phone" + delim + "work": "888-5555",
 				},
 			},
 		},
@@ -328,9 +318,8 @@ func TestGoogleUsers_extractData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := extractData(tt.user); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("extractData() = %#v\nwant: %#v", got, tt.want)
-			}
+			got := extractData(tt.user)
+			require.Equalf(t, tt.want, got, "extractData() = %#v\nwant: %#v", got, tt.want)
 		})
 	}
 }
@@ -346,17 +335,17 @@ func Test_newUserForUpdate(t *testing.T) {
 			person: internal.Person{
 				CompareValue: "email@example.com",
 				Attributes: map[string]string{
-					"email":             "email@example.com",
-					"familyName":        "Jones",
-					"givenName":         "John",
-					"id":                "12345",
-					"area":              "An area",
-					"costCenter":        "A cost center",
-					"department":        "A department",
-					"title":             "A title",
-					"phone":             "555-1212",
-					"manager":           "manager@example.com",
-					"Location.Building": "A building",
+					"email":                  "email@example.com",
+					"familyName":             "Jones",
+					"givenName":              "John",
+					"id":                     "12345",
+					"area":                   "An area",
+					"costCenter":             "A cost center",
+					"department":             "A department",
+					"title":                  "A title",
+					"phone" + delim + "work": "555-1212",
+					"manager":                "manager@example.com",
+					"Location.Building":      "A building",
 				},
 			},
 			want: admin.User{
@@ -393,11 +382,9 @@ func Test_newUserForUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := newUserForUpdate(tt.person, admin.User{}); err != nil {
-				t.Errorf("newUserForUpdate() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newUserForUpdate() = %#v\nwant: %#v", got, tt.want)
-			}
+			got, err := newUserForUpdate(tt.person, admin.User{})
+			require.NoError(t, err)
+			require.Equalf(t, tt.want, got, "newUserForUpdate() = %#v\nwant: %#v", got, tt.want)
 		})
 	}
 }
@@ -476,11 +463,9 @@ func Test_updateIDs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updateIDs(tt.newID, tt.oldIDs); err != nil {
-				t.Errorf("updateIDs() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateIDs():\n%+v\nwant:\n%+v", got, tt.want)
-			}
+			got, err := updateIDs(tt.newID, tt.oldIDs)
+			require.NoError(t, err, "updateIDs() error")
+			require.Equal(t, tt.want, got, "updateIDs():\n%+v\nwant:\n%+v", got, tt.want)
 		})
 	}
 }
@@ -575,97 +560,104 @@ func Test_updateLocations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updateLocations(tt.newArea, tt.oldLocations); err != nil {
-				t.Errorf("updateLocations() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateLocations():\n%+v\nwant:\n%+v", got, tt.want)
-			}
+			got, err := updateLocations(tt.newArea, tt.oldLocations)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got, "updateLocations():\n%+v\nwant:\n%+v", got, tt.want)
 		})
 	}
 }
 
 func Test_updatePhones(t *testing.T) {
 	tests := []struct {
-		name      string
-		newPhone  string
-		oldPhones interface{}
-		want      []admin.UserPhone
+		name    string
+		phones  map[string]string
+		want    []admin.UserPhone
+		wantErr bool
 	}{
 		{
-			name:     "work and custom",
-			newPhone: "555-1212",
-			oldPhones: []interface{}{
-				map[string]interface{}{
-					"type":  "work",
-					"value": "222-333-4444",
-				},
-				map[string]interface{}{
-					"type":       "custom",
-					"customType": "foo",
-					"value":      "999-111-2222",
-					"primary":    true,
-				},
+			name: "work+custom",
+			phones: map[string]string{
+				"phone" + delim + "work":                   "1",
+				"phone" + delim + "custom" + delim + "foo": "2",
 			},
 			want: []admin.UserPhone{
 				{
 					Type:  "work",
-					Value: "555-1212",
+					Value: "1",
 				},
 				{
 					Type:       "custom",
 					CustomType: "foo",
-					Value:      "999-111-2222",
-					Primary:    true,
+					Value:      "2",
 				},
 			},
 		},
 		{
-			name:     "work only",
-			newPhone: "555-1212",
-			oldPhones: []interface{}{
-				map[string]interface{}{
-					"type":  "work",
-					"value": "222-333-4444",
-				},
+			name: "work*3",
+			phones: map[string]string{
+				"phone" + delim + "work":   "1",
+				"phone" + delim + "work~1": "2",
+				"phone" + delim + "work~2": "3",
 			},
 			want: []admin.UserPhone{
 				{
 					Type:  "work",
-					Value: "555-1212",
+					Value: "1",
+				},
+				{
+					Type:  "work",
+					Value: "2",
+				},
+				{
+					Type:  "work",
+					Value: "3",
 				},
 			},
 		},
 		{
-			name:     "custom only",
-			newPhone: "555-1212",
-			oldPhones: []interface{}{
-				map[string]interface{}{
-					"type":       "custom",
-					"customType": "foo",
-					"value":      "999-111-2222",
-					"primary":    true,
-				},
+			name: "custom*3",
+			phones: map[string]string{
+				"phone" + delim + "custom" + delim + "other":   "1",
+				"phone" + delim + "custom~1" + delim + "other": "2",
+				"phone" + delim + "custom~2" + delim + "other": "3",
 			},
 			want: []admin.UserPhone{
 				{
-					Type:  "work",
-					Value: "555-1212",
+					Type:       "custom",
+					CustomType: "other",
+					Value:      "1",
 				},
 				{
 					Type:       "custom",
-					CustomType: "foo",
-					Value:      "999-111-2222",
-					Primary:    true,
+					CustomType: "other",
+					Value:      "2",
+				},
+				{
+					Type:       "custom",
+					CustomType: "other",
+					Value:      "3",
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updatePhones(tt.newPhone, tt.oldPhones); err != nil {
-				t.Errorf("updatePhones() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updatePhones():\n%+v\nwant:\n%+v", got, tt.want)
+			got, err := attributesToUserPhones(tt.phones)
+			require.Equal(t, tt.wantErr, err != nil,
+				"attributesToUserPhones() error = %v, wantErr %v", err, tt.wantErr)
+
+			require.Equal(t, len(tt.want), len(got),
+				"got wrong number of phones (got %d, want %d)", len(got), len(tt.want))
+
+			for w := range tt.want {
+				found := false
+				for g := range got {
+					if reflect.DeepEqual(w, g) {
+						found = true
+						continue
+					}
+				}
+				require.True(t, found, "didn't find %v in phone list", w)
 			}
 		})
 	}
@@ -745,11 +737,95 @@ func Test_updateRelations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := updateRelations(tt.newRelation, tt.oldRelations); err != nil {
-				t.Errorf("updateRelations() error: %s", err)
-			} else if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("updateRelations():\n%+v\nwant:\n%+v", got, tt.want)
-			}
+			got, err := updateRelations(tt.newRelation, tt.oldRelations)
+			require.NoError(t, err, "updateRelations() error")
+			require.Equal(t, tt.want, got, "updateRelations():\n%+v\nwant:\n%+v", got, tt.want)
+		})
+	}
+}
+
+func Test_getPhoneNumbersFromUser(t *testing.T) {
+	tests := []struct {
+		name string
+		user admin.User
+		want map[string]string
+	}{
+		{
+			name: "work+custom",
+			user: admin.User{
+				Phones: []interface{}{
+					map[string]interface{}{
+						"type":  "work",
+						"value": "555-1212",
+					},
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "foo",
+						"value":      "2",
+					},
+				},
+			},
+			want: map[string]string{
+				"phone" + delim + "work":                   "555-1212",
+				"phone" + delim + "custom" + delim + "foo": "2",
+			},
+		},
+		{
+			name: "work*3",
+			user: admin.User{
+				Phones: []interface{}{
+					map[string]interface{}{
+						"type":  "work",
+						"value": "555-1212",
+					},
+					map[string]interface{}{
+						"type":  "work",
+						"value": "123-4567",
+					},
+					map[string]interface{}{
+						"type":  "work",
+						"value": "999-999-9999",
+					},
+				},
+			},
+			want: map[string]string{
+				"phone" + delim + "work":   "555-1212",
+				"phone" + delim + "work~1": "123-4567",
+				"phone" + delim + "work~2": "999-999-9999",
+			},
+		},
+		{
+			name: "custom*3",
+			user: admin.User{
+				Phones: []interface{}{
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "other",
+						"value":      "555-1212",
+					},
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "other",
+						"value":      "123-4567",
+					},
+					map[string]interface{}{
+						"type":       "custom",
+						"customType": "other",
+						"value":      "999-999-9999",
+					},
+				},
+			},
+			want: map[string]string{
+				"phone" + delim + "custom" + delim + "other":   "555-1212",
+				"phone" + delim + "custom~1" + delim + "other": "123-4567",
+				"phone" + delim + "custom~2" + delim + "other": "999-999-9999",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getPhoneNumbersFromUser(tt.user)
+			require.Equal(t, tt.want, got, "getPhoneNumbersFromUser():\n  %v\nwant:\n  %v\n", got, tt.want)
 		})
 	}
 }

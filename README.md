@@ -466,17 +466,18 @@ Note: `Source` fields should be adjusted to fit the actual source adapter.
 
 ### Google Users
 This destination can update User records in the Google Directory. The compare
-attribute is `primaryEmail`. A limited subset of user properties are available
-to be updated. 
+attribute is `email` (`primaryEmail`). A limited subset of user properties are
+available to be updated. 
 
 | property   | Google property | Google sub-property | Google type  |
 |------------|-----------------|---------------------|--------------|
-| id         | externalIds     | value               | organization | 
+| id         | externalIds     | value               | organization |
+| email      | primaryEmail    |                     |              |
 | area       | locations       | area                | desk         |
 | costCenter | organizations*  | costCenter          | (not set)    |
 | department | organizations*  | department          | (not set)    |
 | title      | organizations*  | title               | (not set)    |
-| phone      | phones          | value               | work         |
+| phone      | phones          | value               |              |
 | manager    | relations       | value               | manager      |
 | familyName | name            | familyName          | n/a          |
 | givenName  | name            | givenName           | n/a          |
@@ -485,6 +486,13 @@ Custom schema properties can be added using dot notation. For example, a
 custom property with Field name `Building` in the custom schema `Location`
 is represented as `Location.Building`.
              
+Phone types are represented by separating the property name from its type with
+a comma (`,`). For example: `phone,home` or `phone,work`. Multiple phones of the
+same type can be referenced by adding a tilde (`~`) and a number. For example:
+`phone,work` and `phone,work~1`. Types other than those defined by the
+[Google API spec](https://developers.google.com/admin-sdk/directory/reference/rest/v1/users#User.FIELDS.phones)
+should be referenced using a custom type as follows: `phone,custom,sat`.
+
 __\* CAUTION:__ updating any field in `organizations` will overwrite all
 existing organizations
              
