@@ -709,7 +709,7 @@ provider:
       Resource: "*"
 ```
 
-Both authentication mechanisms are provided in the `lamdda-example` directory, 
+Both authentication mechanisms are provided in the `lambda-example` directory, 
 but only one is needed.
 
 ### Exporting logs from CloudWatch

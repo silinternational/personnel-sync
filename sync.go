@@ -77,7 +77,11 @@ func RunSync(configFile string) error {
 
 	// Iterate through SyncSets and process changes
 	for i, syncSet := range appConfig.SyncSets {
-		prefix := fmt.Sprintf("[%-*s] ", maxNameLength, syncSet.Name)
+		if syncSet.Name == "" {
+			msg := "configuration contains a set with no name"
+			errors = append(errors, msg)
+		}
+		prefix := fmt.Sprintf("[ %-*s ] ", maxNameLength, syncSet.Name)
 		syncSetLogger := log.New(os.Stdout, prefix, 0)
 		syncSetLogger.Printf("(%v/%v) Beginning sync set", i+1, len(appConfig.SyncSets))
 
