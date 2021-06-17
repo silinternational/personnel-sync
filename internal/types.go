@@ -19,6 +19,8 @@ type AttributeMap struct {
 	Destination   string
 	Required      bool
 	CaseSensitive bool
+	Expression    string // regular expression
+	Replace       string // replace string
 }
 
 type SourceConfig struct {

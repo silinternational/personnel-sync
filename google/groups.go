@@ -15,9 +15,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-const RoleMember = "MEMBER"
-const RoleOwner = "OWNER"
-const RoleManager = "MANAGER"
+const (
+	RoleMember  = "MEMBER"
+	RoleOwner   = "OWNER"
+	RoleManager = "MANAGER"
+)
 
 type GoogleGroups struct {
 	DestinationConfig internal.DestinationConfig
@@ -209,7 +211,8 @@ func (g *GoogleGroups) addMember(
 	if err != nil && !strings.Contains(err.Error(), "409") { // error code 409 is for existing user
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("unable to insert %s in Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
+			Message: fmt.Sprintf("unable to insert %s in Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error()),
+		}
 		return
 	}
 
@@ -233,7 +236,8 @@ func (g *GoogleGroups) removeMember(
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("unable to delete %s from Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error())}
+			Message: fmt.Sprintf("unable to delete %s from Google group %s: %s", email, g.GroupSyncSet.GroupEmail, err.Error()),
+		}
 		return
 	}
 
