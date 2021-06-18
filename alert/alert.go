@@ -58,7 +58,7 @@ func SendEmail(config Config, body string) {
 
 	if lastError != "" {
 		addresses := strings.Join(badRecipients, ", ")
-		log.Printf("Error sending Cloudflare scanner email from %s to: %s\n %s",
+		log.Printf("Error sending email from '%s' to '%s': %s",
 			config.ReturnToAddr, addresses, lastError)
 	}
 }

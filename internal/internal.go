@@ -3,11 +3,13 @@ package internal
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"log/syslog"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -31,7 +33,6 @@ const (
 // a config file based on the CONFIG_PATH env var.  If that is not set, it gets
 // the default config file ("./config.json").
 func LoadConfig(configFile string) (AppConfig, error) {
-
 	if configFile == "" {
 		configFile = os.Getenv("CONFIG_PATH")
 		if configFile == "" {
@@ -177,6 +178,8 @@ func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Per
 			continue
 		}
 
+		sp := processExpressions(logger, config, sp)
+
 		destinationPerson := getPersonFromList(sp.CompareValue, destinationPeople)
 		if destinationPerson.CompareValue == "" {
 			changeSet.Create = append(changeSet.Create, sp)
@@ -199,6 +202,31 @@ func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Per
 	}
 
 	return changeSet
+}
+
+func processExpressions(logger *log.Logger, config AppConfig, person Person) Person {
+	for _, attr := range config.AttributeMap {
+		if attr.Expression == "" {
+			continue
+		}
+
+		attrName := attr.Destination // the remap to destination attributes has happened already
+
+		attrValue, _ := person.Attributes[attrName]
+
+		re, err := regexp.Compile(attr.Expression)
+		if err != nil {
+			msg := fmt.Sprintf("invalid regular expression (%q) on attribute %s",
+				attr.Expression, attrName)
+			logger.Println(msg)
+			alert.SendEmail(config.Alert, msg)
+			continue
+		}
+
+		n := re.ReplaceAllString(attrValue, attr.Replace)
+		person.Attributes[attrName] = n
+	}
+	return person
 }
 
 // RunSyncSet calls a number of functions to do the following ...
@@ -233,6 +261,7 @@ func RunSyncSet(logger *log.Logger, source Source, destination Destination, conf
 
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if config.Runtime.DryRunMode {
+		logger.Println("Dry run mode enabled. Change set details follow:")
 		printChangeSet(logger, changeSet)
 		return nil
 	}
@@ -246,7 +275,12 @@ func RunSyncSet(logger *log.Logger, source Source, destination Destination, conf
 	logger.Printf("Sync results: %v users added, %v users updated, %v users removed\n",
 		results.Created, results.Updated, results.Deleted)
 
-	time.Sleep(time.Millisecond * 10)
+	for i := 0; i < 100; i++ {
+		time.Sleep(time.Millisecond * 10)
+		if len(eventLog) == 0 {
+			break
+		}
+	}
 	close(eventLog)
 
 	return nil

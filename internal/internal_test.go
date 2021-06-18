@@ -117,7 +117,6 @@ func TestGenerateChangeSet(t *testing.T) {
 func DoNothing() {}
 
 func TestBatchTimer(t *testing.T) {
-
 	type testData struct {
 		batchSize              int
 		secondsPerBatch        int
@@ -229,5 +228,102 @@ func TestIDSetForUpdate(t *testing.T) {
 		if person.ID == "" {
 			t.Errorf("Users to be updated should have an ID set, got: %v", person)
 		}
+	}
+}
+
+func Test_processExpressions(t *testing.T) {
+	type args struct {
+		logger *log.Logger
+		config AppConfig
+		person Person
+	}
+	logger := log.New(os.Stdout, "", 0)
+	tests := []struct {
+		name string
+		args args
+		want Person
+	}{
+		{
+			name: "no expression",
+			args: args{
+				logger: logger,
+				config: AppConfig{
+					AttributeMap: []AttributeMap{{
+						Destination:   "first_name",
+						Required:      false,
+						CaseSensitive: false,
+						Expression:    "",
+						Replace:       "",
+					}},
+				},
+				person: Person{
+					Attributes: map[string]string{
+						"first_name": "John",
+					},
+				},
+			},
+			want: Person{
+				Attributes: map[string]string{
+					"first_name": "John",
+				},
+			},
+		},
+		{
+			name: "full replace",
+			args: args{
+				logger: logger,
+				config: AppConfig{
+					AttributeMap: []AttributeMap{{
+						Destination:   "first_name",
+						Required:      false,
+						CaseSensitive: false,
+						Expression:    ".*",
+						Replace:       "(empty)",
+					}},
+				},
+				person: Person{
+					Attributes: map[string]string{
+						"first_name": "John",
+					},
+				},
+			},
+			want: Person{
+				Attributes: map[string]string{
+					"first_name": "(empty)",
+				},
+			},
+		},
+		{
+			name: "partial replace",
+			args: args{
+				logger: logger,
+				config: AppConfig{
+					AttributeMap: []AttributeMap{{
+						Destination:   "first_name",
+						Required:      false,
+						CaseSensitive: false,
+						Expression:    "ohn",
+						Replace:       "uan",
+					}},
+				},
+				person: Person{
+					Attributes: map[string]string{
+						"first_name": "John",
+					},
+				},
+			},
+			want: Person{
+				Attributes: map[string]string{
+					"first_name": "Juan",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := processExpressions(tt.args.logger, tt.args.config, tt.args.person); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("processExpressions() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
