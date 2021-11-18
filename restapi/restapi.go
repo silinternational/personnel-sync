@@ -298,6 +298,11 @@ type SalesforceAuthResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+type SalesforceErrorResponse struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
+}
+
 func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 	// Body params
 	data := url.Values{}
@@ -330,6 +335,18 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 		return "", err
 	}
 
+	if resp.StatusCode >= http.StatusBadRequest {
+		var errorResponse SalesforceErrorResponse
+		err = json.Unmarshal(bodyText, &errorResponse)
+		if err != nil {
+			log.Printf("Unable to parse error response, status: %v, err: %s. body: %s",
+				resp.StatusCode, err.Error(), string(bodyText))
+			return "", err
+		}
+		return "", fmt.Errorf("Salesforce auth error: %s, %s\n",
+			errorResponse.Error, errorResponse.ErrorDescription)
+	}
+	
 	var authResponse SalesforceAuthResponse
 	err = json.Unmarshal(bodyText, &authResponse)
 	if err != nil {
