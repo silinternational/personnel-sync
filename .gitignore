@@ -9,9 +9,7 @@ bin
 .env
 aws.env
 *.aes
-config.json
-config.whd.json
-config.google.json
+config*.json
 
 # dev tools metadata
 .idea/

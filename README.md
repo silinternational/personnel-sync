@@ -63,6 +63,21 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
 `SyncSets` is configured the same as for basic authentication.
 
 #### Salesforce OAuth Authentication
+
+In Salesforce Setup, choose "App Manager", and add a new app. Tick the "Enable OAuth Settings"
+box and enter https://login.salesforce.com/services/oauth2/callback in the Callback URL. Add any
+required Scopes, such as "Manage user data via APIs (api)". 
+
+Once the app has been created, from App Manager, choose View from the context menu of the new app.
+Copy the Consumer Key and paste it in the config.json `Source.ExtraJSON.ClientID` and copy the 
+Consumer Secret and paste it in the Client Secret json property.
+
+If you don't already have a Security Token, go to User Settings, My Personal Information, 
+Reset My Security Token. Add your username in the config.json Username property, and your password
+concatenated with your Security Token in the Password property.
+
+If using a Sandbox org, change the config.json BaseURL property to https://test.salesforce.com/services/oauth2/token
+
 ```json
 {
   "Source": {
@@ -76,15 +91,15 @@ Data sources coming from simple API calls can use the `RestAPI` source. Here are
       "Password": "abc123def.ghiJKL",
       "ClientID": "ABCD1234abcd56789_ABCD1234abcd5678ABCD1234abcd5678ABCD1234abcd5678ABCD1.234abcd5678ABC",
       "ClientSecret": "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
-      "CompareAttribute": "email",
+      "CompareAttribute": "Email",
       "UserAgent": "personnel-sync"
     }
   },
   "SyncSets": [
     {
-      "Name": "Sync from Google Sheets to Xyz API",
+      "Name": "Sync from Salesforce to Xyz API",
       "Source": {
-        "Paths": ["/services/data/v20.0/query/?q=SELECT%20Email,Name%20FROM%20Contacts"]
+        "Paths": ["/services/data/v20.0/query/?q=SELECT%20Email,FirstName,LastName%20FROM%20Contact"]
       },
       "Destination": {
           "DisableAdd": false,
