@@ -158,13 +158,25 @@ func (r *RestAPI) ApplyChangeSet(changes internal.ChangeSet, eventLog chan<- int
 	batchTimer := internal.NewBatchTimer(r.BatchSize, r.BatchDelaySeconds)
 
 	if r.destinationConfig.DisableAdd {
-		log.Println("Contact creation is disabled.")
+		log.Println("Creation is disabled.")
 	} else {
 		for _, toCreate := range changes.Create {
 			wg.Add(1)
 			go r.addContact(toCreate, &results.Created, &wg, eventLog)
 			batchTimer.WaitOnBatch()
 		}
+	}
+
+	if r.destinationConfig.DisableUpdate {
+		log.Println("Update is disabled.")
+	} else {
+		log.Println("RestAPI does not yet support update.")
+	}
+
+	if r.destinationConfig.DisableDelete {
+		log.Println("Delete is disabled.")
+	} else {
+		log.Println("RestAPI does not yet support delete.")
 	}
 
 	wg.Wait()

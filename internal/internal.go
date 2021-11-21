@@ -19,6 +19,7 @@ import (
 const (
 	DefaultConfigFile             = "./config.json"
 	DefaultVerbosity              = 5
+	DestinationTypeFreshteam      = "Freshteam"
 	DestinationTypeGoogleContacts = "GoogleContacts"
 	DestinationTypeGoogleGroups   = "GoogleGroups"
 	DestinationTypeGoogleSheets   = "GoogleSheets"

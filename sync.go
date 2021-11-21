@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/silinternational/personnel-sync/v5/freshworks"
+
 	"github.com/silinternational/personnel-sync/v5/alert"
 	"github.com/silinternational/personnel-sync/v5/google"
 	"github.com/silinternational/personnel-sync/v5/internal"
@@ -49,6 +51,8 @@ func RunSync(configFile string) error {
 	// Instantiate Destination
 	var destination internal.Destination
 	switch appConfig.Destination.Type {
+	case internal.DestinationTypeFreshteam:
+		destination, err = freshworks.NewFreshteamDestination(appConfig.Destination)
 	case internal.DestinationTypeGoogleContacts:
 		destination, err = google.NewGoogleContactsDestination(appConfig.Destination)
 	case internal.DestinationTypeGoogleGroups:

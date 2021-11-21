@@ -175,6 +175,9 @@ Destinations conforming to a simple REST API can use the `RestAPI` destination.
 Authentication is the same as for a REST API source, except that Salesforce
 OAuth is not supported.
 
+The RestAPI destination only handles record creation. Update and delete are not
+yet implemented.
+
 Here are some examples of how to configure it:
 
 #### Basic Authentication
@@ -480,9 +483,9 @@ Example config:
 Note: `Source` fields should be adjusted to fit the actual source adapter.
 
 ### Google Users
-This destination can update User records in the Google Directory. The compare
-attribute is `email` (`primaryEmail`). A limited subset of user properties are
-available to be updated. 
+This destination can update User records in the Google Directory. Create and
+delete are not yet implemented. The compare attribute is `email` (`primaryEmail`).
+A limited subset of user properties are available to be updated. 
 
 | property   | Google property | Google sub-property | Google type  |
 |------------|-----------------|---------------------|--------------|
@@ -640,7 +643,7 @@ appropriate domain privileges and who has logged in at least once into G Suite a
 accepted the terms and conditions. The email address for this user should be stored in the `config.json`
 as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 
-## SolarWinds WebHelpDesk
+### SolarWinds WebHelpDesk
 
 
 ```json
@@ -691,7 +694,14 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 
 `ListClientsPageLimit`, `BatchSize` and `BatchDelaySeconds` are optional. Their defaults are as shown in the example config.
 
-### Email Alerts
+## Attribute Map
+
+- Source
+- Destination
+- required
+- case sensitive
+
+## Email Alerts
 
 Event Log events with a level of LOG_ALERT or LOG_EMERG will result in an email 
 alert sent via AWS SES. Note that the LOG_EMERG level is 0, which is the Go
@@ -727,7 +737,7 @@ provider:
 Both authentication mechanisms are provided in the `lambda-example` directory, 
 but only one is needed.
 
-### Exporting logs from CloudWatch
+## Exporting logs from CloudWatch
 
 The log messages in CloudWatch can be viewed on the AWS Management Console. If
 an exported text or json file is needed, the AWS CLI tool can be used as

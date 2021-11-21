@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"log/syslog"
 	"strconv"
 	"strings"
@@ -18,11 +19,11 @@ import (
 )
 
 type GoogleUsers struct {
-	DestinationConfig internal.DestinationConfig
 	BatchSize         int
 	BatchDelaySeconds int
 	GoogleConfig      GoogleConfig
 	AdminService      admin.Service
+	destinationConfig internal.DestinationConfig
 }
 
 func NewGoogleUsersDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
@@ -41,7 +42,7 @@ func NewGoogleUsersDestination(destinationConfig internal.DestinationConfig) (in
 		googleUsers.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
 
-	googleUsers.DestinationConfig = destinationConfig
+	googleUsers.destinationConfig = destinationConfig
 
 	// Initialize AdminService object
 	googleUsers.AdminService, err = initGoogleAdminService(
@@ -221,13 +222,29 @@ func (g *GoogleUsers) ApplyChangeSet(
 	// One minute per batch
 	batchTimer := internal.NewBatchTimer(g.BatchSize, g.BatchDelaySeconds)
 
-	if !g.DestinationConfig.DisableUpdate {
+
+	if g.destinationConfig.DisableUpdate {
+		log.Println("Create is disabled.")
+	} else {
+		log.Println("Google Users destination does not yet support create.")
+	}
+
+	if g.destinationConfig.DisableUpdate {
+		log.Println("Update is disabled.")
+	} else {
 		for _, toUpdate := range changes.Update {
 			wg.Add(1)
 			go g.updateUser(toUpdate, &results.Updated, &wg, eventLog)
 			batchTimer.WaitOnBatch()
 		}
 	}
+
+	if g.destinationConfig.DisableDelete {
+		log.Println("Delete is disabled.")
+	} else {
+		log.Println("Google Users destination does not yet support delete.")
+	}
+
 
 	wg.Wait()
 
