@@ -1,13 +1,10 @@
-FROM golang:latest
+FROM golang:1.17
 
-# Install packages
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash -
-RUN apt-get install -y git nodejs netcat
+RUN curl -o- -L https://slss.io/install | VERSION=3.7.1 bash && \
+  mv $HOME/.serverless/bin/serverless /usr/local/bin && \
+  ln -s /usr/local/bin/serverless /usr/local/bin/sls
 
 # Copy in source and install deps
-RUN mkdir -p /go/src/buildspace
-COPY ./package.json /go/src/buildspace/
-WORKDIR /go/src/buildspace
-RUN npm install -g serverless && npm install
-COPY ./ /go/src/buildspace/
+WORKDIR /src
+COPY ./ .
 RUN go get ./...

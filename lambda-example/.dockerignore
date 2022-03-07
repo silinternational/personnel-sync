@@ -1,0 +1,10 @@
+# Ignore everything
+*
+
+# Whitelist required files
+!.env.encrypted
+!build.sh
+!config.json
+!go.*
+!*.go
+!serverless.yml

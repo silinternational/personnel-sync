@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/aws/aws-lambda-go/lambda"
 
-	personnel_sync "github.com/silinternational/personnel-sync/v5"
+	sync "github.com/silinternational/personnel-sync/v5"
 )
 
 type LambdaConfig struct {
@@ -15,5 +15,5 @@ func main() {
 }
 
 func handler(lambdaConfig LambdaConfig) error {
-	return personnel_sync.RunSync(lambdaConfig.ConfigPath)
+	return sync.RunSync(lambdaConfig.ConfigPath)
 }

@@ -3,12 +3,9 @@ version: "3"
 services:
 
   app:
-    build:
-      context: ./
-      dockerfile: Dockerfile
+    build: .
     env_file:
       - .env
     volumes:
-      - ./:/go/src/buildspace
-    working_dir: /go/src/buildspace
-    command: ["bash"]
+      - ./:/src
+    command: bash -c "./build.sh"

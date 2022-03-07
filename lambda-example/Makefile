@@ -1,11 +1,14 @@
-prompt:
-	docker-compose run app bash
+build:
+	docker-compose up -d app
 
-debug:
-	docker-compose logs -t app
+bash:
+	docker-compose run --rm app bash
 
 deploy:
-	docker-compose run app sls deploy -v
+	docker-compose run --rm app sls deploy --verbose
+
+info:
+	docker-compose run --rm app sls info
 
 remove:
-	docker-compose run app sls remove
+	docker-compose run --rm app sls remove
