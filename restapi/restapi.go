@@ -23,6 +23,7 @@ const (
 	AuthTypeBasic            = "basic"
 	AuthTypeBearer           = "bearer"
 	AuthTypeSalesforceOauth  = "SalesforceOauth"
+	AuthTypeZohoOauth        = "ZohoOauth"
 	DefaultBatchSize         = 10
 	DefaultBatchDelaySeconds = 3
 )
@@ -32,6 +33,8 @@ type RestAPI struct {
 	ListMethod           string
 	CreateMethod         string
 	BaseURL              string
+	AuthURL              string
+	QueryURL             string
 	ResultsJSONContainer string
 	AuthType             string
 	Username             string
@@ -53,41 +56,35 @@ type SetConfig struct {
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
 func NewRestAPISource(sourceConfig internal.SourceConfig) (internal.Source, error) {
-	var restAPI RestAPI
-	// Unmarshal ExtraJSON into RestAPI struct
-	err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI)
-	if err != nil {
-		return &RestAPI{}, err
-	}
-
-	restAPI.setDefaults()
-
-	if restAPI.AuthType == AuthTypeSalesforceOauth {
-		token, err := restAPI.getSalesforceOauthToken()
-		if err != nil {
-			log.Println(err)
-			return &RestAPI{}, err
-		}
-
-		restAPI.Password = token
-	}
-
-	return &restAPI, nil
+	restAPI, err := readConfig(sourceConfig.ExtraJSON)
+	return &restAPI, err
 }
 
 // NewRestAPIDestination unmarshals the destinationConfig's ExtraJson into a RestApi struct
 func NewRestAPIDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
+	restAPI, err := readConfig(destinationConfig.ExtraJSON)
+	restAPI.destinationConfig = destinationConfig
+	return &restAPI, err
+}
+
+func readConfig(config []byte) (RestAPI, error) {
 	var restAPI RestAPI
-	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
-	err := json.Unmarshal(destinationConfig.ExtraJSON, &restAPI)
-	if err != nil {
-		return &RestAPI{}, err
+	if err := json.Unmarshal(config, &restAPI); err != nil {
+		return RestAPI{}, err
 	}
 
 	restAPI.setDefaults()
-	restAPI.destinationConfig = destinationConfig
 
-	return &restAPI, nil
+	if restAPI.ClientSecret != "" && restAPI.ClientID != "" {
+		token, err := restAPI.getOauthToken()
+		if err != nil {
+			log.Println(err)
+			return RestAPI{}, err
+		}
+		restAPI.Password = token
+	}
+
+	return restAPI, nil
 }
 
 // ForSet sets this RestAPI structs Path value to the one in the
@@ -192,7 +189,7 @@ func (r *RestAPI) listUsersForPath(
 	switch r.AuthType {
 	case AuthTypeBasic:
 		req.SetBasicAuth(r.Username, r.Password)
-	case AuthTypeBearer, AuthTypeSalesforceOauth:
+	default:
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
 	}
 
@@ -290,33 +287,41 @@ func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, des
 	return sourcePeople
 }
 
-type SalesforceAuthResponse struct {
-	ID          string `json:"id"`
-	IssuedAt    string `json:"issued_at"`
-	InstanceURL string `json:"instance_url"`
-	Signature   string `json:"signature"`
+type AuthResponse struct {
+	// common properties
 	AccessToken string `json:"access_token"`
-}
+	Error       string `json:"error"`
 
-type SalesforceErrorResponse struct {
-	Error            string `json:"error"`
+	// Salesforce response properties
+	ID               string `json:"id"`
+	IssuedAt         string `json:"issued_at"`
+	InstanceURL      string `json:"instance_url"`
+	Signature        string `json:"signature"`
 	ErrorDescription string `json:"error_description"`
 }
 
-func (r *RestAPI) getSalesforceOauthToken() (string, error) {
+func (r *RestAPI) getOauthToken() (string, error) {
 	// Body params
 	data := url.Values{}
-	data.Set("grant_type", "password")
-	data.Set("username", r.Username)
-	data.Set("password", r.Password)
 	data.Set("client_id", r.ClientID)
 	data.Set("client_secret", r.ClientSecret)
 
+	switch r.AuthType {
+	case AuthTypeSalesforceOauth:
+		data.Set("grant_type", "password")
+		data.Set("username", r.Username)
+		data.Set("password", r.Password)
+		r.AuthURL = r.BaseURL // added for backward compatibility
+	case AuthTypeZohoOauth:
+		data.Set("grant_type", "refresh_token")
+		data.Set("refresh_token", r.Password)
+	}
+
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPost, r.BaseURL, strings.NewReader(data.Encode()))
+	req, err := http.NewRequest(http.MethodPost, r.AuthURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		log.Println(err)
-		return "", err
+		return "", fmt.Errorf("failed to get OAuth token, %s", err)
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -335,27 +340,23 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 		return "", err
 	}
 
-	if resp.StatusCode >= http.StatusBadRequest {
-		var errorResponse SalesforceErrorResponse
-		err = json.Unmarshal(bodyText, &errorResponse)
-		if err != nil {
-			log.Printf("Unable to parse error response, status: %v, err: %s. body: %s",
-				resp.StatusCode, err.Error(), string(bodyText))
-			return "", err
-		}
-		return "", fmt.Errorf("Salesforce auth error: %s, %s\n",
-			errorResponse.Error, errorResponse.ErrorDescription)
-	}
-	
-	var authResponse SalesforceAuthResponse
+	var authResponse AuthResponse
 	err = json.Unmarshal(bodyText, &authResponse)
 	if err != nil {
 		log.Printf("Unable to parse auth response, status: %v, err: %s. body: %s", resp.StatusCode, err.Error(), string(bodyText))
 		return "", err
 	}
+	if authResponse.Error != "" {
+		return "", fmt.Errorf("auth error: %s, %s\n",
+			authResponse.Error, authResponse.ErrorDescription)
+	}
 
-	// Update BaseUrl to instance url
-	r.BaseURL = strings.TrimSuffix(authResponse.InstanceURL, "/")
+	if authResponse.InstanceURL != "" {
+		// Update BaseURL to Salesforce instance URL
+		r.BaseURL = strings.TrimSuffix(authResponse.InstanceURL, "/")
+	} else {
+		r.BaseURL = r.QueryURL
+	}
 
 	return authResponse.AccessToken, nil
 }
@@ -444,7 +445,7 @@ func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string)
 	switch r.AuthType {
 	case AuthTypeBasic:
 		req.SetBasicAuth(r.Username, r.Password)
-	case AuthTypeBearer, AuthTypeSalesforceOauth:
+	default:
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.Password))
 	}
 

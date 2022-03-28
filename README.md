@@ -76,7 +76,10 @@ If you don't already have a Security Token, go to User Settings, My Personal Inf
 Reset My Security Token. Add your username in the config.json Username property, and your password
 concatenated with your Security Token in the Password property.
 
-If using a Sandbox org, change the config.json BaseURL property to https://test.salesforce.com/services/oauth2/token
+The BaseURL will be retrieved from the OAuth response, and will be ignored if specified in config.json.
+The AuthURL should be https://login.salesforce.com/services/oauth2/token if using a production org or 
+developer org. If using a Sandbox org, the AuthURL property should be
+https://test.salesforce.com/services/oauth2/token
 
 ```json
 {
@@ -84,7 +87,7 @@ If using a Sandbox org, change the config.json BaseURL property to https://test.
     "Type": "RestAPI",
     "ExtraJSON": {
       "ListMethod": "GET",
-      "BaseURL": "https://login.salesforce.com/services/oauth2/token",
+      "AuthURL": "https://login.salesforce.com/services/oauth2/token",
       "ResultsJSONContainer": "records",
       "AuthType": "SalesforceOauth",
       "Username": "admin@example.com",
@@ -193,7 +196,19 @@ Here are some examples of how to configure it:
       "CompareAttribute": "email",
       "UserAgent": "personnel-sync"
     }
-  }
+  },
+  "SyncSets": [
+   {
+    "Name": "Sync from personnel to REST API",
+    "Source": {
+     "Paths": ["/user-report"]
+    },
+    "Destination": {
+     "Paths": ["/users"],
+     "CreatePath": "/users"
+    }
+   }
+  ]
 }
 ```
 
@@ -227,6 +242,74 @@ Here are some examples of how to configure it:
   ]
 }
 ```
+
+#### Zoho OAuth authentication
+
+Get a Client ID, Client Secret, and Refresh Token using the instructions in the 
+[Zoho API Documentation](https://www.zoho.com/people/api/oauth-steps.html). Abbreviated instructions follow:
+
+Go to the [Zoho Developer Console](https://api-console.zoho.com/) and choose "Self Client". Copy the Client ID
+and Client Secret. Paste them in your config.json file as `ClientID` and `ClientSecret`. Generate a Grant
+Token (authorization code) with a scope of "ZOHOPEOPLE.forms.ALL" and use it to request a refresh token using
+the following curl command, substituting your actual Client ID, Client Secret, and Grant Token:
+
+```
+curl --request POST \
+  --url https://accounts.zoho.com/oauth/v2/token \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data grant_type=authorization_code \
+  --data client_id=(clientID) \
+  --data client_secret=(clientSecret) \
+  --data code=(code)
+```
+
+This should produce a response like:
+
+```json
+{
+ "access_token":"1000.0123456789abcdef0123456789abcdef.0123456789abcdef0123456789abcdef",
+ "refresh_token":"1000.0123456789abcdef0123456789abcdef.0123456789abcdef0123456789abcdef",
+ "api_domain":"https://www.zohoapis.com",
+ "token_type":"Bearer",
+ "expires_in":3600
+}
+```
+
+Copy the refresh token and paste it in your config.json `Password` property.
+
+```json
+{
+  "Source": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "ListMethod": "GET",
+      "CreateMethod": "POST",
+      "AuthURL": "https://accounts.zoho.com/oauth/v2/token",
+      "QueryURL": "https://people.zoho.com/people/api/forms",
+      "ResultsJSONContainer": "response.result",
+      "AuthType": "ZohoOauth",
+      "Password": "1000.0123456789abcdef0123456789abcdef.0123456789abcdef0123456789abcdef",
+      "ClientID": "1000.0123456789ABCDEF0123456789ABCD",
+      "ClientSecret": "0123456789abcdef0123456789abcdef0123456789",
+      "CompareAttribute": "EmailID"
+    }
+  },
+  "SyncSets": [
+    {
+      "Name": "Sync from Xyz API to Zoho People",
+      "Source": {
+        "Paths": ["/services/data/v20.0/query/?q=SELECT%20Email,FirstName,LastName%20FROM%20Contact"]
+      },
+      "Destination": {
+        "Paths": ["/employee/getRecords"],
+        "CreatePath": "/users"
+      }
+    }
+  ]
+}
+```
+
+`SyncSets` is not supported for the RestAPI Zoho adapter.
 
 ### Google Contacts
 This destination can create, update, and delete Contact records in the Google
