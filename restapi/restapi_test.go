@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jeffail/gabs/v2"
+	"github.com/stretchr/testify/require"
 
 	"github.com/silinternational/personnel-sync/v5/internal"
 )
@@ -407,7 +408,8 @@ func Test_getPersonsFromResults(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getPersonsFromResults(tt.peopleList, tt.compareAttr, tt.desiredAttrs); !reflect.DeepEqual(got, tt.want) {
+			r := RestAPI{CompareAttribute: tt.compareAttr}
+			if got := r.getPersonsFromResults(tt.peopleList, tt.desiredAttrs); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getPersonsFromResults() = %#v, want %#v", got, tt.want)
 			}
 		})
@@ -536,6 +538,68 @@ func TestRestAPI_httpRequest(t *testing.T) {
 			if !tt.wantErr && got != tt.want {
 				t.Errorf("httpRequest() got = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_parsePathTemplate(t *testing.T) {
+	tests := []struct {
+		name         string
+		pathTemplate string
+		wantPath     string
+		wantField    string
+		wantErr      bool
+	}{
+		{
+			name:         "no field name",
+			pathTemplate: "/contacts",
+			wantErr:      true,
+		},
+		{
+			name:         "has a field name",
+			pathTemplate: "/contacts/{someFieldName}",
+			wantPath:     "/contacts/{id}",
+			wantField:    "someFieldName",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path, idField, err := parsePathTemplate(tt.pathTemplate)
+			if tt.wantErr {
+				require.Error(t, err, "expected error but did not get one")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantPath, path)
+			require.Equal(t, tt.wantField, idField)
+		})
+	}
+}
+
+func Test_pathWithID(t *testing.T) {
+	tests := []struct {
+		name         string
+		pathTemplate string
+		id           string
+		want         string
+	}{
+		{
+			name:         "no field name",
+			pathTemplate: "/contacts",
+			id:           "1",
+			want:         "/contacts",
+		},
+		{
+			name:         "has a field name",
+			pathTemplate: "/contacts/{id}",
+			id:           "1",
+			want:         "/contacts/1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := pathWithID(tt.pathTemplate, tt.id)
+			require.Equal(t, tt.want, got)
 		})
 	}
 }

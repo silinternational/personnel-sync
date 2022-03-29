@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"log/syslog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,6 +33,9 @@ type RestAPI struct {
 	Method               string // DEPRECATED
 	ListMethod           string
 	CreateMethod         string
+	UpdateMethod         string
+	DeleteMethod         string
+	IDAttribute          string
 	BaseURL              string
 	ResultsJSONContainer string
 	AuthType             string
@@ -49,6 +54,10 @@ type RestAPI struct {
 type SetConfig struct {
 	Paths      []string
 	CreatePath string
+	UpdatePath string
+	UpdateID   string
+	DeletePath string
+	DeleteID   string
 }
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
@@ -95,8 +104,7 @@ func NewRestAPIDestination(destinationConfig internal.DestinationConfig) (intern
 // It ensures the resulting Path attribute includes an initial "/"
 func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	var setConfig SetConfig
-	err := json.Unmarshal(syncSetJson, &setConfig)
-	if err != nil {
+	if err := json.Unmarshal(syncSetJson, &setConfig); err != nil {
 		return err
 	}
 
@@ -113,9 +121,36 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 		}
 	}
 
+	if path, id, err := parsePathTemplate(setConfig.UpdatePath); err != nil {
+		if setConfig.UpdatePath != "" {
+			return fmt.Errorf("invalid UpdatePath: %w", err)
+		}
+		r.destinationConfig.DisableUpdate = true
+	} else {
+		setConfig.UpdatePath = path
+		setConfig.UpdateID = id
+	}
+
+	if path, id, err := parsePathTemplate(setConfig.DeletePath); err != nil {
+		if setConfig.DeletePath != "" {
+			return fmt.Errorf("invalid DeletePath: %w", err)
+		}
+		r.destinationConfig.DisableDelete = true
+	} else {
+		setConfig.DeletePath = path
+		setConfig.DeleteID = id
+	}
+
 	r.setConfig = setConfig
 
 	return nil
+}
+
+func (r *RestAPI) addAttributeForID(attributes []string) []string {
+	if !internal.IsStringInSlice(r.IDAttribute, attributes) {
+		attributes = append(attributes, r.IDAttribute)
+	}
+	return attributes
 }
 
 // ListUsers makes an http request and uses the response to populate
@@ -127,7 +162,7 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 
 	for _, p := range r.setConfig.Paths {
 		wg.Add(1)
-		go r.listUsersForPath(desiredAttrs, p, &wg, people, errLog)
+		go r.listUsersForPath(r.addAttributeForID(desiredAttrs), p, &wg, people, errLog)
 	}
 
 	wg.Wait()
@@ -162,7 +197,27 @@ func (r *RestAPI) ApplyChangeSet(changes internal.ChangeSet, eventLog chan<- int
 	} else {
 		for _, toCreate := range changes.Create {
 			wg.Add(1)
-			go r.addContact(toCreate, &results.Created, &wg, eventLog)
+			go r.addPerson(toCreate, &results.Created, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
+	}
+
+	if r.destinationConfig.DisableUpdate {
+		log.Println("Update is disabled.")
+	} else {
+		for _, toUpdate := range changes.Update {
+			wg.Add(1)
+			go r.updatePerson(toUpdate, &results.Updated, &wg, eventLog)
+			batchTimer.WaitOnBatch()
+		}
+	}
+
+	if r.destinationConfig.DisableDelete {
+		log.Println("Deletion is disabled.")
+	} else {
+		for _, toUpdate := range changes.Delete {
+			wg.Add(1)
+			go r.deletePerson(toUpdate, &results.Deleted, &wg, eventLog)
 			batchTimer.WaitOnBatch()
 		}
 	}
@@ -177,8 +232,8 @@ func (r *RestAPI) listUsersForPath(
 	path string,
 	wg *sync.WaitGroup,
 	people chan<- internal.Person,
-	errLog chan<- string) {
-
+	errLog chan<- string,
+) {
 	defer wg.Done()
 
 	client := &http.Client{}
@@ -215,7 +270,10 @@ func (r *RestAPI) listUsersForPath(
 		return
 	}
 
-	jsonParsed, err := gabs.ParseJSON(bodyText)
+	// by default, json package uses float64 for all numbers -- UseNumber() makes it use the json.Number type
+	dec := json.NewDecoder(bytes.NewReader(bodyText))
+	dec.UseNumber()
+	jsonParsed, err := gabs.ParseJSONDecoder(dec)
 	if err != nil {
 		log.Printf("error parsing json results: %s", err.Error())
 		log.Printf("response body: %s", string(bodyText))
@@ -232,14 +290,14 @@ func (r *RestAPI) listUsersForPath(
 		peopleList = jsonParsed.Children()
 	}
 
-	results := getPersonsFromResults(peopleList, r.CompareAttribute, desiredAttrs)
+	results := r.getPersonsFromResults(peopleList, desiredAttrs)
 
 	for _, person := range results {
 		people <- person
 	}
 }
 
-func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, desiredAttrs []string) []internal.Person {
+func (r *RestAPI) getPersonsFromResults(peopleList []*gabs.Container, desiredAttrs []string) []internal.Person {
 	sourcePeople := make([]internal.Person, 0)
 
 	for _, person := range peopleList {
@@ -273,16 +331,15 @@ func getPersonsFromResults(peopleList []*gabs.Container, compareAttr string, des
 			default:
 				peep.Attributes[sourceKey] = fmt.Sprintf("%v", v)
 			}
-
-			if sourceKey == compareAttr {
-				peep.CompareValue = person.Path(sourceKey).Data().(string)
-			}
 		}
 
+		peep.CompareValue = peep.Attributes[r.CompareAttribute]
 		// If person is missing a compare value, do not append them to list
 		if peep.CompareValue == "" {
 			continue
 		}
+
+		peep.ID = peep.Attributes[r.IDAttribute]
 
 		sourcePeople = append(sourcePeople, peep)
 	}
@@ -346,7 +403,7 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 		return "", fmt.Errorf("Salesforce auth error: %s, %s\n",
 			errorResponse.Error, errorResponse.ErrorDescription)
 	}
-	
+
 	var authResponse SalesforceAuthResponse
 	err = json.Unmarshal(bodyText, &authResponse)
 	if err != nil {
@@ -372,6 +429,15 @@ func (r *RestAPI) setDefaults() {
 	if r.CreateMethod == "" {
 		r.CreateMethod = http.MethodPost
 	}
+	if r.UpdateMethod == "" {
+		r.UpdateMethod = http.MethodPut
+	}
+	if r.DeleteMethod == "" {
+		r.DeleteMethod = http.MethodDelete
+	}
+	if r.IDAttribute == "" {
+		r.IDAttribute = "id"
+	}
 	if r.BatchSize <= 0 {
 		r.BatchSize = DefaultBatchSize
 	}
@@ -383,17 +449,18 @@ func (r *RestAPI) setDefaults() {
 	}
 }
 
-func (r *RestAPI) addContact(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
+func (r *RestAPI) addPerson(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
 	defer wg.Done()
 
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, r.setConfig.CreatePath)
 	headers := map[string]string{"Content-Type": "application/json"}
-	responseBody, err := r.httpRequest(r.CreateMethod, apiURL, attributesToJSON(p.Attributes), headers)
+	reqBody := attributesToJSON(p.Attributes)
+	responseBody, err := r.httpRequest(r.CreateMethod, apiURL, reqBody, headers)
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level: syslog.LOG_ERR,
-			Message: fmt.Sprintf("addContact %s httpRequest error %s, response: %s", p.CompareValue, err,
-				responseBody),
+			Message: fmt.Sprintf("addPerson '%s' httpRequest error '%s'\nurl: %s\nrequest: %s\nresponse: %s\n",
+				p.CompareValue, err, apiURL, reqBody, responseBody),
 		}
 		return
 	}
@@ -416,11 +483,46 @@ func attributesToJSON(attr map[string]string) string {
 	return jsonObj.String()
 }
 
-func (r *RestAPI) updateContact(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
-	wg.Done()
+func parsePathTemplate(pathTemplate string) (string, string, error) {
+	re := regexp.MustCompile("{([a-zA-Z0-9]+)}")
+	matches := re.FindStringSubmatch(pathTemplate)
+	if len(matches) != 2 {
+		return "", "", fmt.Errorf("path must contain a field bracketed with {}, e.g. /path/{id}")
+	}
+
+	return re.ReplaceAllString(pathTemplate, "{id}"), matches[1], nil
 }
 
-func (r *RestAPI) deleteContact(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
+func pathWithID(path, id string) string {
+	return strings.Replace(path, "{id}", id, 1)
+}
+
+func (r *RestAPI) updatePerson(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
+	defer wg.Done()
+
+	updatePath := pathWithID(r.setConfig.UpdatePath, p.ID)
+	apiURL := fmt.Sprintf("%s%s", r.BaseURL, updatePath)
+	headers := map[string]string{"Content-Type": "application/json"}
+	reqBody := attributesToJSON(p.Attributes)
+	responseBody, err := r.httpRequest(r.UpdateMethod, apiURL, reqBody, headers)
+	if err != nil {
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
+			Message: fmt.Sprintf("updatePerson '%s' httpRequest error '%s'\nurl: %s\nrequest: %s\nresponse: %s\n",
+				p.CompareValue, err, apiURL, reqBody, responseBody),
+		}
+		return
+	}
+
+	eventLog <- internal.EventLogItem{
+		Level:   syslog.LOG_INFO,
+		Message: "UpdateContact " + p.CompareValue,
+	}
+
+	atomic.AddUint64(n, 1)
+}
+
+func (r *RestAPI) deletePerson(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
 	wg.Done()
 }
 
