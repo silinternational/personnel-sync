@@ -13,6 +13,91 @@ import (
 	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
+func TestRestAPI_ForSet(t *testing.T) {
+	tests := []struct {
+		name       string
+		syncSet    string
+		wantConfig RestAPI
+		wantErr    string
+	}{
+		{
+			name:    "invalid json",
+			syncSet: `{"Paths":["/resource"],}`,
+			wantErr: "json unmarshal error on set config",
+		},
+		{
+			name:    "no path",
+			syncSet: `{"Paths":[]}`,
+			wantErr: "paths is empty in sync set",
+		},
+		{
+			name:    "empty path",
+			syncSet: `{"Paths":[""]}`,
+			wantErr: "a path in sync set sources is blank",
+		},
+		{
+			name:    "simple",
+			syncSet: `{"Paths":["/path"]}`,
+			wantConfig: RestAPI{
+				destinationConfig: internal.DestinationConfig{
+					DisableUpdate: true,
+					DisableDelete: true,
+				},
+				setConfig: SetConfig{
+					Paths: []string{"/path"},
+				},
+			},
+		},
+		{
+			name:    "no leading slash",
+			syncSet: `{"Paths":["path"]}`,
+			wantConfig: RestAPI{
+				destinationConfig: internal.DestinationConfig{
+					DisableUpdate: true,
+					DisableDelete: true,
+				},
+				setConfig: SetConfig{
+					Paths: []string{"/path"},
+				},
+			},
+		},
+		{
+			name:    "invalid UpdatePath",
+			syncSet: `{"Paths":["/resource"],"UpdatePath":"/resource","DeletePath":"/resource/{id}"}`,
+			wantErr: "invalid UpdatePath",
+		},
+		{
+			name:    "invalid DeletePath",
+			syncSet: `{"Paths":["/resource"],"UpdatePath":"/resource/{id}","DeletePath":"/resource"}`,
+			wantErr: "invalid DeletePath",
+		},
+		{
+			name:    "with UpdatePath and DeletePath",
+			syncSet: `{"Paths":["/resource"],"UpdatePath":"/resource/{id}","DeletePath":"/resource/{id}"}`,
+			wantConfig: RestAPI{
+				setConfig: SetConfig{
+					Paths:      []string{"/resource"},
+					UpdatePath: "/resource/{id}",
+					DeletePath: "/resource/{id}",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &RestAPI{}
+			err := r.ForSet([]byte(tt.syncSet))
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr, "error doesn't contain '%s'", tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantConfig, *r, "incorrect config produced by ForSet")
+		})
+	}
+}
+
 func TestRestAPI_ListUsers(t *testing.T) {
 	server := getTestServer()
 	endpoints := getFakeEndpoints()

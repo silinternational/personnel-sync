@@ -102,7 +102,7 @@ func NewRestAPIDestination(destinationConfig internal.DestinationConfig) (intern
 func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	var setConfig SetConfig
 	if err := json.Unmarshal(syncSetJson, &setConfig); err != nil {
-		return err
+		return fmt.Errorf("json unmarshal error on set config: %w", err)
 	}
 
 	if len(setConfig.Paths) == 0 {
