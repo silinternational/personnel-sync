@@ -27,7 +27,7 @@ const (
 )
 
 const extraJSONtemplate = `{
-  "Method": "%s",
+  "ListMethod": "%s",
   "BaseURL": "%s",
   "ResultsJSONContainer": "%s",
   "AuthType": "%s",
