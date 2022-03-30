@@ -7,7 +7,7 @@
     "Type": "RestAPI",
     "ExtraJSON": {
       "BaseURL": "https://domain.com",
-      "Method": "GET",
+      "ListMethod": "GET",
       "Username": "testuser",
       "Password": "testpass",
       "ResultsJSONContainer": "ReportEntry",
