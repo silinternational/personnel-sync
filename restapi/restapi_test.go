@@ -126,6 +126,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					workday.username,
 					workday.password,
 					workday.compareAttr,
+					workday.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + workday.path + `"]}`,
@@ -187,11 +188,11 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					other.username,
 					other.password,
 					other.compareAttr,
+					other.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + other.path + `"]}`,
 			desiredAttrs: []string{
-				"employeeID",
 				"first",
 				"last",
 				"display",
@@ -200,6 +201,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			},
 			want: []internal.Person{
 				{
+					ID:           "10000013",
 					CompareValue: "mickey_mouse@acme.com",
 					Attributes: map[string]string{
 						"employeeID": "10000013",
@@ -211,6 +213,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					},
 				},
 				{
+					ID:           "10000011",
 					CompareValue: "donald_duck@acme.com",
 					Attributes: map[string]string{
 						"employeeID": "10000011",
@@ -236,6 +239,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					salesforce.username,
 					salesforce.password,
 					salesforce.compareAttr,
+					salesforce.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + salesforce.path + `"]}`,
@@ -270,6 +274,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					other.username,
 					other.password+"bad",
 					other.compareAttr,
+					other.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + other.path + `"]}`,
@@ -309,9 +314,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				t.FailNow()
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RestAPI.ListUsers() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got)
 		})
 	}
 }

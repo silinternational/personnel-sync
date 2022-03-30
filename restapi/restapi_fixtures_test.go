@@ -34,7 +34,8 @@ const extraJSONtemplate = `{
   "AuthType": "%s",
   "Username": "%s",
   "Password": "%s",
-  "CompareAttribute": "%s"
+  "CompareAttribute": "%s",
+  "IDAttribute": "%s"
 }`
 
 const workdayUsersJSON = `{
