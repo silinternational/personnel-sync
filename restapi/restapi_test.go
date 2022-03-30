@@ -202,7 +202,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				{
 					CompareValue: "mickey_mouse@acme.com",
 					Attributes: map[string]string{
-						"employeeID": "10013",
+						"employeeID": "10000013",
 						"first":      "Mickey",
 						"last":       "Mouse",
 						"display":    "Mickey Mouse",
@@ -213,7 +213,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				{
 					CompareValue: "donald_duck@acme.com",
 					Attributes: map[string]string{
-						"employeeID": "10011",
+						"employeeID": "10000011",
 						"first":      "Donald",
 						"last":       "Duck",
 						"display":    "Donald Duck",
@@ -320,6 +320,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 	server := getTestServer()
 	endpoints := getFakeEndpoints()
 	workday := endpoints[EndpointListWorkday]
+	other := endpoints[EndpointListOther]
 
 	type args struct {
 		desiredAttrs []string
@@ -390,6 +391,47 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "test ID and number handling",
+			r: RestAPI{
+				ListMethod:           other.method,
+				BaseURL:              server.URL,
+				ResultsJSONContainer: other.resultsContainer,
+				AuthType:             other.authType,
+				Username:             other.username,
+				Password:             other.password,
+				CompareAttribute:     other.compareAttr,
+				IDAttribute:          other.idAttr,
+			},
+			args: args{
+				desiredAttrs: []string{
+					"employeeID",
+					"display",
+					"email",
+				},
+				path: "/other/list",
+			},
+			want: []internal.Person{
+				{
+					ID:           "10000013",
+					CompareValue: "mickey_mouse@acme.com",
+					Attributes: map[string]string{
+						"employeeID": "10000013",
+						"email":      "mickey_mouse@acme.com",
+						"display":    "Mickey Mouse",
+					},
+				},
+				{
+					ID:           "10000011",
+					CompareValue: "donald_duck@acme.com",
+					Attributes: map[string]string{
+						"employeeID": "10000011",
+						"email":      "donald_duck@acme.com",
+						"display":    "Donald Duck",
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -419,9 +461,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 				results = append(results, person)
 			}
 
-			if !reflect.DeepEqual(results, tt.want) {
-				t.Errorf("RestAPI.listUsersForPath() = %v, want %v", results, tt.want)
-			}
+			require.Equal(t, tt.want, results)
 		})
 	}
 }
