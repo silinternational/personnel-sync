@@ -118,7 +118,7 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 		}
 	}
 
-	if setConfig.UpdatePath != "" {
+	if setConfig.UpdatePath == "" {
 		r.destinationConfig.DisableUpdate = true
 	} else {
 		if path, err := parsePathTemplate(setConfig.UpdatePath); err != nil {
