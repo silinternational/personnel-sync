@@ -547,7 +547,6 @@ func Test_parsePathTemplate(t *testing.T) {
 		name         string
 		pathTemplate string
 		wantPath     string
-		wantField    string
 		wantErr      bool
 	}{
 		{
@@ -559,47 +558,22 @@ func Test_parsePathTemplate(t *testing.T) {
 			name:         "has a field name",
 			pathTemplate: "/contacts/{someFieldName}",
 			wantPath:     "/contacts/{id}",
-			wantField:    "someFieldName",
+		},
+		{
+			name:         "no leading slash",
+			pathTemplate: "contacts/{someOtherFieldName}",
+			wantPath:     "/contacts/{id}",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path, idField, err := parsePathTemplate(tt.pathTemplate)
+			path, err := parsePathTemplate(tt.pathTemplate)
 			if tt.wantErr {
 				require.Error(t, err, "expected error but did not get one")
 				return
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantPath, path)
-			require.Equal(t, tt.wantField, idField)
-		})
-	}
-}
-
-func Test_pathWithID(t *testing.T) {
-	tests := []struct {
-		name         string
-		pathTemplate string
-		id           string
-		want         string
-	}{
-		{
-			name:         "no field name",
-			pathTemplate: "/contacts",
-			id:           "1",
-			want:         "/contacts",
-		},
-		{
-			name:         "has a field name",
-			pathTemplate: "/contacts/{id}",
-			id:           "1",
-			want:         "/contacts/1",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := pathWithID(tt.pathTemplate, tt.id)
-			require.Equal(t, tt.want, got)
 		})
 	}
 }

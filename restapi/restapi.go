@@ -18,7 +18,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	internal "github.com/silinternational/personnel-sync/v5/internal"
+	"github.com/silinternational/personnel-sync/v5/internal"
 )
 
 const (
@@ -55,9 +55,7 @@ type SetConfig struct {
 	Paths      []string
 	CreatePath string
 	UpdatePath string
-	UpdateID   string
 	DeletePath string
-	DeleteID   string
 }
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
@@ -99,9 +97,8 @@ func NewRestAPIDestination(destinationConfig internal.DestinationConfig) (intern
 	return &restAPI, nil
 }
 
-// ForSet sets this RestAPI structs Path value to the one in the
-// umarshalled syncSetJson.
-// It ensures the resulting Path attribute includes an initial "/"
+// ForSet sets this RestAPI struct's Path values to those in the umarshalled syncSetJson.
+// It ensures the resulting Path attributes include an initial "/"
 func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	var setConfig SetConfig
 	if err := json.Unmarshal(syncSetJson, &setConfig); err != nil {
@@ -121,36 +118,28 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 		}
 	}
 
-	if path, id, err := parsePathTemplate(setConfig.UpdatePath); err != nil {
-		if setConfig.UpdatePath != "" {
-			return fmt.Errorf("invalid UpdatePath: %w", err)
-		}
+	if setConfig.UpdatePath != "" {
 		r.destinationConfig.DisableUpdate = true
 	} else {
-		setConfig.UpdatePath = path
-		setConfig.UpdateID = id
+		if path, err := parsePathTemplate(setConfig.UpdatePath); err != nil {
+			return fmt.Errorf("invalid UpdatePath: %w", err)
+		} else {
+			setConfig.UpdatePath = path
+		}
 	}
 
-	if path, id, err := parsePathTemplate(setConfig.DeletePath); err != nil {
-		if setConfig.DeletePath != "" {
-			return fmt.Errorf("invalid DeletePath: %w", err)
-		}
+	if setConfig.DeletePath == "" {
 		r.destinationConfig.DisableDelete = true
 	} else {
-		setConfig.DeletePath = path
-		setConfig.DeleteID = id
+		if path, err := parsePathTemplate(setConfig.DeletePath); err != nil {
+			return fmt.Errorf("invalid DeletePath: %w", err)
+		} else {
+			setConfig.DeletePath = path
+		}
 	}
 
 	r.setConfig = setConfig
-
 	return nil
-}
-
-func (r *RestAPI) addAttributeForID(attributes []string) []string {
-	if !internal.IsStringInSlice(r.IDAttribute, attributes) {
-		attributes = append(attributes, r.IDAttribute)
-	}
-	return attributes
 }
 
 // ListUsers makes an http request and uses the response to populate
@@ -160,9 +149,10 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	people := make(chan internal.Person, 20000)
 	var wg sync.WaitGroup
 
+	attributesToRead := internal.AddStringToSlice(desiredAttrs, r.IDAttribute)
 	for _, p := range r.setConfig.Paths {
 		wg.Add(1)
-		go r.listUsersForPath(r.addAttributeForID(desiredAttrs), p, &wg, people, errLog)
+		go r.listUsersForPath(attributesToRead, p, &wg, people, errLog)
 	}
 
 	wg.Wait()
@@ -400,7 +390,7 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 				resp.StatusCode, err.Error(), string(bodyText))
 			return "", err
 		}
-		return "", fmt.Errorf("Salesforce auth error: %s, %s\n",
+		return "", fmt.Errorf("Salesforce auth error: %s, %s",
 			errorResponse.Error, errorResponse.ErrorDescription)
 	}
 
@@ -418,6 +408,9 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 }
 
 func (r *RestAPI) setDefaults() {
+	if r.Method != "" {
+		log.Printf("RestAPI Method parameter is deprecated. Please use ListMethod.")
+	}
 	// migrate from `Method` to `ListMethod`
 	if r.ListMethod == "" {
 		r.ListMethod = r.Method
@@ -459,7 +452,7 @@ func (r *RestAPI) addPerson(p internal.Person, n *uint64, wg *sync.WaitGroup, ev
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level: syslog.LOG_ERR,
-			Message: fmt.Sprintf("addPerson '%s' httpRequest error '%s'\nurl: %s\nrequest: %s\nresponse: %s\n",
+			Message: fmt.Sprintf("addPerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
 				p.CompareValue, err, apiURL, reqBody, responseBody),
 		}
 		return
@@ -483,24 +476,10 @@ func attributesToJSON(attr map[string]string) string {
 	return jsonObj.String()
 }
 
-func parsePathTemplate(pathTemplate string) (string, string, error) {
-	re := regexp.MustCompile("{([a-zA-Z0-9]+)}")
-	matches := re.FindStringSubmatch(pathTemplate)
-	if len(matches) != 2 {
-		return "", "", fmt.Errorf("path must contain a field bracketed with {}, e.g. /path/{id}")
-	}
-
-	return re.ReplaceAllString(pathTemplate, "{id}"), matches[1], nil
-}
-
-func pathWithID(path, id string) string {
-	return strings.Replace(path, "{id}", id, 1)
-}
-
 func (r *RestAPI) updatePerson(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
 	defer wg.Done()
 
-	updatePath := pathWithID(r.setConfig.UpdatePath, p.ID)
+	updatePath := strings.Replace(r.setConfig.UpdatePath, "{id}", p.ID, 1)
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, updatePath)
 	headers := map[string]string{"Content-Type": "application/json"}
 	reqBody := attributesToJSON(p.Attributes)
@@ -508,7 +487,7 @@ func (r *RestAPI) updatePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level: syslog.LOG_ERR,
-			Message: fmt.Sprintf("updatePerson '%s' httpRequest error '%s'\nurl: %s\nrequest: %s\nresponse: %s\n",
+			Message: fmt.Sprintf("updatePerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
 				p.CompareValue, err, apiURL, reqBody, responseBody),
 		}
 		return
@@ -568,4 +547,20 @@ func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string)
 	}
 
 	return bodyString, nil
+}
+
+// parsePathTemplate verifies that the path has a bracketed id, and returns an error if it does not. It also normalizes
+// the ID field to "id" and adds a leading slash if necessary.
+func parsePathTemplate(pathTemplate string) (string, error) {
+	re := regexp.MustCompile("{([a-zA-Z0-9]+)}")
+	matches := re.FindStringSubmatch(pathTemplate)
+	if len(matches) != 2 {
+		return "", fmt.Errorf("path must contain a field bracketed with {}, e.g. /path/{id}")
+	}
+
+	path := re.ReplaceAllString(pathTemplate, "{id}")
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path, nil
 }
