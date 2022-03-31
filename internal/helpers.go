@@ -1,6 +1,6 @@
 package internal
 
-func AddStringToSlice(slice []string, newString string) []string {
+func AddStringToSlice(newString string, slice []string) []string {
 	if !IsStringInSlice(newString, slice) {
 		slice = append(slice, newString)
 	}

@@ -149,7 +149,7 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	people := make(chan internal.Person, 20000)
 	var wg sync.WaitGroup
 
-	attributesToRead := internal.AddStringToSlice(desiredAttrs, r.IDAttribute)
+	attributesToRead := internal.AddStringToSlice(r.IDAttribute, desiredAttrs)
 	for _, p := range r.setConfig.Paths {
 		wg.Add(1)
 		go r.listUsersForPath(attributesToRead, p, &wg, people, errLog)
