@@ -29,45 +29,15 @@ const (
 	DefaultBatchDelaySeconds = 3
 )
 
-type RestAPI struct {
-	Method               string // DEPRECATED
-	ListMethod           string
-	CreateMethod         string
-	UpdateMethod         string
-	DeleteMethod         string
-	IDAttribute          string
-	BaseURL              string
-	ResultsJSONContainer string
-	AuthType             string
-	Username             string
-	Password             string
-	ClientID             string
-	ClientSecret         string
-	CompareAttribute     string
-	UserAgent            string
-	BatchSize            int
-	BatchDelaySeconds    int
-	destinationConfig    internal.DestinationConfig
-	setConfig            SetConfig
-}
-
-type SetConfig struct {
-	Paths      []string
-	CreatePath string
-	UpdatePath string
-	DeletePath string
-}
-
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
 func NewRestAPISource(sourceConfig internal.SourceConfig) (internal.Source, error) {
-	var restAPI RestAPI
+	restAPI := New()
+
 	// Unmarshal ExtraJSON into RestAPI struct
 	err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI)
 	if err != nil {
 		return &RestAPI{}, err
 	}
-
-	restAPI.setDefaults()
 
 	if restAPI.AuthType == AuthTypeSalesforceOauth {
 		token, err := restAPI.getSalesforceOauthToken()
@@ -79,21 +49,23 @@ func NewRestAPISource(sourceConfig internal.SourceConfig) (internal.Source, erro
 		restAPI.Password = token
 	}
 
+	restAPI.validateConfig()
 	return &restAPI, nil
 }
 
 // NewRestAPIDestination unmarshals the destinationConfig's ExtraJson into a RestApi struct
 func NewRestAPIDestination(destinationConfig internal.DestinationConfig) (internal.Destination, error) {
-	var restAPI RestAPI
+	restAPI := New()
+
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
 	err := json.Unmarshal(destinationConfig.ExtraJSON, &restAPI)
 	if err != nil {
 		return &RestAPI{}, err
 	}
 
-	restAPI.setDefaults()
 	restAPI.destinationConfig = destinationConfig
 
+	restAPI.validateConfig()
 	return &restAPI, nil
 }
 
@@ -142,7 +114,7 @@ func (r *RestAPI) ForSet(syncSetJson json.RawMessage) error {
 	return nil
 }
 
-// ListUsers makes an http request and uses the response to populate
+// ListUsers makes http requests and uses the responses to populate
 // and return a slice of Person instances
 func (r *RestAPI) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	errLog := make(chan string, 1000)
@@ -226,9 +198,22 @@ func (r *RestAPI) listUsersForPath(
 ) {
 	defer wg.Done()
 
+	for page := r.Pagination.FirstPage; page <= r.Pagination.PageLimit; page++ {
+		apiURL := fmt.Sprintf("%s%s?%s=%d&%s=%d",
+			r.BaseURL, path, r.Pagination.PageSizeKey, r.Pagination.PageSize, r.Pagination.PageNumberKey, page)
+		p := r.requestPage(desiredAttrs, apiURL, errLog)
+		if len(p) == 0 {
+			break
+		}
+		for _, pp := range p {
+			people <- pp
+		}
+	}
+}
+
+func (r *RestAPI) requestPage(desiredAttrs []string, url string, errLog chan<- string) []internal.Person {
 	client := &http.Client{}
-	apiURL := fmt.Sprintf("%s%s", r.BaseURL, path)
-	req, err := http.NewRequest(r.ListMethod, apiURL, nil)
+	req, err := http.NewRequest(r.ListMethod, url, nil)
 	if err != nil {
 		log.Println(err)
 		errLog <- err.Error()
@@ -244,20 +229,20 @@ func (r *RestAPI) listUsersForPath(
 	resp, err := client.Do(req)
 	if err != nil {
 		errLog <- "error issuing http request, " + err.Error()
-		return
+		return nil
 	}
 
 	bodyText, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		errLog <- "error reading response body: " + err.Error()
-		return
+		return nil
 	}
 
 	if resp.StatusCode > 299 {
-		msg := fmt.Sprintf("response status code: %d url: %s response body: %s", resp.StatusCode, apiURL, bodyText)
+		msg := fmt.Sprintf("response status code: %d url: %s response body: %s", resp.StatusCode, url, bodyText)
 		log.Print(msg)
 		errLog <- msg
-		return
+		return nil
 	}
 
 	// by default, json package uses float64 for all numbers -- UseNumber() makes it use the json.Number type
@@ -268,7 +253,7 @@ func (r *RestAPI) listUsersForPath(
 		log.Printf("error parsing json results: %s", err.Error())
 		log.Printf("response body: %s", string(bodyText))
 		errLog <- err.Error()
-		return
+		return nil
 	}
 
 	var peopleList []*gabs.Container
@@ -280,11 +265,7 @@ func (r *RestAPI) listUsersForPath(
 		peopleList = jsonParsed.Children()
 	}
 
-	results := r.getPersonsFromResults(peopleList, desiredAttrs)
-
-	for _, person := range results {
-		people <- person
-	}
+	return r.getPersonsFromResults(peopleList, desiredAttrs)
 }
 
 func (r *RestAPI) getPersonsFromResults(peopleList []*gabs.Container, desiredAttrs []string) []internal.Person {
@@ -407,38 +388,41 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 	return authResponse.AccessToken, nil
 }
 
-func (r *RestAPI) setDefaults() {
+func New() RestAPI {
+	return RestAPI{
+		ListMethod:           http.MethodGet,
+		CreateMethod:         http.MethodPost,
+		UpdateMethod:         http.MethodPut,
+		DeleteMethod:         http.MethodDelete,
+		IDAttribute:          "id",
+		ResultsJSONContainer: "",
+		UserAgent:            "personnel-sync",
+		BatchSize:            DefaultBatchSize,
+		BatchDelaySeconds:    DefaultBatchDelaySeconds,
+		destinationConfig:    internal.DestinationConfig{},
+		Pagination: Pagination{
+			Scheme:        "query",
+			PageNumberKey: "page",
+			PageSizeKey:   "page_size",
+			FirstPage:     1,
+			PageLimit:     1000,
+			PageSize:      100,
+		},
+	}
+}
+
+func (r *RestAPI) validateConfig() {
 	if r.Method != "" {
 		log.Printf("RestAPI Method parameter is deprecated. Please use ListMethod.")
-	}
-	// migrate from `Method` to `ListMethod`
-	if r.ListMethod == "" {
-		r.ListMethod = r.Method
-	}
-	// if neither was set, use the default
-	if r.ListMethod == "" {
-		r.ListMethod = http.MethodGet
-	}
-	if r.CreateMethod == "" {
-		r.CreateMethod = http.MethodPost
-	}
-	if r.UpdateMethod == "" {
-		r.UpdateMethod = http.MethodPut
-	}
-	if r.DeleteMethod == "" {
-		r.DeleteMethod = http.MethodDelete
-	}
-	if r.IDAttribute == "" {
-		r.IDAttribute = "id"
+		if r.ListMethod == "" {
+			r.ListMethod = r.Method
+		}
 	}
 	if r.BatchSize <= 0 {
 		r.BatchSize = DefaultBatchSize
 	}
 	if r.BatchDelaySeconds <= 0 {
 		r.BatchDelaySeconds = DefaultBatchDelaySeconds
-	}
-	if r.UserAgent == "" {
-		r.UserAgent = "personnel-sync"
 	}
 }
 
