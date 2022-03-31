@@ -199,8 +199,11 @@ func (r *RestAPI) listUsersForPath(
 	defer wg.Done()
 
 	for page := r.Pagination.FirstPage; page <= r.Pagination.PageLimit; page++ {
-		apiURL := fmt.Sprintf("%s%s?%s=%d&%s=%d",
-			r.BaseURL, path, r.Pagination.PageSizeKey, r.Pagination.PageSize, r.Pagination.PageNumberKey, page)
+		apiURL := fmt.Sprintf("%s%s", r.BaseURL, path)
+		if r.Pagination.Scheme == PaginationSchemeQuery {
+			apiURL += fmt.Sprintf("?%s=%d&%s=%d",
+				r.Pagination.PageSizeKey, r.Pagination.PageSize, r.Pagination.PageNumberKey, page)
+		}
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
 			break
@@ -401,7 +404,7 @@ func New() RestAPI {
 		BatchDelaySeconds:    DefaultBatchDelaySeconds,
 		destinationConfig:    internal.DestinationConfig{},
 		Pagination: Pagination{
-			Scheme:        "query",
+			Scheme:        "",
 			PageNumberKey: "page",
 			PageSizeKey:   "page_size",
 			FirstPage:     1,
