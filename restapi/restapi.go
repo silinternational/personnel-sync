@@ -254,7 +254,7 @@ func (r *RestAPI) listUsersForPath(
 	}
 
 	if resp.StatusCode > 299 {
-		msg := fmt.Sprintf("response status code: %d response body: %s", resp.StatusCode, bodyText)
+		msg := fmt.Sprintf("response status code: %d url: %s response body: %s", resp.StatusCode, apiURL, bodyText)
 		log.Print(msg)
 		errLog <- msg
 		return
@@ -502,7 +502,27 @@ func (r *RestAPI) updatePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 }
 
 func (r *RestAPI) deletePerson(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
-	wg.Done()
+	defer wg.Done()
+
+	deletePath := strings.Replace(r.setConfig.DeletePath, "{id}", p.ID, 1)
+	apiURL := fmt.Sprintf("%s%s", r.BaseURL, deletePath)
+	headers := map[string]string{"Content-Type": "application/json"}
+	responseBody, err := r.httpRequest(r.DeleteMethod, apiURL, "", headers)
+	if err != nil {
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
+			Message: fmt.Sprintf("deletePerson '%s' httpRequest error '%s', url: %s,  response: %s",
+				p.CompareValue, err, apiURL, responseBody),
+		}
+		return
+	}
+
+	eventLog <- internal.EventLogItem{
+		Level:   syslog.LOG_INFO,
+		Message: "DeleteContact " + p.CompareValue,
+	}
+
+	atomic.AddUint64(n, 1)
 }
 
 func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (string, error) {
