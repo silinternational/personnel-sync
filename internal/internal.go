@@ -317,19 +317,19 @@ func printChangeSet(logger *log.Logger, changeSet ChangeSet) {
 	logger.Printf("ChangeSet Plans: Create %v, Update %v, Delete %v\n",
 		len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
 
-	logger.Println("Users to be created...")
+	logger.Printf("Users to be created: %d ...", len(changeSet.Create))
 	for i, user := range changeSet.Create {
-		logger.Printf("  %v) %s", i+1, user.CompareValue)
+		logger.Printf("  create %v) %s", i+1, user.CompareValue)
 	}
 
-	logger.Println("Users to be updated...")
+	logger.Printf("Users to be updated: %d ...", len(changeSet.Update))
 	for i, user := range changeSet.Update {
-		logger.Printf("  %v) %s", i+1, user.CompareValue)
+		logger.Printf("  update %v) %s", i+1, user.CompareValue)
 	}
 
-	logger.Println("Users to be deleted...")
+	logger.Printf("Users to be deleted: %d ...", len(changeSet.Delete))
 	for i, user := range changeSet.Delete {
-		logger.Printf("  %v) %s", i+1, user.CompareValue)
+		logger.Printf("  delete %v) %s", i+1, user.CompareValue)
 	}
 }
 
