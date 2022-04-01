@@ -205,12 +205,23 @@ Here are some examples of how to configure it:
     "ExtraJSON": {
       "ListMethod": "GET",
       "CreateMethod": "POST",
+      "UpdateMethod": "PUT",
+      "DeleteMethod": "DELETE",
+      "IDAttribute": "id",
       "BaseURL": "https://example.com",
       "ResultsJSONContainer": "Results",
       "AuthType": "bearer",
       "Password": "token",
       "CompareAttribute": "email",
-      "UserAgent": "personnel-sync"
+      "UserAgent": "personnel-sync",
+      "Pagination": {
+        "Scheme": "",
+        "PageNumberKey": "",
+        "PageSizeKey": "",
+        "FirstPage": "",
+        "PageLimit": "",
+        "PageSize": ""
+      }
     }
   },
   "SyncSets": [
@@ -221,12 +232,22 @@ Here are some examples of how to configure it:
       },
       "Destination": {
         "Paths": ["/users"],
-        "CreatePath": "/users"
+        "CreatePath": "/users",
+        "UpdatePath": "/users/{id}",
+        "DeletePath": "/users/{id}"
       }
     }
   ]
 }
 ```
+
+Pagination properties:
+  - Scheme -- if specified, must be 'query'
+  - PageNumberKey -- query string key for the page number
+  - PageSizeKey -- number of items per page, default is 100
+  - FirstPage -- number of the first page, default is 1
+  - PageLimit -- maximum number of pages to request, default is 1000
+  - PageSize -- number of records to return in a page, default is 100
 
 ### Google Contacts
 This destination can create, update, and delete Contact records in the Google
