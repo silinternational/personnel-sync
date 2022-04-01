@@ -202,6 +202,11 @@ func getTestServer() *httptest.Server {
 				responseBody = `{"error":"empty request body"}`
 			}
 
+			pageParam := req.URL.Query()["page"]
+			if len(pageParam) > 0 && pageParam[0] != "1" {
+				responseBody = "{}"
+			}
+
 			w.WriteHeader(status)
 			w.Header().Set("content-type", "application/json")
 			_, _ = io.WriteString(w, responseBody)
