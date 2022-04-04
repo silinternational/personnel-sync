@@ -3,4 +3,3 @@ app:
     dockerfile_path: Dockerfile
   encrypted_env_file: .env.encrypted
   cached: true
-  working_dir: /go/src/github.com/silinternational/personnel-sync

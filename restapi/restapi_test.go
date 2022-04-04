@@ -8,9 +8,95 @@ import (
 	"testing"
 
 	"github.com/Jeffail/gabs/v2"
+	"github.com/stretchr/testify/require"
 
 	"github.com/silinternational/personnel-sync/v5/internal"
 )
+
+func TestRestAPI_ForSet(t *testing.T) {
+	tests := []struct {
+		name       string
+		syncSet    string
+		wantConfig RestAPI
+		wantErr    string
+	}{
+		{
+			name:    "invalid json",
+			syncSet: `{"Paths":["/resource"],}`,
+			wantErr: "json unmarshal error on set config",
+		},
+		{
+			name:    "no path",
+			syncSet: `{"Paths":[]}`,
+			wantErr: "paths is empty in sync set",
+		},
+		{
+			name:    "empty path",
+			syncSet: `{"Paths":[""]}`,
+			wantErr: "a path in sync set sources is blank",
+		},
+		{
+			name:    "simple",
+			syncSet: `{"Paths":["/path"]}`,
+			wantConfig: RestAPI{
+				destinationConfig: internal.DestinationConfig{
+					DisableUpdate: true,
+					DisableDelete: true,
+				},
+				setConfig: SetConfig{
+					Paths: []string{"/path"},
+				},
+			},
+		},
+		{
+			name:    "no leading slash",
+			syncSet: `{"Paths":["path"]}`,
+			wantConfig: RestAPI{
+				destinationConfig: internal.DestinationConfig{
+					DisableUpdate: true,
+					DisableDelete: true,
+				},
+				setConfig: SetConfig{
+					Paths: []string{"/path"},
+				},
+			},
+		},
+		{
+			name:    "invalid UpdatePath",
+			syncSet: `{"Paths":["/resource"],"UpdatePath":"/resource","DeletePath":"/resource/{id}"}`,
+			wantErr: "invalid UpdatePath",
+		},
+		{
+			name:    "invalid DeletePath",
+			syncSet: `{"Paths":["/resource"],"UpdatePath":"/resource/{id}","DeletePath":"/resource"}`,
+			wantErr: "invalid DeletePath",
+		},
+		{
+			name:    "with UpdatePath and DeletePath",
+			syncSet: `{"Paths":["/resource"],"UpdatePath":"/resource/{id}","DeletePath":"/resource/{id}"}`,
+			wantConfig: RestAPI{
+				setConfig: SetConfig{
+					Paths:      []string{"/resource"},
+					UpdatePath: "/resource/{id}",
+					DeletePath: "/resource/{id}",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &RestAPI{}
+			err := r.ForSet([]byte(tt.syncSet))
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr, "error doesn't contain '%s'", tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantConfig, *r, "incorrect config produced by ForSet")
+		})
+	}
+}
 
 func TestRestAPI_ListUsers(t *testing.T) {
 	server := getTestServer()
@@ -40,6 +126,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					workday.username,
 					workday.password,
 					workday.compareAttr,
+					workday.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + workday.path + `"]}`,
@@ -101,11 +188,11 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					other.username,
 					other.password,
 					other.compareAttr,
+					other.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + other.path + `"]}`,
 			desiredAttrs: []string{
-				"employeeID",
 				"first",
 				"last",
 				"display",
@@ -114,9 +201,10 @@ func TestRestAPI_ListUsers(t *testing.T) {
 			},
 			want: []internal.Person{
 				{
+					ID:           "10000013",
 					CompareValue: "mickey_mouse@acme.com",
 					Attributes: map[string]string{
-						"employeeID": "10013",
+						"employeeID": "10000013",
 						"first":      "Mickey",
 						"last":       "Mouse",
 						"display":    "Mickey Mouse",
@@ -125,9 +213,10 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					},
 				},
 				{
+					ID:           "10000011",
 					CompareValue: "donald_duck@acme.com",
 					Attributes: map[string]string{
-						"employeeID": "10011",
+						"employeeID": "10000011",
 						"first":      "Donald",
 						"last":       "Duck",
 						"display":    "Donald Duck",
@@ -150,6 +239,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					salesforce.username,
 					salesforce.password,
 					salesforce.compareAttr,
+					salesforce.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + salesforce.path + `"]}`,
@@ -184,6 +274,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 					other.username,
 					other.password+"bad",
 					other.compareAttr,
+					other.idAttr,
 				)),
 			},
 			syncSet: `{"Paths":["` + other.path + `"]}`,
@@ -223,9 +314,7 @@ func TestRestAPI_ListUsers(t *testing.T) {
 				t.FailNow()
 			}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RestAPI.ListUsers() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -234,6 +323,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 	server := getTestServer()
 	endpoints := getFakeEndpoints()
 	workday := endpoints[EndpointListWorkday]
+	other := endpoints[EndpointListOther]
 
 	type args struct {
 		desiredAttrs []string
@@ -304,6 +394,47 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "test ID and number handling",
+			r: RestAPI{
+				ListMethod:           other.method,
+				BaseURL:              server.URL,
+				ResultsJSONContainer: other.resultsContainer,
+				AuthType:             other.authType,
+				Username:             other.username,
+				Password:             other.password,
+				CompareAttribute:     other.compareAttr,
+				IDAttribute:          other.idAttr,
+			},
+			args: args{
+				desiredAttrs: []string{
+					"employeeID",
+					"display",
+					"email",
+				},
+				path: "/other/list",
+			},
+			want: []internal.Person{
+				{
+					ID:           "10000013",
+					CompareValue: "mickey_mouse@acme.com",
+					Attributes: map[string]string{
+						"employeeID": "10000013",
+						"email":      "mickey_mouse@acme.com",
+						"display":    "Mickey Mouse",
+					},
+				},
+				{
+					ID:           "10000011",
+					CompareValue: "donald_duck@acme.com",
+					Attributes: map[string]string{
+						"employeeID": "10000011",
+						"email":      "donald_duck@acme.com",
+						"display":    "Donald Duck",
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -333,9 +464,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 				results = append(results, person)
 			}
 
-			if !reflect.DeepEqual(results, tt.want) {
-				t.Errorf("RestAPI.listUsersForPath() = %v, want %v", results, tt.want)
-			}
+			require.Equal(t, tt.want, results)
 		})
 	}
 }
@@ -407,7 +536,8 @@ func Test_getPersonsFromResults(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getPersonsFromResults(tt.peopleList, tt.compareAttr, tt.desiredAttrs); !reflect.DeepEqual(got, tt.want) {
+			r := RestAPI{CompareAttribute: tt.compareAttr}
+			if got := r.getPersonsFromResults(tt.peopleList, tt.desiredAttrs); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getPersonsFromResults() = %#v, want %#v", got, tt.want)
 			}
 		})
@@ -536,6 +666,42 @@ func TestRestAPI_httpRequest(t *testing.T) {
 			if !tt.wantErr && got != tt.want {
 				t.Errorf("httpRequest() got = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_parsePathTemplate(t *testing.T) {
+	tests := []struct {
+		name         string
+		pathTemplate string
+		wantPath     string
+		wantErr      bool
+	}{
+		{
+			name:         "no field name",
+			pathTemplate: "/contacts",
+			wantErr:      true,
+		},
+		{
+			name:         "has a field name",
+			pathTemplate: "/contacts/{someFieldName}",
+			wantPath:     "/contacts/{id}",
+		},
+		{
+			name:         "no leading slash",
+			pathTemplate: "contacts/{someOtherFieldName}",
+			wantPath:     "/contacts/{id}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path, err := parsePathTemplate(tt.pathTemplate)
+			if tt.wantErr {
+				require.Error(t, err, "expected error but did not get one")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantPath, path)
 		})
 	}
 }

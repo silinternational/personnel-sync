@@ -16,6 +16,7 @@ type fakeEndpoint struct {
 	username         string
 	password         string
 	compareAttr      string
+	idAttr           string
 	resultsContainer string
 }
 
@@ -27,13 +28,14 @@ const (
 )
 
 const extraJSONtemplate = `{
-  "Method": "%s",
+  "ListMethod": "%s",
   "BaseURL": "%s",
   "ResultsJSONContainer": "%s",
   "AuthType": "%s",
   "Username": "%s",
   "Password": "%s",
-  "CompareAttribute": "%s"
+  "CompareAttribute": "%s",
+  "IDAttribute": "%s"
 }`
 
 const workdayUsersJSON = `{
@@ -67,7 +69,7 @@ const workdayUsersJSON = `{
 
 const otherUsersJSON = `[
     {
-      "employeeID": "10013",
+      "employeeID": 10000013,
       "first": "Mickey",
       "last": "Mouse",
       "display": "Mickey Mouse",
@@ -75,7 +77,7 @@ const otherUsersJSON = `[
       "email": "mickey_mouse@acme.com"
     },
 	{
-      "employeeID": "10011",
+      "employeeID": 10000011,
       "first": "Donald",
       "last": "Duck",
       "display": "Donald Duck",
@@ -140,6 +142,7 @@ func getFakeEndpoints() map[string]fakeEndpoint {
 			authType:         AuthTypeBearer,
 			password:         "bearer_token",
 			compareAttr:      "email",
+			idAttr:           "employeeID",
 			resultsContainer: "",
 		},
 		EndpointListSalesforce: {
@@ -197,6 +200,11 @@ func getTestServer() *httptest.Server {
 			if req.Method == http.MethodPost && bodyString == "" {
 				status = http.StatusBadRequest
 				responseBody = `{"error":"empty request body"}`
+			}
+
+			pageParam := req.URL.Query()["page"]
+			if len(pageParam) > 0 && pageParam[0] != "1" {
+				responseBody = "{}"
 			}
 
 			w.WriteHeader(status)
