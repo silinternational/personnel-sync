@@ -229,8 +229,9 @@ func (r *RestAPI) usersByPage(
 ) {
 	for page := r.Pagination.FirstPage; page <= r.Pagination.PageLimit; page++ {
 		apiURL := fmt.Sprintf("%s%s%s%s=%d&%s=%d",
-			r.BaseURL, path, r.Pagination.QueryStartDelimiter, r.Pagination.PageSizeKey,
-			r.Pagination.PageSize, r.Pagination.PageNumberKey, page)
+			r.BaseURL, path, r.Pagination.QueryStartDelimiter,
+			r.Pagination.PageSizeKey, r.Pagination.PageSize,
+			r.Pagination.PageNumberKey, page)
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
 			break
@@ -250,7 +251,9 @@ func (r *RestAPI) usersByItemCount(
 	for page := 0; page < r.Pagination.PageLimit; page++ {
 		itemIndex := r.Pagination.FirstItemIndex + page*r.Pagination.PageSize
 		apiURL := fmt.Sprintf("%s%s%s%s=%d&%s=%d",
-			r.BaseURL, path, r.Pagination.QueryStartDelimiter, r.Pagination.ItemKey, itemIndex, r.Pagination.PageSizeKey, r.Pagination.PageSize)
+			r.BaseURL, path, r.Pagination.QueryStartDelimiter,
+			r.Pagination.ItemKey, itemIndex,
+			r.Pagination.PageSizeKey, r.Pagination.PageSize)
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
 			break
