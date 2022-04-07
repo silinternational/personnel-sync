@@ -33,10 +33,21 @@ type SetConfig struct {
 }
 
 type Pagination struct {
-	Scheme        string // if specified, must be 'query'
-	PageNumberKey string // query string key for the page number
-	PageSizeKey   string // number of items per page, default is 100
+	// If specified, must be "pages" for a page based request or "items" for an item based request.
+	// If not specified, no pagination is attempted
+	Scheme string
+
+	// Item based values
+	FirstItemIndex int    // index of first item to fetch, default is 0
+	ItemKey        string // query string key for the item index to start at
+
+	// Page based values
 	FirstPage     int    // number of the first page, default is 1
-	PageLimit     int    // maximum number of pages to request, default is 1000
-	PageSize      int    // page size, default is 100
+	PageNumberKey string // query string key for the page number
+
+	// Shared values (for either Item based or Page based)
+	PageLimit           int    // maximum number of pages to request, default is 1000
+	PageSize            int    // page size, default is 100 items per page
+	PageSizeKey         string // query string key the number of items per page
+	QueryStartDelimiter string // defaults to "?" but can be set to "&"
 }

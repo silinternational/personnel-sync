@@ -27,6 +27,8 @@ const (
 	AuthTypeSalesforceOauth  = "SalesforceOauth"
 	DefaultBatchSize         = 10
 	DefaultBatchDelaySeconds = 3
+	PaginationSchemePages    = "pages"
+	PaginationSchemeItems    = "items"
 )
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
@@ -207,9 +209,48 @@ func (r *RestAPI) listUsersForPath(
 		return
 	}
 
+	if r.Pagination.Scheme == PaginationSchemeItems { // use item based pagination
+		r.usersByItemCount(desiredAttrs, path, people, errLog)
+	} else if r.Pagination.Scheme == PaginationSchemePages { // use page based pagination
+		r.usersByPage(desiredAttrs, path, people, errLog)
+	} else {
+		msg := fmt.Sprintf("invalid pagination scheme (%s), must be %s or %s",
+			r.Pagination.Scheme, PaginationSchemePages, PaginationSchemeItems)
+		log.Println(msg)
+		errLog <- msg
+	}
+}
+
+func (r *RestAPI) usersByPage(
+	desiredAttrs []string,
+	path string,
+	people chan<- internal.Person,
+	errLog chan<- string,
+) {
 	for page := r.Pagination.FirstPage; page <= r.Pagination.PageLimit; page++ {
-		apiURL := fmt.Sprintf("%s%s?%s=%d&%s=%d",
-			r.BaseURL, path, r.Pagination.PageSizeKey, r.Pagination.PageSize, r.Pagination.PageNumberKey, page)
+		apiURL := fmt.Sprintf("%s%s%s%s=%d&%s=%d",
+			r.BaseURL, path, r.Pagination.QueryStartDelimiter, r.Pagination.PageSizeKey,
+			r.Pagination.PageSize, r.Pagination.PageNumberKey, page)
+		p := r.requestPage(desiredAttrs, apiURL, errLog)
+		if len(p) == 0 {
+			break
+		}
+		for _, pp := range p {
+			people <- pp
+		}
+	}
+}
+
+func (r *RestAPI) usersByItemCount(
+	desiredAttrs []string,
+	path string,
+	people chan<- internal.Person,
+	errLog chan<- string,
+) {
+	for page := 0; page < r.Pagination.PageLimit; page++ {
+		itemIndex := r.Pagination.FirstItemIndex + page*r.Pagination.PageSize
+		apiURL := fmt.Sprintf("%s%s%s%s=%d&%s=%d",
+			r.BaseURL, path, r.Pagination.QueryStartDelimiter, r.Pagination.ItemKey, itemIndex, r.Pagination.PageSizeKey, r.Pagination.PageSize)
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
 			break
@@ -410,12 +451,15 @@ func New() RestAPI {
 		BatchDelaySeconds:    DefaultBatchDelaySeconds,
 		destinationConfig:    internal.DestinationConfig{},
 		Pagination: Pagination{
-			Scheme:        "",
-			PageNumberKey: "page",
-			PageSizeKey:   "page_size",
-			FirstPage:     1,
-			PageLimit:     1000,
-			PageSize:      100,
+			Scheme:              "",
+			FirstItemIndex:      0,
+			ItemKey:             "startAt",
+			FirstPage:           1,
+			PageNumberKey:       "page",
+			PageLimit:           1000,
+			PageSize:            100,
+			PageSizeKey:         "page_size",
+			QueryStartDelimiter: "?",
 		},
 	}
 }
