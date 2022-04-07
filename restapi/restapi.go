@@ -27,8 +27,8 @@ const (
 	AuthTypeSalesforceOauth  = "SalesforceOauth"
 	DefaultBatchSize         = 10
 	DefaultBatchDelaySeconds = 3
-	PaginationSchemePages    = "pages"
 	PaginationSchemeItems    = "items"
+	PaginationSchemePages    = "pages"
 )
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
