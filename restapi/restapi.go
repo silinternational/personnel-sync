@@ -213,6 +213,9 @@ func (r *RestAPI) listUsersForPath(
 		r.usersByItemCount(desiredAttrs, path, people, errLog)
 	} else if r.Pagination.Scheme == PaginationSchemePages { // use page based pagination
 		r.usersByPage(desiredAttrs, path, people, errLog)
+	} else if r.Pagination.Scheme == "query" { // deprecated, but use page based pagination
+		log.Printf(`"query" as a pagination scheme has been deprecated. Use "%s", instead\n`, PaginationSchemePages)
+		r.usersByPage(desiredAttrs, path, people, errLog)
 	} else {
 		msg := fmt.Sprintf("invalid pagination scheme (%s), must be %s or %s",
 			r.Pagination.Scheme, PaginationSchemePages, PaginationSchemeItems)
@@ -228,13 +231,16 @@ func (r *RestAPI) usersByPage(
 	errLog chan<- string,
 ) {
 	for page := r.Pagination.FirstPage; page <= r.Pagination.PageLimit; page++ {
-		apiURL := fmt.Sprintf("%s%s%s%s=%d&%s=%d",
-			r.BaseURL, path, r.Pagination.QueryStartDelimiter,
-			r.Pagination.PageSizeKey, r.Pagination.PageSize,
-			r.Pagination.PageNumberKey, page)
+		apiURL := internal.AddParamsToURL(
+			r.BaseURL+path,
+			[][2]string{
+				{r.Pagination.PageSizeKey, fmt.Sprintf("%d", r.Pagination.PageSize)},
+				{r.Pagination.PageNumberKey, fmt.Sprintf("%d", page)},
+			},
+		)
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
-			break
+			return
 		}
 		for _, pp := range p {
 			people <- pp
@@ -250,13 +256,16 @@ func (r *RestAPI) usersByItemCount(
 ) {
 	for page := 0; page < r.Pagination.PageLimit; page++ {
 		itemIndex := r.Pagination.FirstItemIndex + page*r.Pagination.PageSize
-		apiURL := fmt.Sprintf("%s%s%s%s=%d&%s=%d",
-			r.BaseURL, path, r.Pagination.QueryStartDelimiter,
-			r.Pagination.ItemKey, itemIndex,
-			r.Pagination.PageSizeKey, r.Pagination.PageSize)
+		apiURL := internal.AddParamsToURL(
+			r.BaseURL+path,
+			[][2]string{
+				{r.Pagination.ItemKey, fmt.Sprintf("%d", itemIndex)},
+				{r.Pagination.PageSizeKey, fmt.Sprintf("%d", r.Pagination.PageSize)},
+			},
+		)
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
-			break
+			return
 		}
 		for _, pp := range p {
 			people <- pp
@@ -454,15 +463,14 @@ func New() RestAPI {
 		BatchDelaySeconds:    DefaultBatchDelaySeconds,
 		destinationConfig:    internal.DestinationConfig{},
 		Pagination: Pagination{
-			Scheme:              "",
-			FirstItemIndex:      0,
-			ItemKey:             "startAt",
-			FirstPage:           1,
-			PageNumberKey:       "page",
-			PageLimit:           1000,
-			PageSize:            100,
-			PageSizeKey:         "page_size",
-			QueryStartDelimiter: "?",
+			Scheme:         "",
+			FirstItemIndex: 0,
+			ItemKey:        "startAt",
+			FirstPage:      1,
+			PageNumberKey:  "page",
+			PageLimit:      1000,
+			PageSize:       100,
+			PageSizeKey:    "page_size",
 		},
 	}
 }
