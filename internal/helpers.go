@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"net/url"
 )
 
@@ -26,19 +27,34 @@ func IsStringInSlice(needle string, haystack []string) bool {
 // AddParamsToURL returns the input url string if there are no params to add
 // Otherwise, it adds each param pair to the url as `param[0]=param[1]` (in alphabetical order)
 //   with the appropriate delimiter ("?" or "&")
-func AddParamsToURL(inURL string, params [][2]string) string {
+func AddParamsToURL(inURL string, params [][2]string) (string, error) {
 	if len(params) == 0 {
-		return inURL
+		return inURL, nil
 	}
 
-	parsed, _ := url.Parse(inURL)
-	q, _ := url.ParseQuery(parsed.RawQuery)
+	parsed, err := url.Parse(inURL)
+	if err != nil {
+		return "", fmt.Errorf("error parsing url in AddParamsToURL: %s", err)
+	}
 
-	for _, p := range params {
-		q.Add(p[0], p[1])
+	q, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return "", fmt.Errorf("error parsing query in AddParamsToURL: %s", err)
+	}
+
+	for i, p := range params {
+		key := p[0]
+		val := p[1]
+		if key == "" {
+			return "", fmt.Errorf("missing param key for index %d. Has value: %s", i, val)
+		}
+		if val == "" {
+			return "", fmt.Errorf("missing param value for index %d. Has key: %s", i, key)
+		}
+		q.Add(key, val)
 	}
 
 	parsed.RawQuery = q.Encode()
 
-	return parsed.String()
+	return parsed.String(), nil
 }

@@ -91,39 +91,65 @@ func TestIsStringInSlice(t *testing.T) {
 
 func TestAddParamsToURL(t *testing.T) {
 	tests := []struct {
-		name   string
-		url1   string
-		params [][2]string
-		want   string
+		name            string
+		testURL         string
+		params          [][2]string
+		wantErrContains string
+		want            string
 	}{
 		{
-			name:   "no params at all",
-			url1:   "https://example.org",
-			params: [][2]string{},
-			want:   "https://example.org",
+			name:            "bad url",
+			testURL:         "https://example.org:1111portplusotherstuff",
+			params:          [][2]string{{"size", "1"}},
+			wantErrContains: "error parsing url in AddParamsToURL",
 		},
 		{
-			name:   "no new params",
-			url1:   "https://example.org?size=1&limit=2",
-			params: [][2]string{},
-			want:   "https://example.org?size=1&limit=2",
+			name:            "missing param key",
+			testURL:         "https://example.org",
+			params:          [][2]string{{"", "NoKey"}, {"count", "10"}},
+			wantErrContains: "missing param key for index 0. Has value: NoKey",
 		},
 		{
-			name:   "no starting params",
-			url1:   "https://example.org",
-			params: [][2]string{{"size", "2"}},
-			want:   "https://example.org?size=2",
+			name:            "missing param value",
+			testURL:         "https://example.org",
+			params:          [][2]string{{"count", "10"}, {"NoVal", ""}},
+			wantErrContains: "missing param value for index 1. Has key: NoVal",
 		},
 		{
-			name:   "params everywhere",
-			url1:   "https://example.org?alpha=111&bravo=222",
-			params: [][2]string{{"size", "3"}, {"limit", "4"}},
-			want:   "https://example.org?alpha=111&bravo=222&limit=4&size=3",
+			name:    "no params at all",
+			testURL: "https://example.org",
+			params:  [][2]string{},
+			want:    "https://example.org",
+		},
+		{
+			name:    "no new params",
+			testURL: "https://example.org?size=1&limit=2",
+			params:  [][2]string{},
+			want:    "https://example.org?size=1&limit=2",
+		},
+		{
+			name:    "no starting params",
+			testURL: "https://example.org",
+			params:  [][2]string{{"size", "2"}},
+			want:    "https://example.org?size=2",
+		},
+		{
+			name:    "params everywhere",
+			testURL: "https://example.org?alpha=111&bravo=222",
+			params:  [][2]string{{"size", "3"}, {"limit", "4"}},
+			want:    "https://example.org?alpha=111&bravo=222&limit=4&size=3",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := AddParamsToURL(tt.url1, tt.params)
+			got, err := AddParamsToURL(tt.testURL, tt.params)
+
+			if tt.wantErrContains != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErrContains, "incorrect error")
+				return
+			}
+
 			require.Equal(t, tt.want, got)
 		})
 	}
