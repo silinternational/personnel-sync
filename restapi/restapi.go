@@ -225,13 +225,19 @@ func (r *RestAPI) listUsersForPath(
 			nextIndex = r.Pagination.FirstIndex + i*r.Pagination.PageSize
 		}
 
-		apiURL := internal.AddParamsToURL(
-			r.BaseURL+path,
+		apiURL, err := internal.AddParamsToURL(
+			fmt.Sprintf("%s/%s", r.BaseURL, path),
 			[][2]string{
 				{r.Pagination.NumberKey, fmt.Sprintf("%d", nextIndex)},
 				{r.Pagination.PageSizeKey, fmt.Sprintf("%d", r.Pagination.PageSize)},
 			},
 		)
+		if err != nil {
+			log.Println(err)
+			errLog <- err.Error()
+			return
+		}
+
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
 			break
