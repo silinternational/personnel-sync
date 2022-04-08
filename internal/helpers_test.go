@@ -154,3 +154,50 @@ func TestAddParamsToURL(t *testing.T) {
 		})
 	}
 }
+
+func TestJoinUrlPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		testURL string
+		path    string
+		want    string
+	}{
+		{
+			name:    "no slashes",
+			testURL: "https://example.org",
+			path:    "myPath",
+			want:    "https://example.org/myPath",
+		},
+		{
+			name:    "all slashes",
+			testURL: "https://example.org///",
+			path:    "///myPath",
+			want:    "https://example.org/myPath",
+		},
+		{
+			name:    "slashes on url",
+			testURL: "https://example.org///",
+			path:    "myPath",
+			want:    "https://example.org/myPath",
+		},
+		{
+			name:    "slashes on path",
+			testURL: "https://example.org",
+			path:    "///myPath",
+			want:    "https://example.org/myPath",
+		},
+		{
+			name:    "one slash on path",
+			testURL: "https://example.org",
+			path:    "/myPath",
+			want:    "https://example.org/myPath",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := JoinUrlPath(tt.testURL, tt.path)
+
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

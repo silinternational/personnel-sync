@@ -226,7 +226,7 @@ func (r *RestAPI) listUsersForPath(
 		}
 
 		apiURL, err := internal.AddParamsToURL(
-			fmt.Sprintf("%s/%s", r.BaseURL, path),
+			internal.JoinUrlPath(r.BaseURL, path),
 			[][2]string{
 				{r.Pagination.NumberKey, fmt.Sprintf("%d", nextIndex)},
 				{r.Pagination.PageSizeKey, fmt.Sprintf("%d", r.Pagination.PageSize)},

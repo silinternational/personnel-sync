@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 func AddStringToSlice(newString string, slice []string) []string {
@@ -57,4 +58,11 @@ func AddParamsToURL(inURL string, params [][2]string) (string, error) {
 	parsed.RawQuery = q.Encode()
 
 	return parsed.String(), nil
+}
+
+func JoinUrlPath(inURL, path string) string {
+	slash := "/"
+	newURL := strings.TrimRight(inURL, slash)
+	newPath := strings.TrimLeft(path, slash)
+	return newURL + slash + newPath
 }
