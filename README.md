@@ -241,18 +241,21 @@ Here are some examples of how to configure it:
 }
 ```
 
-Pagination properties:
+#### Pagination properties:
   - Scheme -- if specified, must be "pages" for page based or "items" for item based
-  - FirstItemIndex -- (item based) index of first item to fetch, default is 0
-  - ItemKey -- (item based) query string key for the item index to start at
+
+###### Item Based Pagination Settings
+  - FirstItemIndex -- index of first item to fetch, default is 0
+  - ItemKey -- query string key for the item index to start at
+
+###### Page Based Pagination Settings
   - FirstPage -- (page based) number of the first page, default is 1
   - PageNumberKey -- (page based) query string key for the page number
 
-  These are for both item based and page based pagination 
+###### Settings for both item based and page based pagination 
   - PageLimit -- maximum number of pages to request, default is 1000
   - PageSize -- number of records to return in a page, default is 100
   - PageSizeKey -- number of items per page, default is 100
-  - QueryStartDelimiter -- the delimiter before the first query string param, default is "?"
 
 
 ### Google Contacts
