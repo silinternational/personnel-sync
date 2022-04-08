@@ -88,3 +88,43 @@ func TestIsStringInSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestAddParamsToURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		url1   string
+		params [][2]string
+		want   string
+	}{
+		{
+			name:   "no params at all",
+			url1:   "https://example.org",
+			params: [][2]string{},
+			want:   "https://example.org",
+		},
+		{
+			name:   "no new params",
+			url1:   "https://example.org?size=1&limit=2",
+			params: [][2]string{},
+			want:   "https://example.org?size=1&limit=2",
+		},
+		{
+			name:   "no starting params",
+			url1:   "https://example.org",
+			params: [][2]string{{"size", "2"}},
+			want:   "https://example.org?size=2",
+		},
+		{
+			name:   "params everywhere",
+			url1:   "https://example.org?alpha=111&bravo=222",
+			params: [][2]string{{"size", "3"}, {"limit", "4"}},
+			want:   "https://example.org?alpha=111&bravo=222&limit=4&size=3",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := AddParamsToURL(tt.url1, tt.params)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
