@@ -200,7 +200,9 @@ func (r *RestAPI) listUsersForPath(
 ) {
 	defer wg.Done()
 
-	if r.Pagination.Scheme == "" {
+	scheme := r.Pagination.Scheme // too long, otherwise
+
+	if scheme == "" {
 		apiURL := r.BaseURL + path
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		for _, pp := range p {
@@ -209,63 +211,30 @@ func (r *RestAPI) listUsersForPath(
 		return
 	}
 
-	if r.Pagination.Scheme == PaginationSchemeItems { // use item based pagination
-		r.usersByItemCount(desiredAttrs, path, people, errLog)
-	} else if r.Pagination.Scheme == PaginationSchemePages { // use page based pagination
-		r.usersByPage(desiredAttrs, path, people, errLog)
-	} else if r.Pagination.Scheme == "query" { // deprecated, but use page based pagination
-		log.Printf(`"query" as a pagination scheme has been deprecated. Use "%s", instead\n`, PaginationSchemePages)
-		r.usersByPage(desiredAttrs, path, people, errLog)
-	} else {
+	if scheme != PaginationSchemeItems && scheme != PaginationSchemePages {
 		msg := fmt.Sprintf("invalid pagination scheme (%s), must be %s or %s",
-			r.Pagination.Scheme, PaginationSchemePages, PaginationSchemeItems)
+			r.Pagination.Scheme, PaginationSchemeItems, PaginationSchemePages)
 		log.Println(msg)
 		errLog <- msg
+		return
 	}
-}
 
-func (r *RestAPI) usersByPage(
-	desiredAttrs []string,
-	path string,
-	people chan<- internal.Person,
-	errLog chan<- string,
-) {
-	for page := r.Pagination.FirstPage; page <= r.Pagination.PageLimit; page++ {
+	for i := r.Pagination.FirstIndex; i <= r.Pagination.PageLimit; i++ {
+		nextIndex := i
+		if scheme == PaginationSchemeItems {
+			nextIndex = r.Pagination.FirstIndex + i*r.Pagination.PageSize
+		}
+
 		apiURL := internal.AddParamsToURL(
 			r.BaseURL+path,
 			[][2]string{
-				{r.Pagination.PageSizeKey, fmt.Sprintf("%d", r.Pagination.PageSize)},
-				{r.Pagination.PageNumberKey, fmt.Sprintf("%d", page)},
-			},
-		)
-		p := r.requestPage(desiredAttrs, apiURL, errLog)
-		if len(p) == 0 {
-			return
-		}
-		for _, pp := range p {
-			people <- pp
-		}
-	}
-}
-
-func (r *RestAPI) usersByItemCount(
-	desiredAttrs []string,
-	path string,
-	people chan<- internal.Person,
-	errLog chan<- string,
-) {
-	for page := 0; page < r.Pagination.PageLimit; page++ {
-		itemIndex := r.Pagination.FirstItemIndex + page*r.Pagination.PageSize
-		apiURL := internal.AddParamsToURL(
-			r.BaseURL+path,
-			[][2]string{
-				{r.Pagination.ItemKey, fmt.Sprintf("%d", itemIndex)},
+				{r.Pagination.NumberKey, fmt.Sprintf("%d", nextIndex)},
 				{r.Pagination.PageSizeKey, fmt.Sprintf("%d", r.Pagination.PageSize)},
 			},
 		)
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
-			return
+			break
 		}
 		for _, pp := range p {
 			people <- pp
@@ -463,14 +432,12 @@ func New() RestAPI {
 		BatchDelaySeconds:    DefaultBatchDelaySeconds,
 		destinationConfig:    internal.DestinationConfig{},
 		Pagination: Pagination{
-			Scheme:         "",
-			FirstItemIndex: 0,
-			ItemKey:        "startAt",
-			FirstPage:      1,
-			PageNumberKey:  "page",
-			PageLimit:      1000,
-			PageSize:       100,
-			PageSizeKey:    "page_size",
+			Scheme:      "",
+			FirstIndex:  1,
+			NumberKey:   "page",
+			PageLimit:   1000,
+			PageSize:    100,
+			PageSizeKey: "page_size",
 		},
 	}
 }

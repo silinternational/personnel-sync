@@ -38,15 +38,8 @@ type Pagination struct {
 	// If not specified, no pagination is attempted.
 	Scheme string
 
-	// Item based values
-	FirstItemIndex int    // index of first item to fetch, default is 0
-	ItemKey        string // query string key for the item index to start at
-
-	// Page based values
-	FirstPage     int    // number of the first page, default is 1
-	PageNumberKey string // query string key for the page number
-
-	// Shared values (for either Item based or Page based)
+	FirstIndex  int    // index of first item/page to fetch, default is 1
+	NumberKey   string // query string key for the item index or page number, default is "page"
 	PageLimit   int    // maximum number of pages to request, default is 1000
 	PageSize    int    // page size, default is 100 items per page
 	PageSizeKey string // query string key the number of items per page
