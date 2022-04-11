@@ -3,7 +3,6 @@ package restapi
 import "github.com/silinternational/personnel-sync/v6/internal"
 
 type RestAPI struct {
-	Method               string // DEPRECATED
 	ListMethod           string
 	CreateMethod         string
 	UpdateMethod         string
