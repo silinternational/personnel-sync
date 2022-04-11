@@ -22,6 +22,7 @@ type RestAPI struct {
 	destinationConfig    internal.DestinationConfig
 	setConfig            SetConfig
 	Pagination           Pagination
+	Filters              internal.Filters
 }
 
 type SetConfig struct {

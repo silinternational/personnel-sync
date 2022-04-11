@@ -36,22 +36,22 @@ func NewRestAPISource(sourceConfig internal.SourceConfig) (internal.Source, erro
 	restAPI := New()
 
 	// Unmarshal ExtraJSON into RestAPI struct
-	err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI)
-	if err != nil {
+	if err := json.Unmarshal(sourceConfig.ExtraJSON, &restAPI); err != nil {
 		return &RestAPI{}, err
 	}
 
 	if restAPI.AuthType == AuthTypeSalesforceOauth {
-		token, err := restAPI.getSalesforceOauthToken()
-		if err != nil {
+		if token, err := restAPI.getSalesforceOauthToken(); err != nil {
 			log.Println(err)
 			return &RestAPI{}, err
+		} else {
+			restAPI.Password = token
 		}
-
-		restAPI.Password = token
 	}
 
-	restAPI.validateConfig()
+	if err := restAPI.validateConfig(); err != nil {
+		return &restAPI, fmt.Errorf("invalid configuration: %w", err)
+	}
 	return &restAPI, nil
 }
 
@@ -60,14 +60,15 @@ func NewRestAPIDestination(destinationConfig internal.DestinationConfig) (intern
 	restAPI := New()
 
 	// Unmarshal ExtraJSON into GoogleGroupsConfig struct
-	err := json.Unmarshal(destinationConfig.ExtraJSON, &restAPI)
-	if err != nil {
+	if err := json.Unmarshal(destinationConfig.ExtraJSON, &restAPI); err != nil {
 		return &RestAPI{}, err
 	}
 
 	restAPI.destinationConfig = destinationConfig
 
-	restAPI.validateConfig()
+	if err := restAPI.validateConfig(); err != nil {
+		return &restAPI, fmt.Errorf("invalid configuration: %w", err)
+	}
 	return &restAPI, nil
 }
 
@@ -124,6 +125,9 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 	var wg sync.WaitGroup
 
 	attributesToRead := internal.AddStringToSlice(r.IDAttribute, desiredAttrs)
+	for _, f := range r.Filters {
+		attributesToRead = internal.AddStringToSlice(f.Attribute, attributesToRead)
+	}
 	for _, p := range r.setConfig.Paths {
 		wg.Add(1)
 		go r.listUsersForPath(attributesToRead, p, &wg, people, errLog)
@@ -141,13 +145,7 @@ func (r *RestAPI) ListUsers(desiredAttrs []string) ([]internal.Person, error) {
 		return []internal.Person{}, fmt.Errorf("errors listing users from %s: %s", r.BaseURL, strings.Join(errs, ","))
 	}
 
-	var results []internal.Person
-
-	for person := range people {
-		results = append(results, person)
-	}
-
-	return results, nil
+	return r.filterPeople(people)
 }
 
 func (r *RestAPI) ApplyChangeSet(changes internal.ChangeSet, eventLog chan<- internal.EventLogItem) internal.ChangeResults {
@@ -448,13 +446,14 @@ func New() RestAPI {
 	}
 }
 
-func (r *RestAPI) validateConfig() {
+func (r *RestAPI) validateConfig() error {
 	if r.BatchSize <= 0 {
 		r.BatchSize = DefaultBatchSize
 	}
 	if r.BatchDelaySeconds <= 0 {
 		r.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
+	return r.Filters.Validate()
 }
 
 func (r *RestAPI) addPerson(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
@@ -598,4 +597,16 @@ func parsePathTemplate(pathTemplate string) (string, error) {
 		path = "/" + path
 	}
 	return path, nil
+}
+
+func (r *RestAPI) filterPeople(people chan internal.Person) ([]internal.Person, error) {
+	var results []internal.Person
+
+	for person := range people {
+		if person.Matches(r.Filters) {
+			results = append(results, person)
+		}
+	}
+
+	return results, nil
 }

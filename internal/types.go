@@ -7,13 +7,6 @@ import (
 	"github.com/silinternational/personnel-sync/v6/alert"
 )
 
-type Person struct {
-	CompareValue   string
-	ID             string
-	Attributes     map[string]string
-	DisableChanges bool
-}
-
 type AttributeMap struct {
 	Source        string
 	Destination   string

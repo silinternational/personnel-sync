@@ -6,6 +6,127 @@ interface. The runtime for this application is configured using a `config.json` 
 `config.example.json`, however it only has the `GoogleGroups` destination in it so other supported destinations are 
 documented below. 
 
+# Config
+
+## Email Alerts
+
+Event Log events with a level of LOG_ALERT or LOG_EMERG will result in an email
+alert sent via AWS SES. Note that the LOG_EMERG level is 0, which is the Go
+zero-value. Any new event log created without a Level assigned will default to
+LOG_EMERG and could result in email alerts being sent.
+
+The following is an example configuration:
+
+```json
+{
+  "Alert": {
+    "AWSRegion": "us-east-1",
+    "CharSet": "UTF-8",
+    "ReturnToAddr": "no-reply@example.org",
+    "SubjectText": "personnel-sync alert",
+    "RecipientEmails": [
+      "admin@example.org"
+    ],
+    "AWSAccessKeyID": "ABCD1234",
+    "AWSSecretAccessKey": "abcd1234!@#$"
+  }
+}
+```
+
+Alternatively, AWS credentials can be supplied by the Serverless framework by adding
+the following configuration to `serverless.yml`:
+
+```
+provider:
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 'ses:SendEmail'
+      Resource: "*"
+```
+
+Both authentication mechanisms are provided in the `lambda-example` directory,
+but only one is needed.
+
+## Pagination
+
+### `RestAPI`
+
+The RestAPI adapter supports pagination as both a source and as a destination.
+
+#### Properties:
+- Scheme -- if specified, must be "pages" for page based or "items" for item based
+- FirstIndex -- index of first item/page to fetch, default is 1
+- NumberKey -- query string key for the item index or page number
+- PageLimit -- index of last page to request, default is 1000
+- PageSize -- number of records to return in a page, default is 100
+- PageSizeKey -- number of items per page, default is 100
+
+#### Example config
+
+Following is an example configuration for Pagination. Unrelated parameters have 
+been omitted for simplicity.
+
+```json
+{
+  "Source": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "Pagination": {
+        "Scheme": "pages",
+        "NumberKey": "page",
+        "PageSizeKey": "page-size",
+        "FirstPage": "1",
+        "PageLimit": "10000",
+        "PageSize": "200"
+      }
+    }
+  }
+}
+```
+
+## Data Filter
+
+### RestAPI
+
+Data retrieved from the API, be it the source or destination, can be filtered to
+remove unwanted data. This can be useful in case the API does not offer filter
+capability, or its filtering capability is insufficient.
+
+List one or more filters in the `ExtraJSON` configuration. Each filter condition
+is added using "AND" conditional logic; each one further restricts the output
+data. If the attribute is empty or null, the record is not included in the
+output data.
+
+#### Properties
+- Attribute -- The name of the attribute to filter on. Does not need to be listed in the sync attributes.
+- Expression -- A text expression for which to search. Uses RE2 regular expression syntax.
+
+#### Example config
+
+Following is an example configuration for Pagination. Unrelated parameters have
+been omitted for simplicity.
+
+```json
+{
+  "Source": {
+    "Type": "RestAPI",
+    "ExtraJSON": {
+      "Filters": [
+        {
+          "Attribute": "active",
+          "Expression": "true"
+        },
+        {
+          "Attribute": "email",
+          "Expression": "@example\\.com"
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Sources
 
 ### REST API
@@ -213,15 +334,7 @@ Here are some examples of how to configure it:
       "AuthType": "bearer",
       "Password": "token",
       "CompareAttribute": "email",
-      "UserAgent": "personnel-sync",
-      "Pagination": {
-        "Scheme": "",
-        "PageNumberKey": "",
-        "PageSizeKey": "",
-        "FirstPage": "",
-        "PageLimit": "",
-        "PageSize": ""
-      }
+      "UserAgent": "personnel-sync"
     }
   },
   "SyncSets": [
@@ -240,15 +353,6 @@ Here are some examples of how to configure it:
   ]
 }
 ```
-
-#### Pagination properties:
-  - Scheme -- if specified, must be "pages" for page based or "items" for item based
-  - FirstIndex -- index of first item/page to fetch, default is 1
-  - NumberKey -- query string key for the item index or page number
-  - PageLimit -- index of last page to request, default is 1000
-  - PageSize -- number of records to return in a page, default is 100
-  - PageSizeKey -- number of items per page, default is 100
-
 
 ### Google Contacts
 This destination can create, update, and delete Contact records in the Google
@@ -712,42 +816,6 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 ```
 
 `ListClientsPageLimit`, `BatchSize` and `BatchDelaySeconds` are optional. Their defaults are as shown in the example config.
-
-### Email Alerts
-
-Event Log events with a level of LOG_ALERT or LOG_EMERG will result in an email 
-alert sent via AWS SES. Note that the LOG_EMERG level is 0, which is the Go
-zero-value. Any new event log created without a Level assigned will default to
-LOG_EMERG and could result in email alerts being sent. 
-
-The following is an example configuration:
-
-```
-  "Alert": {
-    "AWSRegion": "us-east-1",
-    "CharSet": "UTF-8",
-    "ReturnToAddr": "no-reply@example.org",
-    "SubjectText": "personnel-sync alert",
-    "RecipientEmails":  ["admin@example.org"],
-    "AWSAccessKeyID": "ABCD1234",
-    "AWSSecretAccessKey": "abcd1234!@#$"
-  },
-```
-
-Alternatively, AWS credentials can be supplied by the Serverless framework by adding
-the following configuration to `serverless.yml`:
-
-```
-provider:
-  iamRoleStatements:
-    - Effect: 'Allow'
-      Action:
-        - 'ses:SendEmail'
-      Resource: "*"
-```
-
-Both authentication mechanisms are provided in the `lambda-example` directory, 
-but only one is needed.
 
 ### Exporting logs from CloudWatch
 
