@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/silinternational/personnel-sync/v5/internal"
-	"github.com/silinternational/personnel-sync/v5/restapi"
+	"github.com/silinternational/personnel-sync/v6/internal"
+	"github.com/silinternational/personnel-sync/v6/restapi"
 )
 
 func TestWebHelpDesk_ListUsers(t *testing.T) {

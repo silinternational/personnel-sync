@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/silinternational/personnel-sync/v5"
+	personnel_sync "github.com/silinternational/personnel-sync/v6"
 )
 
 func main() {

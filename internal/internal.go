@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/silinternational/personnel-sync/v5/alert"
+	"github.com/silinternational/personnel-sync/v6/alert"
 )
 
 const (

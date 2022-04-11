@@ -18,7 +18,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 
-	"github.com/silinternational/personnel-sync/v5/internal"
+	"github.com/silinternational/personnel-sync/v6/internal"
 )
 
 const (

@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/aws/aws-lambda-go/lambda"
 
-	sync "github.com/silinternational/personnel-sync/v5"
+	sync "github.com/silinternational/personnel-sync/v6"
 )
 
 type LambdaConfig struct {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/silinternational/personnel-sync/v5/internal"
+	"github.com/silinternational/personnel-sync/v6/internal"
 )
 
 func TestNewGoogleSheetsDestination(t *testing.T) {

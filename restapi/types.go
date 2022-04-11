@@ -1,6 +1,6 @@
 package restapi
 
-import "github.com/silinternational/personnel-sync/v5/internal"
+import "github.com/silinternational/personnel-sync/v6/internal"
 
 type RestAPI struct {
 	Method               string // DEPRECATED
