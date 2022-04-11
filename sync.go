@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/silinternational/personnel-sync/v5/alert"
-	"github.com/silinternational/personnel-sync/v5/google"
-	"github.com/silinternational/personnel-sync/v5/internal"
-	"github.com/silinternational/personnel-sync/v5/restapi"
-	"github.com/silinternational/personnel-sync/v5/webhelpdesk"
+	"github.com/silinternational/personnel-sync/v6/alert"
+	"github.com/silinternational/personnel-sync/v6/google"
+	"github.com/silinternational/personnel-sync/v6/internal"
+	"github.com/silinternational/personnel-sync/v6/restapi"
+	"github.com/silinternational/personnel-sync/v6/webhelpdesk"
 )
 
 func RunSync(configFile string) error {

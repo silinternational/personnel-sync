@@ -12,7 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/silinternational/personnel-sync/v5/internal"
+	"github.com/silinternational/personnel-sync/v6/internal"
 )
 
 const DefaultBatchSize = 50
