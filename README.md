@@ -95,8 +95,8 @@ capability, or its filtering capability is insufficient.
 
 List one or more filters in the `ExtraJSON` configuration. Each filter condition
 is added using "AND" conditional logic; each one further restricts the output
-data. If the attribute is empty or null, the record is not included in the
-output data.
+data. If the value of an attribute configured in a filter is empty or null, the
+record is not included in the output data.
 
 #### Properties
 - Attribute -- The name of the attribute to filter on. Does not need to be listed in the sync attributes.
