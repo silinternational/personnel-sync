@@ -449,12 +449,6 @@ func New() RestAPI {
 }
 
 func (r *RestAPI) validateConfig() {
-	if r.Method != "" {
-		log.Printf("RestAPI Method parameter is deprecated. Please use ListMethod.")
-		if r.ListMethod == "" {
-			r.ListMethod = r.Method
-		}
-	}
 	if r.BatchSize <= 0 {
 		r.BatchSize = DefaultBatchSize
 	}
