@@ -1,10 +1,13 @@
 package restapi
 
 import (
+	"encoding/json"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 )
 
 type fakeEndpoint struct {
@@ -213,4 +216,116 @@ func getTestServer() *httptest.Server {
 		})
 	}
 	return httptest.NewServer(mux)
+}
+
+// Used for mock User results
+type MockUser struct {
+	ID   int
+	Name string
+}
+
+type PaginationConfig struct {
+	numberKey string // the qs param key for the next set to get
+	sizeKey   string // the qs param key for the size of each set
+	usersJSON string // json encoded MockUser objects
+	users     []MockUser
+}
+
+const itemsQSParam = "itemsRequest" // use this to signify item based pagination requests
+const pagesQSParam = "pagesRequest" // use this to signify page based pagination requests
+
+func getTestPaginationServer(path string, pConfig PaginationConfig) *httptest.Server {
+	mux := http.NewServeMux()
+
+	responseBody := "[]"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, req *http.Request) {
+		qsParams := req.URL.Query()
+		startIndexStr, ok := qsParams[pConfig.numberKey]
+		startIndex := 0
+		var err error
+
+		if ok {
+			startIndex, err = strconv.Atoi(startIndexStr[0])
+			if err != nil {
+				log.Panicf("incorrect start index query string param in test: %v", startIndexStr)
+			}
+		}
+
+		// convert the size string to an integer
+		sizeStr, ok := qsParams[pConfig.sizeKey]
+		count := 999
+		if ok {
+			count, err = strconv.Atoi(sizeStr[0])
+			if err != nil {
+				log.Panicf("incorrect size query string param in test: %v", sizeStr)
+			}
+		}
+
+		if _, ok := qsParams[itemsQSParam]; ok {
+			responseBody = getItemBasedUsers(startIndex, count, pConfig)
+		} else {
+			if _, ok := qsParams[pagesQSParam]; ok {
+				responseBody = getPageBasedUsers(startIndex, count, pConfig)
+			} else { // no pagination requested
+				responseBody = pConfig.usersJSON
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("content-type", "application/json")
+		_, _ = io.WriteString(w, responseBody)
+	})
+	return httptest.NewServer(mux)
+}
+
+func getItemBasedUsers(startIndex, count int, pConfig PaginationConfig) string {
+	userCount := len(pConfig.users)
+
+	responseBody := `[]`
+	if startIndex >= userCount {
+		return responseBody
+	}
+
+	endIndex := startIndex + count
+	if endIndex > userCount {
+		endIndex = userCount
+	}
+
+	reqUsers := pConfig.users[startIndex:endIndex]
+
+	usersJSON, err := json.Marshal(reqUsers)
+	if err != nil {
+		log.Panicf("error marshalling users output: %s", err)
+	}
+	responseBody = string(usersJSON)
+	return responseBody
+}
+
+func getPageBasedUsers(startPage, count int, pConfig PaginationConfig) string {
+	userCount := len(pConfig.users)
+
+	responseBody := `[]`
+	startIndex := (startPage - 1) * count
+	if startIndex < 0 {
+		startIndex = 0
+	}
+
+	if startIndex >= userCount {
+		return responseBody
+	}
+
+	endIndex := startIndex + count
+	if endIndex > userCount {
+		endIndex = userCount
+	}
+
+	reqUsers := pConfig.users[startIndex:endIndex]
+
+	usersJSON, err := json.Marshal(reqUsers)
+	if err != nil {
+		log.Panicf("error marshalling users output: %s", err)
+	}
+	responseBody = string(usersJSON)
+	return responseBody
 }

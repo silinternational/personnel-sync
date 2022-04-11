@@ -27,6 +27,8 @@ const (
 	AuthTypeSalesforceOauth  = "SalesforceOauth"
 	DefaultBatchSize         = 10
 	DefaultBatchDelaySeconds = 3
+	PaginationSchemeItems    = "items"
+	PaginationSchemePages    = "pages"
 )
 
 // NewRestAPISource unmarshals the sourceConfig's ExtraJson into a RestApi struct
@@ -198,7 +200,9 @@ func (r *RestAPI) listUsersForPath(
 ) {
 	defer wg.Done()
 
-	if r.Pagination.Scheme == "" {
+	scheme := r.Pagination.Scheme // too long, otherwise
+
+	if scheme == "" {
 		apiURL := r.BaseURL + path
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		for _, pp := range p {
@@ -207,9 +211,33 @@ func (r *RestAPI) listUsersForPath(
 		return
 	}
 
-	for page := r.Pagination.FirstPage; page <= r.Pagination.PageLimit; page++ {
-		apiURL := fmt.Sprintf("%s%s?%s=%d&%s=%d",
-			r.BaseURL, path, r.Pagination.PageSizeKey, r.Pagination.PageSize, r.Pagination.PageNumberKey, page)
+	if scheme != PaginationSchemeItems && scheme != PaginationSchemePages {
+		msg := fmt.Sprintf("invalid pagination scheme (%s), must be %s or %s",
+			r.Pagination.Scheme, PaginationSchemeItems, PaginationSchemePages)
+		log.Println(msg)
+		errLog <- msg
+		return
+	}
+
+	for i := r.Pagination.FirstIndex; i <= r.Pagination.PageLimit; i++ {
+		nextIndex := i
+		if scheme == PaginationSchemeItems {
+			nextIndex = r.Pagination.FirstIndex + i*r.Pagination.PageSize
+		}
+
+		apiURL, err := internal.AddParamsToURL(
+			internal.JoinUrlPath(r.BaseURL, path),
+			[][2]string{
+				{r.Pagination.NumberKey, fmt.Sprintf("%d", nextIndex)},
+				{r.Pagination.PageSizeKey, fmt.Sprintf("%d", r.Pagination.PageSize)},
+			},
+		)
+		if err != nil {
+			log.Println(err)
+			errLog <- err.Error()
+			return
+		}
+
 		p := r.requestPage(desiredAttrs, apiURL, errLog)
 		if len(p) == 0 {
 			break
@@ -410,12 +438,12 @@ func New() RestAPI {
 		BatchDelaySeconds:    DefaultBatchDelaySeconds,
 		destinationConfig:    internal.DestinationConfig{},
 		Pagination: Pagination{
-			Scheme:        "",
-			PageNumberKey: "page",
-			PageSizeKey:   "page_size",
-			FirstPage:     1,
-			PageLimit:     1000,
-			PageSize:      100,
+			Scheme:      "",
+			FirstIndex:  1,
+			NumberKey:   "page",
+			PageLimit:   1000,
+			PageSize:    100,
+			PageSizeKey: "page_size",
 		},
 	}
 }

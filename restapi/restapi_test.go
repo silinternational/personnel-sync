@@ -1,6 +1,7 @@
 package restapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -702,6 +703,188 @@ func Test_parsePathTemplate(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantPath, path)
+		})
+	}
+}
+
+func TestRestAPI_listUsersForPathWithPagination(t *testing.T) {
+
+	users := []MockUser{
+		{ID: 0, Name: "u0"},
+		{ID: 1, Name: "u1"},
+		{ID: 2, Name: "u2"},
+		{ID: 3, Name: "u3"},
+		{ID: 4, Name: "u4"},
+		{ID: 5, Name: "u5"},
+		{ID: 6, Name: "u6"},
+		{ID: 7, Name: "u7"},
+		{ID: 8, Name: "u8"},
+		{ID: 9, Name: "u9"},
+	}
+
+	usersJSON, err := json.Marshal(users)
+	require.NoError(t, err, "error converting test users to json")
+
+	const path = `/listUsers` // include the slash to avoid a 404 from mux
+
+	pConfig := PaginationConfig{ // needed for the mux handler
+		users:     users,
+		usersJSON: string(usersJSON),
+		numberKey: "startAt",
+		sizeKey:   "maxResults",
+	}
+
+	server := getTestPaginationServer(path, pConfig)
+
+	tests := []struct {
+		name string
+		r    RestAPI
+		path string
+		want []string
+	}{
+		{
+			name: "get all items in one set",
+			r: RestAPI{
+				BaseURL:          server.URL,
+				CompareAttribute: "Name",
+				Pagination: Pagination{
+					Scheme:      PaginationSchemeItems,
+					FirstIndex:  0,
+					NumberKey:   pConfig.numberKey,
+					PageSizeKey: pConfig.sizeKey,
+					PageSize:    999,
+				},
+			},
+			path: fmt.Sprintf("%s?%s=true", path, itemsQSParam),
+			want: []string{"u0", "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", "u9"},
+		},
+		{
+			name: "get six items in two sets",
+			r: RestAPI{
+				BaseURL:          server.URL,
+				CompareAttribute: "Name",
+				Pagination: Pagination{
+					Scheme:      PaginationSchemeItems,
+					FirstIndex:  0,
+					NumberKey:   pConfig.numberKey,
+					PageSizeKey: pConfig.sizeKey,
+					PageSize:    3,
+					PageLimit:   1,
+				},
+			},
+			path: fmt.Sprintf("%s?%s=true", path, itemsQSParam),
+			want: []string{"u0", "u1", "u2", "u3", "u4", "u5"},
+		},
+		{
+			name: "get all items in 1.25 sets",
+			r: RestAPI{
+				BaseURL:          server.URL,
+				CompareAttribute: "Name",
+				Pagination: Pagination{
+					Scheme:      PaginationSchemeItems,
+					FirstIndex:  0,
+					NumberKey:   pConfig.numberKey,
+					PageSizeKey: pConfig.sizeKey,
+					PageSize:    8,
+					PageLimit:   999,
+				},
+			},
+			path: fmt.Sprintf("%s?%s=true", path, itemsQSParam),
+			want: []string{"u0", "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", "u9"},
+		},
+		{
+			name: "get all users in one big page",
+			r: RestAPI{
+				BaseURL:          server.URL,
+				CompareAttribute: "Name",
+				Pagination: Pagination{
+					Scheme:      PaginationSchemePages,
+					FirstIndex:  1,
+					NumberKey:   pConfig.numberKey,
+					PageSizeKey: pConfig.sizeKey,
+					PageSize:    999,
+					PageLimit:   999,
+				},
+			},
+			path: fmt.Sprintf("%s?%s=true", path, pagesQSParam),
+			want: []string{"u0", "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", "u9"},
+		},
+		{
+			name: "get six users in 2 pages",
+			r: RestAPI{
+				BaseURL:          server.URL,
+				CompareAttribute: "Name",
+				Pagination: Pagination{
+					Scheme:      PaginationSchemePages,
+					FirstIndex:  3,
+					NumberKey:   pConfig.numberKey,
+					PageSizeKey: pConfig.sizeKey,
+					PageSize:    2,
+					PageLimit:   999,
+				},
+			},
+			path: fmt.Sprintf("%s?%s=true", path, pagesQSParam),
+			want: []string{"u4", "u5", "u6", "u7", "u8", "u9"},
+		},
+		{
+			name: "get all users in 1.25 pages",
+			r: RestAPI{
+				BaseURL:          server.URL,
+				CompareAttribute: "Name",
+				Pagination: Pagination{
+					Scheme:      PaginationSchemePages,
+					FirstIndex:  1,
+					NumberKey:   pConfig.numberKey,
+					PageSizeKey: pConfig.sizeKey,
+					PageSize:    8,
+					PageLimit:   999,
+				},
+			},
+			path: fmt.Sprintf("%s?%s=true", path, pagesQSParam),
+			want: []string{"u0", "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", "u9"},
+		},
+		{
+			name: "get all users without pagination",
+			r: RestAPI{
+				BaseURL:          server.URL,
+				CompareAttribute: "Name",
+				Pagination: Pagination{
+					Scheme: "",
+				},
+			},
+			path: path,
+			want: []string{"u0", "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8", "u9"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errLog := make(chan string, 1000)
+			people := make(chan internal.Person, 20000)
+			var wg sync.WaitGroup
+
+			wg.Add(1)
+			go tt.r.listUsersForPath([]string{"Name"}, tt.path, &wg, people, errLog)
+
+			wg.Wait()
+			close(people)
+			close(errLog)
+
+			if len(errLog) > 0 {
+				var errs []string
+				for msg := range errLog {
+					errs = append(errs, msg)
+				}
+				t.Errorf("errors listing users: %s", strings.Join(errs, ","))
+				t.FailNow()
+			}
+
+			var results []string
+
+			for person := range people {
+				results = append(results, person.Attributes["Name"])
+			}
+
+			require.Equal(t, tt.want, results)
 		})
 	}
 }
