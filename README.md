@@ -76,7 +76,7 @@ been omitted for simplicity.
         "Scheme": "pages",
         "NumberKey": "page",
         "PageSizeKey": "page-size",
-        "FirstPage": "1",
+        "FirstIndex": "1",
         "PageLimit": "10000",
         "PageSize": "200"
       }
@@ -104,7 +104,7 @@ record is not included in the output data.
 
 #### Example config
 
-Following is an example configuration for Pagination. Unrelated parameters have
+Following is an example configuration for Filter. Unrelated parameters have
 been omitted for simplicity.
 
 ```json
