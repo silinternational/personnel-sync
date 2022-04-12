@@ -1,5 +1,7 @@
 package internal
 
+import "fmt"
+
 type Person struct {
 	CompareValue   string
 	ID             string
@@ -7,15 +9,15 @@ type Person struct {
 	DisableChanges bool
 }
 
-func (p *Person) Matches(filters Filters) bool {
+func (p *Person) Matches(filters Filters) (bool, error) {
 	for _, f := range filters {
-		value := p.Attributes[f.Attribute]
-		if value == "" {
-			return false
+		value, ok := p.Attributes[f.Attribute]
+		if !ok {
+			return false, fmt.Errorf("attribute %s not present in person %s", f.Attribute, p.CompareValue)
 		}
 		if !f.compiledExpression.MatchString(value) {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }

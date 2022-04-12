@@ -603,7 +603,9 @@ func (r *RestAPI) filterPeople(people chan internal.Person) ([]internal.Person, 
 	var results []internal.Person
 
 	for person := range people {
-		if person.Matches(r.Filters) {
+		if match, err := person.Matches(r.Filters); err != nil {
+			return results, fmt.Errorf("filter failure: %w", err)
+		} else if match {
 			results = append(results, person)
 		}
 	}

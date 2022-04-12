@@ -12,6 +12,7 @@ func TestPerson_Matches(t *testing.T) {
 		person  Person
 		filters Filters
 		want    bool
+		wantErr bool
 	}{
 		{
 			name:    "no filters",
@@ -67,13 +68,24 @@ func TestPerson_Matches(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name:    "missing attribute",
+			person:  Person{Attributes: map[string]string{"attr": "val"}},
+			filters: Filters{Filter{Attribute: "other_attr", Expression: "value"}},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.filters.Validate()
 			require.NoError(t, err, "test configuration might be faulty")
 
-			got := tt.person.Matches(tt.filters)
+			got, err := tt.person.Matches(tt.filters)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
 		})
 	}
