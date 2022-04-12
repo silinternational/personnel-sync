@@ -51,7 +51,7 @@ func TestPerson_Matches(t *testing.T) {
 			}},
 			filters: Filters{
 				Filter{Attribute: "active", Expression: "true"},
-				Filter{Attribute: "email", Expression: `@example\.com`},
+				Filter{Attribute: "email", Expression: `@not-matching-domain\.com`},
 			},
 			want: false,
 		},
