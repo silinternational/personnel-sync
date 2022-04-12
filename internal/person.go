@@ -15,7 +15,7 @@ func (p *Person) Matches(filters Filters) (bool, error) {
 		if !ok {
 			return false, fmt.Errorf("attribute %s not present in person %s", f.Attribute, p.CompareValue)
 		}
-		if !f.compiledExpression.MatchString(value) {
+		if !f.Matches(value) {
 			return false, nil
 		}
 	}

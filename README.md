@@ -101,6 +101,7 @@ record is not included in the output data.
 #### Properties
 - Attribute -- The name of the attribute to filter on. Does not need to be listed in the sync attributes.
 - Expression -- A text expression for which to search. Uses RE2 regular expression syntax.
+- Exclude -- If true, records matching the expression are excluded.
 
 #### Example config
 
