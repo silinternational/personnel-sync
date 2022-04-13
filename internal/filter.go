@@ -10,7 +10,12 @@ type Filters []Filter
 type Filter struct {
 	Attribute          string
 	Expression         string
+	Exclude            bool
 	compiledExpression *regexp.Regexp
+}
+
+func (f Filter) Matches(value string) bool {
+	return f.Exclude != f.compiledExpression.MatchString(value)
 }
 
 func (f *Filters) Validate() error {
