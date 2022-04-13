@@ -1,6 +1,9 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Person struct {
 	CompareValue   string
@@ -10,14 +13,20 @@ type Person struct {
 }
 
 func (p *Person) Matches(filters Filters) (bool, error) {
+	var missingAttributes []string
+	match := true
 	for _, f := range filters {
 		value, ok := p.Attributes[f.Attribute]
 		if !ok {
-			return false, fmt.Errorf("attribute %s not present in person %s", f.Attribute, p.CompareValue)
+			missingAttributes = append(missingAttributes, f.Attribute)
 		}
-		if !f.compiledExpression.MatchString(value) {
-			return false, nil
+		if !f.Matches(value) {
+			match = false
 		}
 	}
-	return true, nil
+	if len(missingAttributes) > 0 {
+		return false, fmt.Errorf("attribute(s) %s not present in person %s",
+			strings.Join(missingAttributes, ", "), p.CompareValue)
+	}
+	return match, nil
 }
