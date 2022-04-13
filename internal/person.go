@@ -14,14 +14,14 @@ type Person struct {
 
 func (p *Person) Matches(filters Filters) (bool, error) {
 	var missingAttributes []string
-	match := false
+	match := true
 	for _, f := range filters {
 		value, ok := p.Attributes[f.Attribute]
 		if !ok {
 			missingAttributes = append(missingAttributes, f.Attribute)
 		}
-		if f.Matches(value) {
-			match = true
+		if !f.Matches(value) {
+			match = false
 		}
 	}
 	if len(missingAttributes) > 0 {
