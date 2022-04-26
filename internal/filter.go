@@ -12,6 +12,7 @@ type Filter struct {
 	Expression         string
 	Exclude            bool
 	compiledExpression *regexp.Regexp
+	Required           bool
 }
 
 func (f Filter) Matches(value string) bool {
