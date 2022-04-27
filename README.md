@@ -102,7 +102,7 @@ record is not included in the output data.
 - Attribute -- The name of the attribute to filter on. Does not need to be listed in the sync attributes.
 - Expression -- A text expression for which to search. Uses RE2 regular expression syntax.
 - Exclude -- If true, records matching the expression are excluded.
-- Required -- If true, and Attribute is missing or null, an error will be logged and the sync will fail.
+- Nullable -- If false, and Attribute is missing or null, an error will be logged and the sync will fail.
 
 #### Example config
 

@@ -71,13 +71,13 @@ func TestPerson_Matches(t *testing.T) {
 		{
 			name:    "missing attribute, not required",
 			person:  Person{Attributes: map[string]string{"attr": "val"}},
-			filters: Filters{Filter{Attribute: "other_attr", Expression: "value", Required: false}},
+			filters: Filters{Filter{Attribute: "other_attr", Expression: "value", Nullable: true}},
 			wantErr: false,
 		},
 		{
 			name:    "missing attribute, required",
 			person:  Person{Attributes: map[string]string{"attr": "val"}},
-			filters: Filters{Filter{Attribute: "other_attr", Expression: "value", Required: true}},
+			filters: Filters{Filter{Attribute: "other_attr", Expression: "value", Nullable: false}},
 			wantErr: true,
 		},
 	}
