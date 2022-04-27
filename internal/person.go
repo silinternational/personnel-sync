@@ -17,7 +17,7 @@ func (p *Person) Matches(filters Filters) (bool, error) {
 	match := true
 	for _, f := range filters {
 		value, ok := p.Attributes[f.Attribute]
-		if !ok {
+		if !ok && !f.Nullable {
 			missingAttributes = append(missingAttributes, f.Attribute)
 		}
 		if !f.Matches(value) {
