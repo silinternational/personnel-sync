@@ -288,8 +288,10 @@ func RunSyncSet(logger *log.Logger, source Source, destination Destination, conf
 
 func GetSourceAttributes(attrMap []AttributeMap) []string {
 	var keys []string
-	for _, attrMap := range attrMap {
-		keys = append(keys, attrMap.Source)
+	for _, attr := range attrMap {
+		if attr.Source != "" {
+			keys = append(keys, attr.Source)
+		}
 	}
 
 	return keys
@@ -297,8 +299,10 @@ func GetSourceAttributes(attrMap []AttributeMap) []string {
 
 func GetDestinationAttributes(attrMap []AttributeMap) []string {
 	var keys []string
-	for _, attrMap := range attrMap {
-		keys = append(keys, attrMap.Destination)
+	for _, attr := range attrMap {
+		if attr.Destination != "" {
+			keys = append(keys, attr.Destination)
+		}
 	}
 
 	return keys
