@@ -15,7 +15,6 @@ import (
 )
 
 func TestWebHelpDesk_ListUsers(t *testing.T) {
-
 	fixtures := map[string][]User{
 		"page1": {
 			{
@@ -253,9 +252,15 @@ func TestCreateChangeSet(t *testing.T) {
 	t.Skip("Requires integration with WHD so skipped by default")
 	t.SkipNow()
 
-	testConfig, err := internal.LoadConfig("./config.json")
+	configJSON, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
+		t.FailNow()
+	}
+
+	testConfig, err := internal.ReadConfig(configJSON)
+	if err != nil {
+		t.Errorf("Failed to read test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
@@ -289,9 +294,15 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 	t.Skip("Requires integration with WHD so skipped by default")
 	t.SkipNow()
 
-	testConfig, err := internal.LoadConfig("./config.json")
+	configJSON, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
+		t.FailNow()
+	}
+
+	testConfig, err := internal.ReadConfig(configJSON)
+	if err != nil {
+		t.Errorf("Failed to read test config, error: %s", err.Error())
 		t.FailNow()
 	}
 

@@ -32,7 +32,7 @@ const (
 // LoadConfig looks for a config file if one is provided. Otherwise, it looks for
 // a config file based on the CONFIG_PATH env var.  If that is not set, it gets
 // the default config file ("./config.json").
-func LoadConfig(configFile string) (AppConfig, error) {
+func LoadConfig(configFile string) ([]byte, error) {
 	if configFile == "" {
 		configFile = os.Getenv("CONFIG_PATH")
 		if configFile == "" {
@@ -45,15 +45,15 @@ func LoadConfig(configFile string) (AppConfig, error) {
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		log.Printf("unable to read application config file %s, error: %s\n", configFile, err.Error())
-		return AppConfig{}, err
+		return nil, err
 	}
+	return data, err
+}
 
-	config := AppConfig{
-		Runtime: RuntimeConfig{
-			Verbosity: DefaultVerbosity,
-		},
-	}
-	err = json.Unmarshal(data, &config)
+// ReadConfig parses raw json config data into an AppConfig struct
+func ReadConfig(data []byte) (AppConfig, error) {
+	config := NewAppConfig()
+	err := json.Unmarshal(data, &config)
 	if err != nil {
 		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
 		return config, err
@@ -259,6 +259,9 @@ func RunSyncSet(logger *log.Logger, source Source, destination Destination, conf
 
 	changeSet := GenerateChangeSet(logger, sourcePeople, destinationPeople, config)
 
+	logger.Printf("ChangeSet Plans: Create %d, Update %d, Delete %d\n",
+		len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
+
 	// If in DryRun mode only print out ChangeSet plans and return mocked change results based on plans
 	if config.Runtime.DryRunMode {
 		logger.Println("Dry run mode enabled. Change set details follow:")
@@ -318,9 +321,6 @@ func processEventLog(logger *log.Logger, config alert.Config, eventLog <-chan Ev
 }
 
 func printChangeSet(logger *log.Logger, changeSet ChangeSet) {
-	logger.Printf("ChangeSet Plans: Create %v, Update %v, Delete %v\n",
-		len(changeSet.Create), len(changeSet.Update), len(changeSet.Delete))
-
 	logger.Printf("Users to be created: %d ...", len(changeSet.Create))
 	for i, user := range changeSet.Create {
 		logger.Printf("  create %v) %s", i+1, user.CompareValue)
@@ -451,4 +451,12 @@ func (a *AppConfig) MaxSyncSetNameLength() int {
 		}
 	}
 	return maxLength
+}
+
+func NewAppConfig() AppConfig {
+	return AppConfig{
+		Runtime: RuntimeConfig{
+			Verbosity: DefaultVerbosity,
+		},
+	}
 }

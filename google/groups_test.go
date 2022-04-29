@@ -13,9 +13,15 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := internal.LoadConfig("./config.json")
+	rawConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
+		t.FailNow()
+	}
+
+	testConfig, err := internal.ReadConfig(rawConfig)
+	if err != nil {
+		t.Errorf("Failed to read test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
@@ -68,9 +74,15 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := internal.LoadConfig("./config.json")
+	rawConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
+		t.FailNow()
+	}
+
+	testConfig, err := internal.ReadConfig(rawConfig)
+	if err != nil {
+		t.Errorf("Failed to read test config, error: %s", err.Error())
 		t.FailNow()
 	}
 

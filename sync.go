@@ -20,9 +20,16 @@ func RunSync(configFile string) error {
 	log.SetFlags(0)
 	log.Printf("Personnel sync started at %s", time.Now().UTC().Format(time.RFC1123Z))
 
-	appConfig, err := internal.LoadConfig(configFile)
+	rawConfig, err := internal.LoadConfig(configFile)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to load config, error: %s", err)
+		log.Println(msg)
+		return nil
+	}
+
+	appConfig, err := internal.ReadConfig(rawConfig)
+	if err != nil {
+		msg := fmt.Sprintf("Unable to read config, error: %s", err)
 		log.Println(msg)
 		alert.SendEmail(appConfig.Alert, msg)
 		return nil

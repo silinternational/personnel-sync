@@ -18,9 +18,15 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := internal.LoadConfig("../cmd/config.json")
+	rawConfig, err := internal.LoadConfig("../cmd/config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
+		t.FailNow()
+	}
+
+	testConfig, err := internal.ReadConfig(rawConfig)
+	if err != nil {
+		t.Errorf("Failed to read test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
@@ -80,9 +86,15 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 	t.Skip("Skipping test because it requires integration with Google")
 	t.SkipNow()
 
-	testConfig, err := internal.LoadConfig("./config.json")
+	rawConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
 		t.Errorf("Failed to load test config, error: %s", err.Error())
+		t.FailNow()
+	}
+
+	testConfig, err := internal.ReadConfig(rawConfig)
+	if err != nil {
+		t.Errorf("Failed to read test config, error: %s", err.Error())
 		t.FailNow()
 	}
 
