@@ -6,51 +6,7 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 )
-
-func TestReadConfig(t *testing.T) {
-	goodConfig := NewAppConfig()
-	goodConfig.Source.Type = "RestAPI"
-	goodConfig.Destination.Type = "RestAPI"
-	goodConfig.AttributeMap = []AttributeMap{{}}
-
-	tests := []struct {
-		name    string
-		config  string
-		want    AppConfig
-		wantErr bool
-	}{
-		{
-			name:    "successful unmarshal",
-			config:  `{"Source": {"Type": "RestAPI"},"Destination": {"Type": "RestAPI"},"AttributeMap":[{}]}`,
-			want:    goodConfig,
-			wantErr: false,
-		},
-		{
-			name:    "json parse error",
-			config:  `{"Runtime":{"Verbosity":"should be a number"}}`,
-			wantErr: true,
-		},
-		{
-			name:    "missing Source",
-			config:  `{"Destination": {"Type": "RestAPI"},"AttributeMap":[{}]}`,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ReadConfig([]byte(tt.config))
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Equal(t, tt.want, got)
-		})
-	}
-}
 
 func TestGenerateChangeSet(t *testing.T) {
 	type args struct {
@@ -133,7 +89,7 @@ func TestGenerateChangeSet(t *testing.T) {
 		},
 	}
 
-	config := AppConfig{
+	config := Config{
 		AttributeMap: []AttributeMap{
 			{
 				Source:        "name",
@@ -246,7 +202,7 @@ func TestIDSetForUpdate(t *testing.T) {
 		},
 	}
 
-	config := AppConfig{
+	config := Config{
 		AttributeMap: []AttributeMap{
 			{
 				Source:        "email",
@@ -278,7 +234,7 @@ func TestIDSetForUpdate(t *testing.T) {
 func Test_processExpressions(t *testing.T) {
 	type args struct {
 		logger *log.Logger
-		config AppConfig
+		config Config
 		person Person
 	}
 	logger := log.New(os.Stdout, "", 0)
@@ -291,7 +247,7 @@ func Test_processExpressions(t *testing.T) {
 			name: "no expression",
 			args: args{
 				logger: logger,
-				config: AppConfig{
+				config: Config{
 					AttributeMap: []AttributeMap{{
 						Destination:   "first_name",
 						Required:      false,
@@ -316,7 +272,7 @@ func Test_processExpressions(t *testing.T) {
 			name: "full replace",
 			args: args{
 				logger: logger,
-				config: AppConfig{
+				config: Config{
 					AttributeMap: []AttributeMap{{
 						Destination:   "first_name",
 						Required:      false,
@@ -341,7 +297,7 @@ func Test_processExpressions(t *testing.T) {
 			name: "partial replace",
 			args: args{
 				logger: logger,
-				config: AppConfig{
+				config: Config{
 					AttributeMap: []AttributeMap{{
 						Destination:   "first_name",
 						Required:      false,
