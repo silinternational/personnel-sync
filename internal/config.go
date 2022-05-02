@@ -51,22 +51,13 @@ func LoadConfig(configFile string) ([]byte, error) {
 // ReadConfig parses raw json config data into a Config struct
 func ReadConfig(data []byte) (Config, error) {
 	config := NewConfig()
-	err := json.Unmarshal(data, &config)
-	if err != nil {
+	if err := json.Unmarshal(data, &config); err != nil {
 		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
 		return config, err
 	}
 
-	if config.Source.Type == "" {
-		return config, errors.New("configuration appears to be missing a Source configuration")
-	}
-
-	if config.Destination.Type == "" {
-		return config, errors.New("configuration appears to be missing a Destination configuration")
-	}
-
-	if len(config.AttributeMap) == 0 {
-		return config, errors.New("configuration appears to be missing an AttributeMap")
+	if err := config.Validate(); err != nil {
+		return config, err
 	}
 
 	log.Printf("Configuration loaded. Source type: %s, Destination type: %s\n", config.Source.Type, config.Destination.Type)
@@ -77,6 +68,21 @@ func ReadConfig(data []byte) (Config, error) {
 	}
 
 	return config, nil
+}
+
+func (c *Config) Validate() error {
+	if c.Source.Type == "" {
+		return errors.New("configuration appears to be missing a Source configuration")
+	}
+
+	if c.Destination.Type == "" {
+		return errors.New("configuration appears to be missing a Destination configuration")
+	}
+
+	if len(c.AttributeMap) == 0 {
+		return errors.New("configuration appears to be missing an AttributeMap")
+	}
+	return nil
 }
 
 func (c *Config) MaxSyncSetNameLength() int {
