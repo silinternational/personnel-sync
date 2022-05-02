@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"log/syslog"
-	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -28,58 +26,6 @@ const (
 	SourceTypeGoogleSheets        = "GoogleSheets"
 	SourceTypeRestAPI             = "RestAPI"
 )
-
-// LoadConfig looks for a config file if one is provided. Otherwise, it looks for
-// a config file based on the CONFIG_PATH env var.  If that is not set, it gets
-// the default config file ("./config.json").
-func LoadConfig(configFile string) ([]byte, error) {
-	if configFile == "" {
-		configFile = os.Getenv("CONFIG_PATH")
-		if configFile == "" {
-			configFile = DefaultConfigFile
-		}
-	}
-
-	log.Printf("Using config file: %s\n", configFile)
-
-	data, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		log.Printf("unable to read application config file %s, error: %s\n", configFile, err.Error())
-		return nil, err
-	}
-	return data, err
-}
-
-// ReadConfig parses raw json config data into an AppConfig struct
-func ReadConfig(data []byte) (AppConfig, error) {
-	config := NewAppConfig()
-	err := json.Unmarshal(data, &config)
-	if err != nil {
-		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
-		return config, err
-	}
-
-	if config.Source.Type == "" {
-		return config, errors.New("configuration appears to be missing a Source configuration")
-	}
-
-	if config.Destination.Type == "" {
-		return config, errors.New("configuration appears to be missing a Destination configuration")
-	}
-
-	if len(config.AttributeMap) == 0 {
-		return config, errors.New("configuration appears to be missing an AttributeMap")
-	}
-
-	log.Printf("Configuration loaded. Source type: %s, Destination type: %s\n", config.Source.Type, config.Destination.Type)
-	log.Printf("%v Sync sets found:\n", len(config.SyncSets))
-
-	for i, syncSet := range config.SyncSets {
-		log.Printf("  %v) %s\n", i+1, syncSet.Name)
-	}
-
-	return config, nil
-}
 
 // RemapToDestinationAttributes returns a slice of Person instances that each have
 // only the desired attributes based on the destination attribute keys.
@@ -127,7 +73,7 @@ func getPersonFromList(compareValue string, peopleList []Person) Person {
 	return Person{}
 }
 
-func personAttributesAreEqual(logger *log.Logger, sp, dp Person, config AppConfig) bool {
+func personAttributesAreEqual(logger *log.Logger, sp, dp Person, config Config) bool {
 	caseSensitivityList := getCaseSensitivitySourceAttributeList(config.AttributeMap)
 	equal := true
 	for key, val := range sp.Attributes {
@@ -168,7 +114,7 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 // (Create, Update and Delete) based on whether they are in the slice
 //  of destination Person instances.
 // It skips all source Person instances that have DisableChanges set to true
-func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Person, config AppConfig) ChangeSet {
+func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Person, config Config) ChangeSet {
 	var changeSet ChangeSet
 
 	// Find users who need to be created or updated
@@ -204,7 +150,7 @@ func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Per
 	return changeSet
 }
 
-func processExpressions(logger *log.Logger, config AppConfig, person Person) Person {
+func processExpressions(logger *log.Logger, config Config, person Person) Person {
 	for _, attr := range config.AttributeMap {
 		if attr.Expression == "" {
 			continue
@@ -235,7 +181,7 @@ func processExpressions(logger *log.Logger, config AppConfig, person Person) Per
 //  - it gets the list of people from the destination
 //  - it generates the lists of people to change, update and delete
 //  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
-func RunSyncSet(logger *log.Logger, source Source, destination Destination, config AppConfig) error {
+func RunSyncSet(logger *log.Logger, source Source, destination Destination, config Config) error {
 	sourcePeople, err := source.ListUsers(GetSourceAttributes(config.AttributeMap))
 	if err != nil {
 		return err
@@ -441,22 +387,4 @@ func (b *BatchTimer) WaitOnBatch() {
 		time.Sleep(time.Second)
 	}
 	b.Init(b.BatchSize, b.SecondsPerBatch)
-}
-
-func (a *AppConfig) MaxSyncSetNameLength() int {
-	maxLength := 0
-	for _, set := range a.SyncSets {
-		if maxLength < len(set.Name) {
-			maxLength = len(set.Name)
-		}
-	}
-	return maxLength
-}
-
-func NewAppConfig() AppConfig {
-	return AppConfig{
-		Runtime: RuntimeConfig{
-			Verbosity: DefaultVerbosity,
-		},
-	}
 }

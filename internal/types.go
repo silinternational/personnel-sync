@@ -3,8 +3,6 @@ package internal
 import (
 	"encoding/json"
 	"log/syslog"
-
-	"github.com/silinternational/personnel-sync/v6/alert"
 )
 
 type AttributeMap struct {
@@ -38,15 +36,6 @@ const (
 type RuntimeConfig struct {
 	DryRunMode bool
 	Verbosity  int
-}
-
-type AppConfig struct {
-	Runtime      RuntimeConfig
-	Source       SourceConfig
-	Destination  DestinationConfig
-	Alert        alert.Config
-	AttributeMap []AttributeMap
-	SyncSets     []SyncSet
 }
 
 type SyncSet struct {
