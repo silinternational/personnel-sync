@@ -84,6 +84,15 @@ func TestConfig_Validate(t *testing.T) {
 			},
 			wantErr: "missing an AttributeMap",
 		},
+		{
+			name: "no error",
+			config: Config{
+				Destination:  DestinationConfig{Type: "RestAPI"},
+				Source:       SourceConfig{Type: "RestAPI"},
+				AttributeMap: []AttributeMap{{Required: false}},
+			},
+			wantErr: "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
