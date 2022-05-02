@@ -118,7 +118,7 @@ func getEnvMap() map[string]string {
 	vars := make(map[string]string, len(e))
 	for _, s := range e {
 		spl := strings.SplitN(s, "=", 2)
-		k, v := spl[0], spl[1]
+		k, v := strings.TrimSpace(spl[0]), strings.TrimSpace(spl[1])
 		vars[k] = v
 	}
 	return vars

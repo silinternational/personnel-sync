@@ -184,7 +184,7 @@ func Test_substituteEnvVars(t *testing.T) {
 func Test_getEnvMap(t *testing.T) {
 	err := os.Setenv("test_key1", "test_value1")
 	require.NoError(t, err, "problem with test setup")
-	err = os.Setenv("test_key2", "test_value2")
+	err = os.Setenv(" test_key2 ", " test_value2 ")
 	require.NoError(t, err, "problem with test setup")
 
 	want := map[string]string{"test_key1": "test_value1", "test_key2": "test_value2"}
