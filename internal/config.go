@@ -79,9 +79,9 @@ func ReadConfig(data []byte) (Config, error) {
 	return config, nil
 }
 
-func (a *Config) MaxSyncSetNameLength() int {
+func (c *Config) MaxSyncSetNameLength() int {
 	maxLength := 0
-	for _, set := range a.SyncSets {
+	for _, set := range c.SyncSets {
 		if maxLength < len(set.Name) {
 			maxLength = len(set.Name)
 		}
