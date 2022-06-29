@@ -129,6 +129,28 @@ been omitted for simplicity.
 }
 ```
 
+## Variable substitution
+
+### Environment variables
+
+In the JSON config file, variable substitution from environment variables can be done using Go template syntax. For
+example:
+
+```json
+{
+  "Alert": {
+    "ReturnToAddr": "{{.ALERT_RETURN_TO_ADDR}}",
+    "SubjectText": "{{.ALERT_SUBJECT}}",
+    "RecipientEmails":  ["{{.ALERT_RECIPIENT_EMAIL}}"]
+  }
+}
+```
+
+Note that if the Serverless framework is used to deploy to AWS Lambda, environment variables are defined in 
+CloudFormation. This means that the values are visible in plain text in the CloudFormation template and build logs. See 
+[Serverless Docs](https://www.serverless.com/framework/docs/providers/aws/guide/variables#referencing-environment-variables) 
+for context.
+
 ## Sources
 
 ### REST API
