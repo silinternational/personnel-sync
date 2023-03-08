@@ -175,20 +175,20 @@ func TestNewGoogleSheetsSource(t *testing.T) {
 func Test_getPersonsFromSheetData(t *testing.T) {
 	tests := []struct {
 		name         string
-		sheetData    [][]interface{}
+		sheetData    [][]any
 		desiredAttrs []string
 		compareAttr  string
 		want         []internal.Person
 	}{
 		{
 			name:         "empty sheet data",
-			sheetData:    [][]interface{}{},
+			sheetData:    [][]any{},
 			desiredAttrs: []string{"a", "b"},
 			want:         []internal.Person{},
 		},
 		{
 			name: "only a header row",
-			sheetData: [][]interface{}{
+			sheetData: [][]any{
 				{"a", "b", "c"},
 			},
 			desiredAttrs: []string{"a", "b"},
@@ -196,7 +196,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 		},
 		{
 			name: "no desired attributes",
-			sheetData: [][]interface{}{
+			sheetData: [][]any{
 				{"a", "b", "c"},
 				{"valueA", "valueB", "valueC"},
 			},
@@ -207,7 +207,7 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 		},
 		{
 			name: "one row",
-			sheetData: [][]interface{}{
+			sheetData: [][]any{
 				{"a", "b", "c"},
 				{"valueA", "valueB", "valueC"},
 			},
@@ -235,17 +235,17 @@ func Test_getPersonsFromSheetData(t *testing.T) {
 func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 	tests := []struct {
 		name string
-		data [][]interface{}
+		data [][]any
 		want map[int]string
 	}{
 		{
 			name: "empty sheet data",
-			data: [][]interface{}{},
+			data: [][]any{},
 			want: map[int]string{},
 		},
 		{
 			name: "one column",
-			data: [][]interface{}{
+			data: [][]any{
 				{"a"},
 			},
 			want: map[int]string{
@@ -254,7 +254,7 @@ func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 		},
 		{
 			name: "two columns, separated by a an empty column",
-			data: [][]interface{}{
+			data: [][]any{
 				{"a", "", "c"},
 			},
 			want: map[int]string{
@@ -265,7 +265,7 @@ func TestGoogleSheets_getHeaderFromSheetData(t *testing.T) {
 		},
 		{
 			name: "two columns with same value",
-			data: [][]interface{}{
+			data: [][]any{
 				{"a", "a"},
 			},
 			want: map[int]string{
@@ -288,13 +288,13 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 		name    string
 		header  map[int]string
 		persons []internal.Person
-		want    [][]interface{}
+		want    [][]any
 	}{
 		{
 			name:    "empty input",
 			header:  map[int]string{},
 			persons: []internal.Person{},
-			want:    [][]interface{}{},
+			want:    [][]any{},
 		},
 		{
 			name:   "empty header",
@@ -305,13 +305,13 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 					DisableChanges: false,
 				},
 			},
-			want: [][]interface{}{},
+			want: [][]any{},
 		},
 		{
 			name:    "empty persons list",
 			header:  map[int]string{0: "a"},
 			persons: []internal.Person{},
-			want:    [][]interface{}{},
+			want:    [][]any{},
 		},
 		{
 			name:   "2 persons, 2 attributes",
@@ -326,7 +326,7 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 					DisableChanges: false,
 				},
 			},
-			want: [][]interface{}{
+			want: [][]any{
 				{"valueA1", "valueB1"},
 				{"valueA2", "valueB2"},
 			},
@@ -344,7 +344,7 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 					DisableChanges: false,
 				},
 			},
-			want: [][]interface{}{
+			want: [][]any{
 				{"valueA1", "valueB1", ""},
 				{"valueA2", "valueB2", ""},
 			},
@@ -358,7 +358,7 @@ func Test_makeSheetDataFromPersons(t *testing.T) {
 					DisableChanges: false,
 				},
 			},
-			want: [][]interface{}{
+			want: [][]any{
 				{"valueA1", "valueB1"},
 			},
 		},

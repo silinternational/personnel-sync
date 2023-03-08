@@ -176,11 +176,11 @@ func TestGoogleUsers_extractData(t *testing.T) {
 		{
 			name: "all supported fields",
 			user: admin.User{
-				ExternalIds: []interface{}{map[string]interface{}{
+				ExternalIds: []any{map[string]any{
 					"type":  "organization",
 					"value": "12345",
 				}},
-				Locations: []interface{}{map[string]interface{}{
+				Locations: []any{map[string]any{
 					"area": "An area",
 					"type": "desk",
 				}},
@@ -189,17 +189,17 @@ func TestGoogleUsers_extractData(t *testing.T) {
 					FullName:   "John Jones",
 					GivenName:  "John",
 				},
-				Organizations: []interface{}{map[string]interface{}{
+				Organizations: []any{map[string]any{
 					"costCenter": "A cost center",
 					"department": "A department",
 					"title":      "A title",
 				}},
-				Phones: []interface{}{map[string]interface{}{
+				Phones: []any{map[string]any{
 					"type":  "work",
 					"value": "555-1212",
 				}},
 				PrimaryEmail: "email@example.com",
-				Relations: []interface{}{map[string]interface{}{
+				Relations: []any{map[string]any{
 					"type":  "manager",
 					"value": "manager@example.com",
 				}},
@@ -227,12 +227,12 @@ func TestGoogleUsers_extractData(t *testing.T) {
 		{
 			name: `only "organization" externalIDs`,
 			user: admin.User{
-				ExternalIds: []interface{}{
-					map[string]interface{}{
+				ExternalIds: []any{
+					map[string]any{
 						"type":  "custom",
 						"value": "abc123",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"type":  "organization",
 						"value": "12345",
 					},
@@ -251,12 +251,12 @@ func TestGoogleUsers_extractData(t *testing.T) {
 			name: `only "work" phones`,
 			user: admin.User{
 				PrimaryEmail: "email@example.com",
-				Phones: []interface{}{
-					map[string]interface{}{
+				Phones: []any{
+					map[string]any{
 						"type":  "home",
 						"value": "555-1212",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"type":  "work",
 						"value": "888-5555",
 					},
@@ -275,12 +275,12 @@ func TestGoogleUsers_extractData(t *testing.T) {
 			name: `only "desk" locations`,
 			user: admin.User{
 				PrimaryEmail: "email@example.com",
-				Locations: []interface{}{
-					map[string]interface{}{
+				Locations: []any{
+					map[string]any{
 						"area": "Custom area",
 						"type": "custom",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"area": "An area",
 						"type": "desk",
 					},
@@ -297,25 +297,25 @@ func TestGoogleUsers_extractData(t *testing.T) {
 		{
 			name: "invalid data types",
 			user: admin.User{
-				ExternalIds: []interface{}{map[string]interface{}{
+				ExternalIds: []any{map[string]any{
 					"type":  "organization",
 					"value": 12345,
 				}},
-				Locations: []interface{}{map[string]interface{}{
+				Locations: []any{map[string]any{
 					"type": "desk",
 					"area": 1.0,
 				}},
-				Organizations: []interface{}{map[string]interface{}{
+				Organizations: []any{map[string]any{
 					"costCenter": []string{"A cost center"},
 					"department": true,
 					"title":      map[string]string{"key": "value"},
 				}},
-				Phones: []interface{}{map[string]interface{}{
+				Phones: []any{map[string]any{
 					"type":  "work",
 					"value": 5551212,
 				}},
 				PrimaryEmail: "email@example.com",
-				Relations: []interface{}{map[string]interface{}{
+				Relations: []any{map[string]any{
 					"type":  "manager",
 					"value": []string{"manager@example.com"},
 				}},
@@ -405,18 +405,18 @@ func Test_updateIDs(t *testing.T) {
 	tests := []struct {
 		name   string
 		newID  string
-		oldIDs interface{}
+		oldIDs any
 		want   []admin.UserExternalId
 	}{
 		{
 			name:  "organization and custom",
 			newID: "12345",
-			oldIDs: []interface{}{
-				map[string]interface{}{
+			oldIDs: []any{
+				map[string]any{
 					"type":  "organization",
 					"value": "00000",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"type":       "custom",
 					"customType": "foo",
 					"value":      "abcdef",
@@ -437,8 +437,8 @@ func Test_updateIDs(t *testing.T) {
 		{
 			name:  "organization only",
 			newID: "12345",
-			oldIDs: []interface{}{
-				map[string]interface{}{
+			oldIDs: []any{
+				map[string]any{
 					"type":  "organization",
 					"value": "00000",
 				},
@@ -453,8 +453,8 @@ func Test_updateIDs(t *testing.T) {
 		{
 			name:  "custom only",
 			newID: "12345",
-			oldIDs: []interface{}{
-				map[string]interface{}{
+			oldIDs: []any{
+				map[string]any{
 					"type":       "custom",
 					"customType": "foo",
 					"value":      "abcdef",
@@ -486,18 +486,18 @@ func Test_updateLocations(t *testing.T) {
 	tests := []struct {
 		name         string
 		newArea      string
-		oldLocations interface{}
+		oldLocations any
 		want         []admin.UserLocation
 	}{
 		{
 			name:    "desk and custom",
 			newArea: "Area 2",
-			oldLocations: []interface{}{
-				map[string]interface{}{
+			oldLocations: []any{
+				map[string]any{
 					"type": "desk",
 					"area": "Area 1",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"type":         "custom",
 					"customType":   "foo",
 					"area":         "Area A",
@@ -526,8 +526,8 @@ func Test_updateLocations(t *testing.T) {
 		{
 			name:    "desk only",
 			newArea: "Area 2",
-			oldLocations: []interface{}{
-				map[string]interface{}{
+			oldLocations: []any{
+				map[string]any{
 					"type": "desk",
 					"area": "Area 1",
 				},
@@ -542,8 +542,8 @@ func Test_updateLocations(t *testing.T) {
 		{
 			name:    "custom only",
 			newArea: "Area 2",
-			oldLocations: []interface{}{
-				map[string]interface{}{
+			oldLocations: []any{
+				map[string]any{
 					"type":         "custom",
 					"customType":   "foo",
 					"area":         "Area A",
@@ -679,18 +679,18 @@ func Test_updateRelations(t *testing.T) {
 	tests := []struct {
 		name         string
 		newRelation  string
-		oldRelations interface{}
+		oldRelations any
 		want         []admin.UserRelation
 	}{
 		{
 			name:        "manager and custom",
 			newRelation: "new_manager@example.com",
-			oldRelations: []interface{}{
-				map[string]interface{}{
+			oldRelations: []any{
+				map[string]any{
 					"type":  "manager",
 					"value": "old_manager@example.com",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"type":       "custom",
 					"customType": "foo",
 					"value":      "other@example.com",
@@ -711,8 +711,8 @@ func Test_updateRelations(t *testing.T) {
 		{
 			name:        "manager only",
 			newRelation: "new_manager@example.com",
-			oldRelations: []interface{}{
-				map[string]interface{}{
+			oldRelations: []any{
+				map[string]any{
 					"type":  "manager",
 					"value": "old_manager@example.com",
 				},
@@ -727,8 +727,8 @@ func Test_updateRelations(t *testing.T) {
 		{
 			name:        "custom only",
 			newRelation: "new_manager@example.com",
-			oldRelations: []interface{}{
-				map[string]interface{}{
+			oldRelations: []any{
+				map[string]any{
 					"type":       "custom",
 					"customType": "foo",
 					"value":      "other@example.com",
@@ -765,12 +765,12 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 		{
 			name: "work+custom",
 			user: admin.User{
-				Phones: []interface{}{
-					map[string]interface{}{
+				Phones: []any{
+					map[string]any{
 						"type":  "work",
 						"value": "555-1212",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"type":       "custom",
 						"customType": "foo",
 						"value":      "2",
@@ -785,16 +785,16 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 		{
 			name: "work*3",
 			user: admin.User{
-				Phones: []interface{}{
-					map[string]interface{}{
+				Phones: []any{
+					map[string]any{
 						"type":  "work",
 						"value": "555-1212",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"type":  "work",
 						"value": "123-4567",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"type":  "work",
 						"value": "999-999-9999",
 					},
@@ -809,18 +809,18 @@ func Test_getPhoneNumbersFromUser(t *testing.T) {
 		{
 			name: "custom*3",
 			user: admin.User{
-				Phones: []interface{}{
-					map[string]interface{}{
+				Phones: []any{
+					map[string]any{
 						"type":       "custom",
 						"customType": "other",
 						"value":      "555-1212",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"type":       "custom",
 						"customType": "other",
 						"value":      "123-4567",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"type":       "custom",
 						"customType": "other",
 						"value":      "999-999-9999",

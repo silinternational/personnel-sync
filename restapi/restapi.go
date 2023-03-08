@@ -323,9 +323,9 @@ func (r *RestAPI) getPersonsFromResults(peopleList []*gabs.Container, desiredAtt
 			}
 
 			switch v := val.(type) {
-			case []interface{}:
-				if len(val.([]interface{})) > 0 {
-					firstValue := val.([]interface{})[0]
+			case []any:
+				if len(val.([]any)) > 0 {
+					firstValue := val.([]any)[0]
 					if firstValue == nil {
 						continue
 					}

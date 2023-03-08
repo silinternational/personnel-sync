@@ -104,13 +104,13 @@ func extractData(user admin.User) internal.Person {
 func getPhoneNumbersFromUser(user admin.User) map[string]string {
 	attributes := map[string]string{}
 
-	phones, ok := user.Phones.([]interface{})
+	phones, ok := user.Phones.([]any)
 	if !ok {
 		return attributes
 	}
 
 	for _, phoneAsInterface := range phones {
-		phone := phoneAsInterface.(map[string]interface{})
+		phone := phoneAsInterface.(map[string]any)
 
 		phoneType, ok := phone["type"].(string)
 		if !ok {
@@ -153,10 +153,10 @@ func phoneKey(phoneType, custom string, attributes map[string]string) string {
 }
 
 // findFirstMatchingType iterates through a slice of interfaces until it finds a matching key. The underlying type
-// of the given interface must be `[]map[string]interface{}`. If `findType` is empty, the first element in the
+// of the given interface must be `[]map[string]any`. If `findType` is empty, the first element in the
 // slice is returned.
-func findFirstMatchingType(in interface{}, findType string) map[string]interface{} {
-	sliceOfInterfaces, ok := in.([]interface{})
+func findFirstMatchingType(in any, findType string) map[string]any {
+	sliceOfInterfaces, ok := in.([]any)
 	if !ok {
 		return nil
 	}
@@ -168,10 +168,10 @@ func findFirstMatchingType(in interface{}, findType string) map[string]interface
 	return nil
 }
 
-// isMatchingType returns the value of `i`, cast to `map[string]interface{}` if it contains an entry with key 'type'
+// isMatchingType returns the value of `i`, cast to `map[string]any` if it contains an entry with key 'type'
 // and value equal to `findType`. If `findType` is empty, the first element in the slice is returned.
-func isMatchingType(i interface{}, findType string) map[string]interface{} {
-	if m, ok := i.(map[string]interface{}); ok {
+func isMatchingType(i any, findType string) map[string]any {
+	if m, ok := i.(map[string]any); ok {
 		if findType == "" {
 			return m
 		}
@@ -182,8 +182,8 @@ func isMatchingType(i interface{}, findType string) map[string]interface{} {
 	return nil
 }
 
-// setStringFromInterface gets a string from an interface{}, and assigns it to a map
-func setStringFromInterface(i interface{}, m map[string]string, key string) {
+// setStringFromInterface gets a string from an any, and assigns it to a map
+func setStringFromInterface(i any, m map[string]string, key string) {
 	if value, ok := i.(string); ok {
 		m[key] = value
 	}
@@ -213,8 +213,8 @@ func (g *GoogleUsers) ListUsers(desiredAttrs []string) ([]internal.Person, error
 
 func (g *GoogleUsers) ApplyChangeSet(
 	changes internal.ChangeSet,
-	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
-
+	eventLog chan<- internal.EventLogItem,
+) internal.ChangeResults {
 	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
@@ -330,8 +330,8 @@ func (g *GoogleUsers) updateUser(
 	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	email := person.Attributes["email"]
@@ -380,7 +380,7 @@ func (g *GoogleUsers) getUser(email string) (admin.User, error) {
 	return *user, nil
 }
 
-func updateIDs(newID string, oldIDs interface{}) ([]admin.UserExternalId, error) {
+func updateIDs(newID string, oldIDs any) ([]admin.UserExternalId, error) {
 	IDs := []admin.UserExternalId{{
 		Type:  "organization",
 		Value: newID,
@@ -390,13 +390,13 @@ func updateIDs(newID string, oldIDs interface{}) ([]admin.UserExternalId, error)
 		return IDs, nil
 	}
 
-	interfaces, ok := oldIDs.([]interface{})
+	interfaces, ok := oldIDs.([]any)
 	if !ok {
 		return nil, errors.New("no slice in Google API ExternalIDs")
 	}
 
 	for i := range interfaces {
-		IDMap, ok := interfaces[i].(map[string]interface{})
+		IDMap, ok := interfaces[i].(map[string]any)
 		if !ok {
 			return nil, errors.New("unexpected data in Google API ID list")
 		}
@@ -422,7 +422,7 @@ func updateIDs(newID string, oldIDs interface{}) ([]admin.UserExternalId, error)
 	return IDs, nil
 }
 
-func updateLocations(newArea string, oldLocations interface{}) ([]admin.UserLocation, error) {
+func updateLocations(newArea string, oldLocations any) ([]admin.UserLocation, error) {
 	locations := []admin.UserLocation{{
 		Type: "desk",
 		Area: newArea,
@@ -432,13 +432,13 @@ func updateLocations(newArea string, oldLocations interface{}) ([]admin.UserLoca
 		return locations, nil
 	}
 
-	interfaces, ok := oldLocations.([]interface{})
+	interfaces, ok := oldLocations.([]any)
 	if !ok {
 		return nil, errors.New("no slice in Google API Locations")
 	}
 
 	for i := range interfaces {
-		locationMap, ok := interfaces[i].(map[string]interface{})
+		locationMap, ok := interfaces[i].(map[string]any)
 		if !ok {
 			return nil, errors.New("unexpected data in Google API location list")
 		}
@@ -499,20 +499,20 @@ func attributesToUserPhones(phones map[string]string) ([]admin.UserPhone, error)
 	return userPhones, nil
 }
 
-func updateRelations(newRelation string, oldRelations interface{}) ([]admin.UserRelation, error) {
+func updateRelations(newRelation string, oldRelations any) ([]admin.UserRelation, error) {
 	relations := []admin.UserRelation{{Type: "manager", Value: newRelation}}
 
 	if oldRelations == nil {
 		return relations, nil
 	}
 
-	interfaces, ok := oldRelations.([]interface{})
+	interfaces, ok := oldRelations.([]any)
 	if !ok {
 		return nil, errors.New("no slice in Google API Relations")
 	}
 
 	for i := range interfaces {
-		relationMap, ok := interfaces[i].(map[string]interface{})
+		relationMap, ok := interfaces[i].(map[string]any)
 		if !ok {
 			return nil, errors.New("unexpected data in Google API relation list")
 		}

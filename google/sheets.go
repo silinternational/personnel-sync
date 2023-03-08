@@ -122,7 +122,7 @@ func (g *GoogleSheets) ListUsers(desiredAttrs []string) ([]internal.Person, erro
 	return getPersonsFromSheetData(sheetData, desiredAttrs, g.SheetsSyncSet.CompareAttribute), nil
 }
 
-func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, compareAttr string) []internal.Person {
+func getPersonsFromSheetData(sheetData [][]any, desiredAttrs []string, compareAttr string) []internal.Person {
 	header := map[int]string{}
 	if len(sheetData) < 1 {
 		return []internal.Person{}
@@ -156,8 +156,8 @@ func getPersonsFromSheetData(sheetData [][]interface{}, desiredAttrs []string, c
 
 func (g *GoogleSheets) ApplyChangeSet(
 	changes internal.ChangeSet,
-	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
-
+	eventLog chan<- internal.EventLogItem,
+) internal.ChangeResults {
 	if g.DestinationConfig.DisableAdd || g.DestinationConfig.DisableDelete || g.DestinationConfig.DisableUpdate {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_INFO,
@@ -194,7 +194,7 @@ func (g *GoogleSheets) ApplyChangeSet(
 	return internal.ChangeResults{Created: uint64(len(changes.Create))}
 }
 
-func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
+func (g *GoogleSheets) readSheet() ([][]any, error) {
 	readRange := fmt.Sprintf("%s!A1:ZZ", g.SheetsSyncSet.SheetName)
 	resp, err := g.Service.Spreadsheets.Values.Get(g.SheetsSyncSet.SheetID, readRange).Do()
 	if err != nil {
@@ -206,7 +206,7 @@ func (g *GoogleSheets) readSheet() ([][]interface{}, error) {
 	return resp.Values, nil
 }
 
-func getHeaderFromSheetData(sheetData [][]interface{}) map[int]string {
+func getHeaderFromSheetData(sheetData [][]any) map[int]string {
 	if len(sheetData) < 1 {
 		return map[int]string{}
 	}
@@ -218,7 +218,7 @@ func getHeaderFromSheetData(sheetData [][]interface{}) map[int]string {
 	return header
 }
 
-func (g *GoogleSheets) clearSheet(data [][]interface{}) error {
+func (g *GoogleSheets) clearSheet(data [][]any) error {
 	for i, row := range data {
 		if i == 0 {
 			continue
@@ -257,13 +257,13 @@ func (g *GoogleSheets) updateSheet(header map[int]string, persons []internal.Per
 	return nil
 }
 
-func makeSheetDataFromPersons(header map[int]string, persons []internal.Person) [][]interface{} {
+func makeSheetDataFromPersons(header map[int]string, persons []internal.Person) [][]any {
 	if len(header) < 1 {
-		return [][]interface{}{}
+		return [][]any{}
 	}
-	sheetData := make([][]interface{}, len(persons))
+	sheetData := make([][]any, len(persons))
 	for i, person := range persons {
-		row := make([]interface{}, len(header))
+		row := make([]any, len(header))
 		for j := range row {
 			row[j] = person.Attributes[header[j]]
 		}

@@ -287,7 +287,7 @@ func printChangeSet(logger *log.Logger, changeSet ChangeSet) {
 // Will return boolean and index for matched element.
 // True and index more than 0 if element is exist.
 // needle is element to search, haystack is slice of value to be search.
-func InArray(needle interface{}, haystack interface{}) (exists bool, index int) {
+func InArray(needle, haystack any) (exists bool, index int) {
 	exists = false
 	index = -1
 
