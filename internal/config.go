@@ -1,15 +1,11 @@
 package internal
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
-	"text/template"
 
 	"github.com/silinternational/personnel-sync/v6/alert"
 )
@@ -46,6 +42,7 @@ func LoadConfig(configFile string) ([]byte, error) {
 
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
+		log.Printf("unable to read application config file %s, error: %s\n", configFile, err.Error())
 		return nil, err
 	}
 	return data, err
@@ -54,11 +51,8 @@ func LoadConfig(configFile string) ([]byte, error) {
 // ReadConfig parses raw json config data into a Config struct
 func ReadConfig(data []byte) (Config, error) {
 	config := NewConfig()
-	if d, err := substituteEnvVars(data); err == nil {
-		if err = json.Unmarshal(d, &config); err != nil {
-			return config, fmt.Errorf("config error: %w", err)
-		}
-	} else {
+	if err := json.Unmarshal(data, &config); err != nil {
+		log.Printf("unable to unmarshal application configuration file data, error: %s\n", err.Error())
 		return config, err
 	}
 
@@ -99,27 +93,4 @@ func (c *Config) MaxSyncSetNameLength() int {
 		}
 	}
 	return maxLength
-}
-
-func substituteEnvVars(c []byte) ([]byte, error) {
-	t, err := template.New("config").Option("missingkey=error").Parse(string(c))
-	if err != nil {
-		return nil, err
-	}
-	var b bytes.Buffer
-	if err = t.Execute(&b, getEnvMap()); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
-}
-
-func getEnvMap() map[string]string {
-	e := os.Environ()
-	vars := make(map[string]string, len(e))
-	for _, s := range e {
-		spl := strings.SplitN(s, "=", 2)
-		k, v := strings.TrimSpace(spl[0]), strings.TrimSpace(spl[1])
-		vars[k] = v
-	}
-	return vars
 }
