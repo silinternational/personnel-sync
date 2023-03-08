@@ -295,7 +295,7 @@ func (r *RestAPI) requestPage(desiredAttrs []string, url string, errLog chan<- s
 	var peopleList []*gabs.Container
 	if r.ResultsJSONContainer != "" {
 		// Get children records based on ResultsJSONContainer from config
-		peopleList = jsonParsed.S(r.ResultsJSONContainer).Children()
+		peopleList = jsonParsed.Path(r.ResultsJSONContainer).Children()
 	} else {
 		// Root level should contain array of children records
 		peopleList = jsonParsed.Children()
