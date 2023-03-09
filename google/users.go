@@ -182,7 +182,7 @@ func isMatchingType(i any, findType string) map[string]any {
 	return nil
 }
 
-// setStringFromInterface gets a string from an any, and assigns it to a map
+// setStringFromInterface gets a string from an empty interface, and assigns it to a map
 func setStringFromInterface(i any, m map[string]string, key string) {
 	if value, ok := i.(string); ok {
 		m[key] = value
