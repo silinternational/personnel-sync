@@ -42,6 +42,7 @@ const extraJSONtemplate = `{
 }`
 
 const workdayUsersJSON = `{
+"root": {  
   "Report_Entry": [
     {
       "Employee_Number": "10013",
@@ -68,7 +69,7 @@ const workdayUsersJSON = `{
       "Company": "Disney"
     }
   ]
-}`
+}}`
 
 const otherUsersJSON = `[
     {
@@ -135,7 +136,7 @@ func getFakeEndpoints() map[string]fakeEndpoint {
 			username:         "workday_username",
 			password:         "workday_password",
 			compareAttr:      "Email",
-			resultsContainer: "Report_Entry",
+			resultsContainer: "root.Report_Entry",
 		},
 		EndpointListOther: {
 			path:             "/other/list",
@@ -231,8 +232,10 @@ type PaginationConfig struct {
 	users     []MockUser
 }
 
-const itemsQSParam = "itemsRequest" // use this to signify item based pagination requests
-const pagesQSParam = "pagesRequest" // use this to signify page based pagination requests
+const (
+	itemsQSParam = "itemsRequest" // use this to signify item based pagination requests
+	pagesQSParam = "pagesRequest" // use this to signify page based pagination requests
+)
 
 func getTestPaginationServer(path string, pConfig PaginationConfig) *httptest.Server {
 	mux := http.NewServeMux()

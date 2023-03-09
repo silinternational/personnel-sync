@@ -20,70 +20,77 @@ func RunSync(configFile string) error {
 	log.SetFlags(0)
 	log.Printf("Personnel sync started at %s", time.Now().UTC().Format(time.RFC1123Z))
 
-	appConfig, err := internal.LoadConfig(configFile)
+	rawConfig, err := internal.LoadConfig(configFile)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to load config, error: %s", err)
 		log.Println(msg)
-		alert.SendEmail(appConfig.Alert, msg)
+		return nil
+	}
+
+	config, err := internal.ReadConfig(rawConfig)
+	if err != nil {
+		msg := fmt.Sprintf("Unable to read config, error: %s", err)
+		log.Println(msg)
+		alert.SendEmail(config.Alert, msg)
 		return nil
 	}
 
 	// Instantiate Source
 	var source internal.Source
-	switch appConfig.Source.Type {
+	switch config.Source.Type {
 	case internal.SourceTypeRestAPI:
-		source, err = restapi.NewRestAPISource(appConfig.Source)
+		source, err = restapi.NewRestAPISource(config.Source)
 	case internal.SourceTypeGoogleSheets:
-		source, err = google.NewGoogleSheetsSource(appConfig.Source)
+		source, err = google.NewGoogleSheetsSource(config.Source)
 	default:
 		err = errors.New("unrecognized source type")
 	}
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to initialize %s source, error: %s", appConfig.Source.Type, err)
+		msg := fmt.Sprintf("Unable to initialize %s source, error: %s", config.Source.Type, err)
 		log.Println(msg)
-		alert.SendEmail(appConfig.Alert, msg)
+		alert.SendEmail(config.Alert, msg)
 		return nil
 	}
 
 	// Instantiate Destination
 	var destination internal.Destination
-	switch appConfig.Destination.Type {
+	switch config.Destination.Type {
 	case internal.DestinationTypeGoogleContacts:
-		destination, err = google.NewGoogleContactsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleContactsDestination(config.Destination)
 	case internal.DestinationTypeGoogleGroups:
-		destination, err = google.NewGoogleGroupsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleGroupsDestination(config.Destination)
 	case internal.DestinationTypeGoogleSheets:
-		destination, err = google.NewGoogleSheetsDestination(appConfig.Destination)
+		destination, err = google.NewGoogleSheetsDestination(config.Destination)
 	case internal.DestinationTypeGoogleUsers:
-		destination, err = google.NewGoogleUsersDestination(appConfig.Destination)
+		destination, err = google.NewGoogleUsersDestination(config.Destination)
 	case internal.DestinationTypeRestAPI:
-		destination, err = restapi.NewRestAPIDestination(appConfig.Destination)
+		destination, err = restapi.NewRestAPIDestination(config.Destination)
 	case internal.DestinationTypeWebHelpDesk:
-		destination, err = webhelpdesk.NewWebHelpDeskDestination(appConfig.Destination)
+		destination, err = webhelpdesk.NewWebHelpDeskDestination(config.Destination)
 	default:
 		err = errors.New("unrecognized destination type")
 	}
 
 	if err != nil {
-		msg := fmt.Sprintf("Unable to initialize %s destination, error: %s", appConfig.Destination.Type, err)
+		msg := fmt.Sprintf("Unable to initialize %s destination, error: %s", config.Destination.Type, err)
 		log.Println(msg)
-		alert.SendEmail(appConfig.Alert, msg)
+		alert.SendEmail(config.Alert, msg)
 		return nil
 	}
 
-	maxNameLength := appConfig.MaxSyncSetNameLength()
+	maxNameLength := config.MaxSyncSetNameLength()
 	var errors []string
 
 	// Iterate through SyncSets and process changes
-	for i, syncSet := range appConfig.SyncSets {
+	for i, syncSet := range config.SyncSets {
 		if syncSet.Name == "" {
 			msg := "configuration contains a set with no name"
 			errors = append(errors, msg)
 		}
 		prefix := fmt.Sprintf("[ %-*s ] ", maxNameLength, syncSet.Name)
 		syncSetLogger := log.New(os.Stdout, prefix, 0)
-		syncSetLogger.Printf("(%v/%v) Beginning sync set", i+1, len(appConfig.SyncSets))
+		syncSetLogger.Printf("(%v/%v) Beginning sync set", i+1, len(config.SyncSets))
 
 		// Apply SyncSet configs (excluding source/destination as appropriate)
 		err = source.ForSet(syncSet.Source)
@@ -100,7 +107,7 @@ func RunSync(configFile string) error {
 			errors = append(errors, msg)
 		}
 
-		if err := internal.RunSyncSet(syncSetLogger, source, destination, appConfig); err != nil {
+		if err := internal.RunSyncSet(syncSetLogger, source, destination, config); err != nil {
 			msg := fmt.Sprintf(`Sync failed with error on syncSet "%s": %s`, syncSet.Name, err)
 			syncSetLogger.Println(msg)
 			errors = append(errors, msg)
@@ -108,7 +115,7 @@ func RunSync(configFile string) error {
 	}
 
 	if len(errors) > 0 {
-		alert.SendEmail(appConfig.Alert, fmt.Sprintf("Sync error(s):\n%s", strings.Join(errors, "\n")))
+		alert.SendEmail(config.Alert, fmt.Sprintf("Sync error(s):\n%s", strings.Join(errors, "\n")))
 	}
 
 	log.Printf("Personnel sync completed at %s", time.Now().UTC().Format(time.RFC1123Z))

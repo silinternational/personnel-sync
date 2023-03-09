@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/Jeffail/gabs/v2"
 
@@ -247,7 +248,7 @@ func (r *RestAPI) listUsersForPath(
 }
 
 func (r *RestAPI) requestPage(desiredAttrs []string, url string, errLog chan<- string) []internal.Person {
-	client := &http.Client{}
+	client := &http.Client{Timeout: time.Second * 15}
 	req, err := http.NewRequest(r.ListMethod, url, nil)
 	if err != nil {
 		log.Println(err)
@@ -322,9 +323,9 @@ func (r *RestAPI) getPersonsFromResults(peopleList []*gabs.Container, desiredAtt
 			}
 
 			switch v := val.(type) {
-			case []interface{}:
-				if len(val.([]interface{})) > 0 {
-					firstValue := val.([]interface{})[0]
+			case []any:
+				if len(val.([]any)) > 0 {
+					firstValue := val.([]any)[0]
 					if firstValue == nil {
 						continue
 					}

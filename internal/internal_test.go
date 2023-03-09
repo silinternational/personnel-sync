@@ -89,7 +89,7 @@ func TestGenerateChangeSet(t *testing.T) {
 		},
 	}
 
-	config := AppConfig{
+	config := Config{
 		AttributeMap: []AttributeMap{
 			{
 				Source:        "name",
@@ -202,7 +202,7 @@ func TestIDSetForUpdate(t *testing.T) {
 		},
 	}
 
-	config := AppConfig{
+	config := Config{
 		AttributeMap: []AttributeMap{
 			{
 				Source:        "email",
@@ -234,7 +234,7 @@ func TestIDSetForUpdate(t *testing.T) {
 func Test_processExpressions(t *testing.T) {
 	type args struct {
 		logger *log.Logger
-		config AppConfig
+		config Config
 		person Person
 	}
 	logger := log.New(os.Stdout, "", 0)
@@ -247,7 +247,7 @@ func Test_processExpressions(t *testing.T) {
 			name: "no expression",
 			args: args{
 				logger: logger,
-				config: AppConfig{
+				config: Config{
 					AttributeMap: []AttributeMap{{
 						Destination:   "first_name",
 						Required:      false,
@@ -272,7 +272,7 @@ func Test_processExpressions(t *testing.T) {
 			name: "full replace",
 			args: args{
 				logger: logger,
-				config: AppConfig{
+				config: Config{
 					AttributeMap: []AttributeMap{{
 						Destination:   "first_name",
 						Required:      false,
@@ -297,7 +297,7 @@ func Test_processExpressions(t *testing.T) {
 			name: "partial replace",
 			args: args{
 				logger: logger,
-				config: AppConfig{
+				config: Config{
 					AttributeMap: []AttributeMap{{
 						Destination:   "first_name",
 						Required:      false,

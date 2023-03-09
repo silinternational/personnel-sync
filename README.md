@@ -756,15 +756,17 @@ In the [Google Developer Console](https://console.developers.google.com) ...
 These contents will need to be copied into the `config.json` file as the value of the `GoogleAuth` key under 
 `Destination`/`ExtraJSON`.
 
-In [Google Admin Security](https://admin.google.com/AdminHome?hl=en#SecuritySettings:) ...
-* Under "Advanced Settings" add the appropriate API Scopes to the Service Account. Use the numeric `client_id`.
-* API Scopes required for Google Groups are: `https://www.googleapis.com/auth/admin.directory.group` and 
-`https://www.googleapis.com/auth/admin.directory.group.member`
+In Google Admin, Security, [API Controls](https://admin.google.com/ac/owl?hl=en) ...
+* Manage Domain-wide Delegation
+* Add the appropriate API Scopes to the Service Account. Use the numeric `client_id`.
+* API Scopes required for Google Groups are: `https://www.googleapis.com/auth/admin.directory.group` and
+  `https://www.googleapis.com/auth/admin.directory.group.member`
 * The API Scope required for Google Contacts is: `https://www.google.com/m8/feeds/contacts/`
 * The API Scope required for Google User Directory is: `https://www.googleapis.com/auth/admin.directory.user`
+* Google Sheets does not require Domain-wide Delegation. Instead, share the sheet with the service account. Note: it will say the user is not in the organization. This warning can be ignored.
 
 The sync job will need to use the Service Account credentials to impersonate another user that has
-appropriate domain privileges and who has logged in at least once into G Suite and
+appropriate domain privileges and who has logged in at least once into Google Workspace and
 accepted the terms and conditions. The email address for this user should be stored in the `config.json`
 as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 
