@@ -659,7 +659,7 @@ func TestRestAPI_httpRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, got, err := tt.restAPI.httpRequest(tt.verb, tt.url, tt.body, tt.headers)
+			got, err := tt.restAPI.httpRequest(tt.verb, tt.url, tt.body, tt.headers)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("httpRequest() error = %v, wantErr %v", err, tt.wantErr)
 				return

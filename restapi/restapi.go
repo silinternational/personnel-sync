@@ -457,31 +457,19 @@ func (r *RestAPI) validateConfig() error {
 	return r.Filters.Validate()
 }
 
-func chooseEventLog(code int, message string, eventLog chan<- internal.EventLogItem) {
-	if code == 503 || code == 504 {
-		eventLog <- internal.EventLogItem{
-			Level:   syslog.LOG_WARNING,
-			Message: message,
-		}
-	} else {
-		eventLog <- internal.EventLogItem{
-			Level:   syslog.LOG_ERR,
-			Message: message,
-		}
-	}
-}
-
 func (r *RestAPI) addPerson(p internal.Person, n *uint64, wg *sync.WaitGroup, eventLog chan<- internal.EventLogItem) {
 	defer wg.Done()
 
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, r.setConfig.CreatePath)
 	headers := map[string]string{"Content-Type": "application/json"}
 	reqBody := attributesToJSON(p.Attributes)
-	code, responseBody, err := r.httpRequest(r.CreateMethod, apiURL, reqBody, headers)
+	responseBody, err := r.httpRequest(r.CreateMethod, apiURL, reqBody, headers)
 	if err != nil {
-		message := fmt.Sprintf("addPerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
-			p.CompareValue, err, apiURL, reqBody, responseBody)
-		chooseEventLog(code, message, eventLog)
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
+			Message: fmt.Sprintf("addPerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
+				p.CompareValue, err, apiURL, reqBody, responseBody),
+		}
 		return
 	}
 
@@ -510,11 +498,13 @@ func (r *RestAPI) updatePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, updatePath)
 	headers := map[string]string{"Content-Type": "application/json"}
 	reqBody := attributesToJSON(p.Attributes)
-	code, responseBody, err := r.httpRequest(r.UpdateMethod, apiURL, reqBody, headers)
+	responseBody, err := r.httpRequest(r.UpdateMethod, apiURL, reqBody, headers)
 	if err != nil {
-		message := fmt.Sprintf("updatePerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
-			p.CompareValue, err, apiURL, reqBody, responseBody)
-		chooseEventLog(code, message, eventLog)
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
+			Message: fmt.Sprintf("updatePerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
+				p.CompareValue, err, apiURL, reqBody, responseBody),
+		}
 		return
 	}
 
@@ -532,11 +522,13 @@ func (r *RestAPI) deletePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 	deletePath := strings.Replace(r.setConfig.DeletePath, "{id}", p.ID, 1)
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, deletePath)
 	headers := map[string]string{"Content-Type": "application/json"}
-	code, responseBody, err := r.httpRequest(r.DeleteMethod, apiURL, "", headers)
+	responseBody, err := r.httpRequest(r.DeleteMethod, apiURL, "", headers)
 	if err != nil {
-		message := fmt.Sprintf("deletePerson '%s' httpRequest error '%s', url: %s,  response: %s",
-			p.CompareValue, err, apiURL, responseBody)
-		chooseEventLog(code, message, eventLog)
+		eventLog <- internal.EventLogItem{
+			Level: syslog.LOG_ERR,
+			Message: fmt.Sprintf("deletePerson '%s' httpRequest error '%s', url: %s,  response: %s",
+				p.CompareValue, err, apiURL, responseBody),
+		}
 		return
 	}
 
@@ -548,7 +540,7 @@ func (r *RestAPI) deletePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 	atomic.AddUint64(n, 1)
 }
 
-func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (int, string, error) {
+func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) (string, error) {
 	var req *http.Request
 	var err error
 	if body == "" {
@@ -557,7 +549,7 @@ func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string)
 		req, err = http.NewRequest(verb, url, strings.NewReader(body))
 	}
 	if err != nil {
-		return 999, "", err
+		return "", err
 	}
 
 	for k, v := range headers {
@@ -574,23 +566,22 @@ func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	code := resp.StatusCode
 	if err != nil {
-		return code, "", err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return code, "", fmt.Errorf("failed to read http response body: %s", err)
+		return "", fmt.Errorf("failed to read http response body: %s", err)
 	}
 	bodyString := string(bodyBytes)
 
-	if code >= 400 {
-		return code, bodyString, errors.New(resp.Status)
+	if resp.StatusCode >= 400 {
+		return bodyString, errors.New(resp.Status)
 	}
 
-	return code, bodyString, nil
+	return bodyString, nil
 }
 
 // parsePathTemplate verifies that the path has a bracketed id, and returns an error if it does not. It also normalizes
