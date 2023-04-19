@@ -659,11 +659,13 @@ func TestRestAPI_httpRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.restAPI.httpRequest(tt.verb, tt.url, tt.body, tt.headers)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("httpRequest() error = %v, wantErr %v", err, tt.wantErr)
+			reqRes := tt.restAPI.httpRequest(tt.verb, tt.url, tt.body, tt.headers)
+			if (reqRes.Err != nil) != tt.wantErr {
+				t.Errorf("httpRequest() error = %v, wantErr %v", reqRes.Err, tt.wantErr)
 				return
 			}
+
+			got := reqRes.RespBody
 			if !tt.wantErr && got != tt.want {
 				t.Errorf("httpRequest() got = %v, want %v", got, tt.want)
 			}
