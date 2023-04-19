@@ -477,11 +477,11 @@ func (r *RestAPI) addPerson(p internal.Person, n *uint64, wg *sync.WaitGroup, ev
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, r.setConfig.CreatePath)
 	headers := map[string]string{"Content-Type": "application/json"}
 	reqBody := attributesToJSON(p.Attributes)
-	evLogItem := r.httpRequest(r.CreateMethod, apiURL, reqBody, headers)
-	if evLogItem.Err != nil {
+	reqRes := r.httpRequest(r.CreateMethod, apiURL, reqBody, headers)
+	if reqRes.Err != nil {
 		message := fmt.Sprintf("addPerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
-			p.CompareValue, evLogItem.Err, apiURL, reqBody, evLogItem.RespBody)
-		chooseEventLog(evLogItem.RespCode, message, eventLog)
+			p.CompareValue, reqRes.Err, apiURL, reqBody, reqRes.RespBody)
+		chooseEventLog(reqRes.RespCode, message, eventLog)
 		return
 	}
 
@@ -510,11 +510,11 @@ func (r *RestAPI) updatePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, updatePath)
 	headers := map[string]string{"Content-Type": "application/json"}
 	reqBody := attributesToJSON(p.Attributes)
-	evLogItem := r.httpRequest(r.UpdateMethod, apiURL, reqBody, headers)
-	if evLogItem.Err != nil {
+	reqRes := r.httpRequest(r.UpdateMethod, apiURL, reqBody, headers)
+	if reqRes.Err != nil {
 		message := fmt.Sprintf("updatePerson '%s' httpRequest error '%s', url: %s, request: %s, response: %s",
-			p.CompareValue, evLogItem.Err, apiURL, reqBody, evLogItem.RespBody)
-		chooseEventLog(evLogItem.RespCode, message, eventLog)
+			p.CompareValue, reqRes.Err, apiURL, reqBody, reqRes.RespBody)
+		chooseEventLog(reqRes.RespCode, message, eventLog)
 		return
 	}
 
@@ -532,11 +532,11 @@ func (r *RestAPI) deletePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 	deletePath := strings.Replace(r.setConfig.DeletePath, "{id}", p.ID, 1)
 	apiURL := fmt.Sprintf("%s%s", r.BaseURL, deletePath)
 	headers := map[string]string{"Content-Type": "application/json"}
-	evLogItem := r.httpRequest(r.DeleteMethod, apiURL, "", headers)
-	if evLogItem.Err != nil {
+	reqRes := r.httpRequest(r.DeleteMethod, apiURL, "", headers)
+	if reqRes.Err != nil {
 		message := fmt.Sprintf("deletePerson '%s' httpRequest error '%s', url: %s,  response: %s",
-			p.CompareValue, evLogItem.Err, apiURL, evLogItem.RespBody)
-		chooseEventLog(evLogItem.RespCode, message, eventLog)
+			p.CompareValue, reqRes.Err, apiURL, reqRes.RespBody)
+		chooseEventLog(reqRes.RespCode, message, eventLog)
 		return
 	}
 
@@ -548,13 +548,13 @@ func (r *RestAPI) deletePerson(p internal.Person, n *uint64, wg *sync.WaitGroup,
 	atomic.AddUint64(n, 1)
 }
 
-type eventLogItem struct {
-	RespCode int
+type requestResults struct {
 	RespBody string
+	RespCode int
 	Err      error
 }
 
-func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) eventLogItem {
+func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string) requestResults {
 	var req *http.Request
 	var err error
 	if body == "" {
@@ -563,7 +563,7 @@ func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string)
 		req, err = http.NewRequest(verb, url, strings.NewReader(body))
 	}
 	if err != nil {
-		return eventLogItem{Err: err}
+		return requestResults{Err: err}
 	}
 
 	for k, v := range headers {
@@ -582,21 +582,21 @@ func (r *RestAPI) httpRequest(verb, url, body string, headers map[string]string)
 	resp, err := client.Do(req)
 	code := resp.StatusCode
 	if err != nil {
-		return eventLogItem{RespCode: code, Err: err}
+		return requestResults{RespCode: code, Err: err}
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return eventLogItem{RespCode: code, Err: fmt.Errorf("failed to read http response body: %s", err)}
+		return requestResults{RespCode: code, Err: fmt.Errorf("failed to read http response body: %s", err)}
 	}
 	bodyString := string(bodyBytes)
 
 	if code >= 400 {
-		return eventLogItem{RespCode: code, RespBody: bodyString, Err: errors.New(resp.Status)}
+		return requestResults{RespBody: bodyString, RespCode: code, Err: errors.New(resp.Status)}
 	}
 
-	return eventLogItem{RespCode: code, RespBody: bodyString, Err: nil}
+	return requestResults{RespBody: bodyString, RespCode: code, Err: nil}
 }
 
 // parsePathTemplate verifies that the path has a bracketed id, and returns an error if it does not. It also normalizes
