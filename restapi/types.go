@@ -2,6 +2,9 @@ package restapi
 
 import "github.com/silinternational/personnel-sync/v6/internal"
 
+const DefaultHttpTimeoutSeconds = 45
+const httpTimeoutEnv = "HTTP_TIMEOUT_SECONDS"
+
 type RestAPI struct {
 	ListMethod           string
 	CreateMethod         string
@@ -23,6 +26,7 @@ type RestAPI struct {
 	setConfig            SetConfig
 	Pagination           Pagination
 	Filters              internal.Filters
+	HttpTimeoutSeconds   int
 }
 
 type SetConfig struct {

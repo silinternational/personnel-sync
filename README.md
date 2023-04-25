@@ -6,6 +6,12 @@ interface. The runtime for this application is configured using a `config.json` 
 `config.example.json`, however it only has the `GoogleGroups` destination in it so other supported destinations are 
 documented below. 
 
+## REST API HTTP Timeout
+
+The default timeout for http requests to REST APIs is 45 seconds. It is possible to override 
+the default value via an environment variable named `HTTP_TIMEOUT_SECONDS`, the value of 
+which must be an integer between 1 and 600 inclusive.
+
 # Config
 
 ## Email Alerts
