@@ -10,6 +10,7 @@ import (
 	"log/syslog"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -248,7 +249,12 @@ func (r *RestAPI) listUsersForPath(
 }
 
 func (r *RestAPI) requestPage(desiredAttrs []string, url string, errLog chan<- string) []internal.Person {
-	client := &http.Client{Timeout: time.Second * 15}
+	timeout := r.HttpTimeoutSeconds
+	if timeout < 1 || timeout > 600 { // don't allow timeouts less than a second or more than 10 minutes
+		timeout = DefaultHttpTimeoutSeconds
+	}
+
+	client := &http.Client{Timeout: time.Second * time.Duration(timeout)}
 	req, err := http.NewRequest(r.ListMethod, url, nil)
 	if err != nil {
 		log.Println(err)
@@ -425,6 +431,18 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 }
 
 func New() RestAPI {
+	timeoutMessage := fmt.Sprintf("RestAPI timeout in seconds defaults to %d.", DefaultHttpTimeoutSeconds)
+	timeoutString := os.Getenv(httpTimeoutEnv)
+
+	timeout, err := strconv.Atoi(timeoutString)
+	if err != nil {
+		timeoutMessage += " Error reading " + httpTimeoutEnv + " environment variable: " + err.Error()
+	} else {
+		timeoutMessage += fmt.Sprintf(" Configured value: %d.", timeout)
+	}
+
+	log.Printf(timeoutMessage, timeout)
+
 	return RestAPI{
 		ListMethod:           http.MethodGet,
 		CreateMethod:         http.MethodPost,
@@ -444,6 +462,7 @@ func New() RestAPI {
 			PageSize:    100,
 			PageSizeKey: "page_size",
 		},
+		HttpTimeoutSeconds: timeout,
 	}
 }
 
