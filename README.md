@@ -10,7 +10,10 @@ documented below.
 
 The default timeout for http requests to REST APIs is 45 seconds. It is possible to override 
 the default value via an environment variable named `HTTP_TIMEOUT_SECONDS`, the value of 
-which must be an integer between 1 and 600 inclusive.
+which must be an integer between 1 and 600 inclusive. 
+
+Alternatively, you can override the default value and the environment variable value by adding
+an `HttpTimeoutSeconds` entry in the `ExtraJSON` entry of your `Source`/`Destination` config entry.
 
 # Config
 
