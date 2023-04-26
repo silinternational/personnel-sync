@@ -13,7 +13,8 @@
       "ClientID": "UsedForSalesforceOauth",
       "ClientSecret": "UsedForSalesforceOauth",
       "ResultsJSONContainer": "ReportEntry",
-      "IDAttribute": "Email"
+      "IDAttribute": "Email",
+      "HTTP_TIMEOUT_SECONDS": 60
     }
   },
   "Destination": {
