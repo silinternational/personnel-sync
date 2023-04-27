@@ -250,7 +250,7 @@ func (r *RestAPI) listUsersForPath(
 }
 
 func (r *RestAPI) requestPage(desiredAttrs []string, url string, errLog chan<- string) []internal.Person {
-	timeout := r.timeoutToUse()
+	timeout := r.getTimeout()
 
 	client := &http.Client{Timeout: time.Second * time.Duration(timeout)}
 	req, err := http.NewRequest(r.ListMethod, url, nil)
@@ -428,7 +428,7 @@ func (r *RestAPI) getSalesforceOauthToken() (string, error) {
 	return authResponse.AccessToken, nil
 }
 
-func (r *RestAPI) timeoutToUse() int {
+func (r *RestAPI) getTimeout() int {
 	timeout := r.HttpTimeoutSeconds
 	if timeout < 1 || timeout > 600 { // don't allow timeouts less than a second or more than 10 minutes
 		timeout = DefaultHttpTimeoutSeconds
@@ -437,9 +437,9 @@ func (r *RestAPI) timeoutToUse() int {
 }
 
 func (r *RestAPI) logHttpTimeout() {
-	timeout := r.timeoutToUse()
+	timeout := r.getTimeout()
 	timeoutMessage := "RestAPI timeout in seconds defaults to %d.  Configured value: %d."
-	log.Print(timeoutMessage, DefaultHttpTimeoutSeconds, timeout)
+	log.Printf(timeoutMessage, DefaultHttpTimeoutSeconds, timeout)
 }
 
 func New() RestAPI {
@@ -450,7 +450,7 @@ func New() RestAPI {
 		var err error
 		timeout, err = strconv.Atoi(timeoutString)
 		if err != nil {
-			log.Printf(" Error reading " + httpTimeoutEnv + " environment variable: " + err.Error())
+			log.Printf(" Error reading %s environment variable: %s", httpTimeoutEnv, err)
 		}
 	}
 

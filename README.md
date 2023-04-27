@@ -8,7 +8,7 @@ documented below.
 
 ## REST API HTTP Timeout
 
-The default timeout for http requests to REST APIs is 45 seconds. It is possible to override 
+The default timeout for HTTP requests to REST APIs is 45 seconds. It is possible to override 
 the default value via an environment variable named `HTTP_TIMEOUT_SECONDS`, the value of 
 which must be an integer between 1 and 600 inclusive. 
 
