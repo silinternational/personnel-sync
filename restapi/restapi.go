@@ -438,8 +438,10 @@ func (r *RestAPI) getTimeout() int {
 
 func (r *RestAPI) logHttpTimeout() {
 	timeout := r.getTimeout()
-	timeoutMessage := "RestAPI timeout in seconds defaults to %d.  Configured value: %d."
-	log.Printf(timeoutMessage, DefaultHttpTimeoutSeconds, timeout)
+	log.Printf(
+		"RestAPI timeout in seconds defaults to %d.  Configured value: %d.",
+		DefaultHttpTimeoutSeconds,
+		timeout)
 }
 
 func New() RestAPI {
