@@ -95,20 +95,17 @@ func RunSync(configFile string) error {
 		// Apply SyncSet configs (excluding source/destination as appropriate)
 		if err = source.ForSet(syncSet.Source); err != nil {
 			err = fmt.Errorf(`Error setting source set on syncSet "%s": %w`, syncSet.Name, err)
-			syncSetLogger.Println(err)
-			alertList = handleSyncError(err, alertList)
+			alertList = handleSyncError(syncSetLogger, err, alertList)
 		}
 
 		if err = destination.ForSet(syncSet.Destination); err != nil {
 			err = fmt.Errorf(`Error setting destination set on syncSet "%s": %w`, syncSet.Name, err)
-			syncSetLogger.Println(err)
-			alertList = handleSyncError(err, alertList)
+			alertList = handleSyncError(syncSetLogger, err, alertList)
 		}
 
 		if err = internal.RunSyncSet(syncSetLogger, source, destination, config); err != nil {
 			err = fmt.Errorf(`Sync failed with error on syncSet "%s": %w`, syncSet.Name, err)
-			syncSetLogger.Println(err)
-			alertList = handleSyncError(err, alertList)
+			alertList = handleSyncError(syncSetLogger, err, alertList)
 		}
 	}
 
@@ -120,9 +117,11 @@ func RunSync(configFile string) error {
 	return nil
 }
 
-func handleSyncError(err error, alertList []string) []string {
+func handleSyncError(logger *log.Logger, err error, alertList []string) []string {
+	logger.Println(err)
+
 	var syncError internal.SyncError
-	if isSyncError := errors.As(err, &syncError); !isSyncError || (isSyncError && syncError.SendAlert) {
+	if isSyncError := errors.As(err, &syncError); !isSyncError || syncError.SendAlert {
 		alertList = append(alertList, err.Error())
 	}
 	return alertList
