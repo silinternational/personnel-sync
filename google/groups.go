@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/syslog"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	admin "google.golang.org/api/admin/directory/v1"
+	"google.golang.org/api/googleapi"
 
 	"github.com/silinternational/personnel-sync/v6/internal"
 
@@ -96,7 +98,14 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]internal.Person, erro
 		return nil
 	})
 	if err != nil {
-		return []internal.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupSyncSet.GroupEmail, err.Error())
+		syncErr := internal.SyncError{
+			Message:   fmt.Errorf("unable to get members of group %s: %w", g.GroupSyncSet.GroupEmail, err),
+			SendAlert: true,
+		}
+		if e, ok := err.(*googleapi.Error); ok && e.Code == http.StatusServiceUnavailable {
+			syncErr.SendAlert = false
+		}
+		return []internal.Person{}, syncErr
 	}
 
 	var members []internal.Person

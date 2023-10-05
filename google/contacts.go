@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/googleapi"
 
 	"github.com/silinternational/personnel-sync/v6/internal"
 )
@@ -214,7 +215,14 @@ func (g *GoogleContacts) ListUsers(desiredAttrs []string) ([]internal.Person, er
 		g.GoogleConfig.Domain, MaxQuerySize)
 	body, err := g.httpRequest(http.MethodGet, href, "", map[string]string{})
 	if err != nil {
-		return []internal.Person{}, fmt.Errorf("failed to retrieve user list: %s", err)
+		syncErr := internal.SyncError{
+			Message:   fmt.Errorf("failed to retrieve user list: %w", err),
+			SendAlert: true,
+		}
+		if e, ok := err.(*googleapi.Error); ok && e.Code == http.StatusServiceUnavailable {
+			syncErr.SendAlert = false
+		}
+		return []internal.Person{}, syncErr
 	}
 
 	var parsed Entries
