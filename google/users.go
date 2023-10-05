@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/syslog"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -199,7 +200,14 @@ func (g *GoogleUsers) ListUsers(desiredAttrs []string) ([]internal.Person, error
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unable to get users: %s", err)
+		syncErr := internal.SyncError{
+			Message:   fmt.Errorf("unable to get users: %w", err),
+			SendAlert: true,
+		}
+		if e, ok := err.(*googleapi.Error); ok && e.Code == http.StatusServiceUnavailable {
+			syncErr.SendAlert = false
+		}
+		return []internal.Person{}, syncErr
 	}
 
 	var people []internal.Person

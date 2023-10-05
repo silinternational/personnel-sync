@@ -86,3 +86,12 @@ type Source interface {
 	ForSet(syncSetJson json.RawMessage) error
 	ListUsers(desiredAttrs []string) ([]Person, error)
 }
+
+type SyncError struct {
+	Message   error
+	SendAlert bool
+}
+
+func (s SyncError) Error() string {
+	return s.Message.Error()
+}

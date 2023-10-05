@@ -80,44 +80,49 @@ func RunSync(configFile string) error {
 	}
 
 	maxNameLength := config.MaxSyncSetNameLength()
-	var errors []string
+	var alertList []string
 
 	// Iterate through SyncSets and process changes
 	for i, syncSet := range config.SyncSets {
 		if syncSet.Name == "" {
 			msg := "configuration contains a set with no name"
-			errors = append(errors, msg)
+			alertList = append(alertList, msg)
 		}
 		prefix := fmt.Sprintf("[ %-*s ] ", maxNameLength, syncSet.Name)
 		syncSetLogger := log.New(os.Stdout, prefix, 0)
 		syncSetLogger.Printf("(%v/%v) Beginning sync set", i+1, len(config.SyncSets))
 
 		// Apply SyncSet configs (excluding source/destination as appropriate)
-		err = source.ForSet(syncSet.Source)
-		if err != nil {
-			msg := fmt.Sprintf(`Error setting source set on syncSet "%s": %s`, syncSet.Name, err)
-			syncSetLogger.Println(msg)
-			errors = append(errors, msg)
+		if err = source.ForSet(syncSet.Source); err != nil {
+			err = fmt.Errorf(`Error setting source set on syncSet "%s": %w`, syncSet.Name, err)
+			alertList = handleSyncError(syncSetLogger, err, alertList)
 		}
 
-		err = destination.ForSet(syncSet.Destination)
-		if err != nil {
-			msg := fmt.Sprintf(`Error setting destination set on syncSet "%s": %s`, syncSet.Name, err)
-			syncSetLogger.Println(msg)
-			errors = append(errors, msg)
+		if err = destination.ForSet(syncSet.Destination); err != nil {
+			err = fmt.Errorf(`Error setting destination set on syncSet "%s": %w`, syncSet.Name, err)
+			alertList = handleSyncError(syncSetLogger, err, alertList)
 		}
 
-		if err := internal.RunSyncSet(syncSetLogger, source, destination, config); err != nil {
-			msg := fmt.Sprintf(`Sync failed with error on syncSet "%s": %s`, syncSet.Name, err)
-			syncSetLogger.Println(msg)
-			errors = append(errors, msg)
+		if err = internal.RunSyncSet(syncSetLogger, source, destination, config); err != nil {
+			err = fmt.Errorf(`Sync failed with error on syncSet "%s": %w`, syncSet.Name, err)
+			alertList = handleSyncError(syncSetLogger, err, alertList)
 		}
 	}
 
-	if len(errors) > 0 {
-		alert.SendEmail(config.Alert, fmt.Sprintf("Sync error(s):\n%s", strings.Join(errors, "\n")))
+	if len(alertList) > 0 {
+		alert.SendEmail(config.Alert, fmt.Sprintf("Sync error(s):\n%s", strings.Join(alertList, "\n")))
 	}
 
 	log.Printf("Personnel sync completed at %s", time.Now().UTC().Format(time.RFC1123Z))
 	return nil
+}
+
+func handleSyncError(logger *log.Logger, err error, alertList []string) []string {
+	logger.Println(err)
+
+	var syncError internal.SyncError
+	if isSyncError := errors.As(err, &syncError); !isSyncError || syncError.SendAlert {
+		alertList = append(alertList, err.Error())
+	}
+	return alertList
 }
