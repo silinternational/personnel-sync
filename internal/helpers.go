@@ -27,7 +27,7 @@ func IsStringInSlice(needle string, haystack []string) bool {
 
 // AddParamsToURL returns the input url string if there are no params to add
 // Otherwise, it adds each param pair to the url as `params[n][0]=params[n][1]` (in alphabetical order)
-//   with the appropriate delimiter ("?" or "&")
+// with the appropriate delimiter ("?" or "&")
 func AddParamsToURL(inURL string, params [][2]string) (string, error) {
 	if len(params) == 0 {
 		return inURL, nil

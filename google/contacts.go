@@ -171,8 +171,8 @@ type notesMarshal struct {
 
 // NewGoogleContactsDestination creates a new GoogleContacts instance
 func NewGoogleContactsDestination(destinationConfig internal.DestinationConfig) (internal.Destination,
-	error) {
-
+	error,
+) {
 	if destinationConfig.Type != internal.DestinationTypeGoogleContacts {
 		return nil, fmt.Errorf("invalid config type: %s", destinationConfig.Type)
 	}
@@ -240,8 +240,8 @@ func (g *GoogleContacts) ListUsers(desiredAttrs []string) ([]internal.Person, er
 // ApplyChangeSet executes all of the configured sync tasks (create, update, and/or delete)
 func (g *GoogleContacts) ApplyChangeSet(
 	changes internal.ChangeSet,
-	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
-
+	eventLog chan<- internal.EventLogItem,
+) internal.ChangeResults {
 	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
@@ -284,8 +284,8 @@ func (g *GoogleContacts) ApplyChangeSet(
 }
 
 func (g *GoogleContacts) httpRequest(verb, url, body string, headers map[string]string) (string,
-	error) {
-
+	error,
+) {
 	var req *http.Request
 	var err error
 	if body == "" {
@@ -417,8 +417,8 @@ func (g *GoogleContacts) addContact(
 	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	href := "https://www.google.com/m8/feeds/contacts/" + g.GoogleConfig.Domain + "/full"
@@ -427,7 +427,8 @@ func (g *GoogleContacts) addContact(
 		eventLog <- internal.EventLogItem{
 			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("error creating addContact request for '%s' in Google contacts: %s",
-				person.CompareValue, err)}
+				person.CompareValue, err),
+		}
 		return
 	}
 
@@ -435,7 +436,8 @@ func (g *GoogleContacts) addContact(
 	if _, err := g.httpRequest(http.MethodPost, href, body, headers); err != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("unable to insert %s in Google contacts: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("unable to insert %s in Google contacts: %s", person.CompareValue, err),
+		}
 		return
 	}
 
@@ -448,8 +450,9 @@ func (g *GoogleContacts) addContact(
 }
 
 // initGoogleClient creates an http Client and adds a JWT config that has the required OAuth 2.0 scopes
-//  Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
-//  that has appropriate access privileges
+//
+// Authentication requires an email address that matches an actual GMail user (e.g. a machine account)
+// that has appropriate access privileges
 func (g *GoogleContacts) initGoogleClient() error {
 	googleAuthJson, err := json.Marshal(g.GoogleConfig.GoogleAuth)
 	if err != nil {
@@ -472,7 +475,6 @@ func (g *GoogleContacts) initGoogleClient() error {
 // WARNING: This updates all fields, even if omitted in the field mapping. A safer implementation would be to
 // merge the data retrieved from Google with the data coming from the source.
 func (g *GoogleContacts) createBody(person internal.Person) (string, error) {
-
 	contact := contactMarshal{
 		XmlNSAtom: "http://www.w3.org/2005/Atom",
 		XmlNSGd:   "http://schemas.google.com/g/2005",
@@ -512,8 +514,8 @@ func (g *GoogleContacts) createBody(person internal.Person) (string, error) {
 
 	output, err := xml.Marshal(&contact)
 
-	//For debug, this can be used to improve XML readability
-	//output, err := xml.MarshalIndent(&contact, "", "  ")
+	// For debug, this can be used to improve XML readability
+	// output, err := xml.MarshalIndent(&contact, "", "  ")
 
 	return string(output), err
 }
@@ -557,8 +559,8 @@ func (g *GoogleContacts) updateContact(
 	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	url := person.ID
@@ -567,7 +569,8 @@ func (g *GoogleContacts) updateContact(
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err),
+		}
 		return
 	}
 
@@ -576,7 +579,8 @@ func (g *GoogleContacts) updateContact(
 		eventLog <- internal.EventLogItem{
 			Level: syslog.LOG_ERR,
 			Message: fmt.Sprintf("error creating updateContact request for '%s' in Google contacts: %s",
-				person.CompareValue, err)}
+				person.CompareValue, err),
+		}
 		return
 	}
 
@@ -587,7 +591,8 @@ func (g *GoogleContacts) updateContact(
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("updateContact failed updating user %s: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("updateContact failed updating user %s: %s", person.CompareValue, err),
+		}
 		return
 	}
 
@@ -613,8 +618,8 @@ func (g *GoogleContacts) deleteContact(
 	person internal.Person,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	url := person.ID
@@ -623,7 +628,8 @@ func (g *GoogleContacts) deleteContact(
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("failed retrieving contact %s: %s", person.CompareValue, err),
+		}
 		return
 	}
 
@@ -633,7 +639,8 @@ func (g *GoogleContacts) deleteContact(
 	if err != nil {
 		eventLog <- internal.EventLogItem{
 			Level:   syslog.LOG_ERR,
-			Message: fmt.Sprintf("deleteContact failed deleting user %s: %s", person.CompareValue, err)}
+			Message: fmt.Sprintf("deleteContact failed deleting user %s: %s", person.CompareValue, err),
+		}
 		return
 	}
 

@@ -110,9 +110,9 @@ func getCaseSensitivitySourceAttributeList(attributeMap []AttributeMap) map[stri
 	return results
 }
 
-// GenerateChangeSet builds the three slice attributes of a ChangeSet
-// (Create, Update and Delete) based on whether they are in the slice
-//  of destination Person instances.
+// GenerateChangeSet builds the three slice attributes of a ChangeSet (Create, Update and Delete) based on whether they
+// are in the slice of destination Person instances.
+//
 // It skips all source Person instances that have DisableChanges set to true
 func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Person, config Config) ChangeSet {
 	var changeSet ChangeSet
@@ -176,11 +176,11 @@ func processExpressions(logger *log.Logger, config Config, person Person) Person
 }
 
 // RunSyncSet calls a number of functions to do the following ...
-//  - it gets the list of people from the source
-//  - it remaps their attributes to match the keys used in the destination
-//  - it gets the list of people from the destination
-//  - it generates the lists of people to change, update and delete
-//  - if dryRun is true, it prints those lists, but otherwise makes the associated changes
+//   - it gets the list of people from the source
+//   - it remaps their attributes to match the keys used in the destination
+//   - it gets the list of people from the destination
+//   - it generates the lists of people to change, update and delete
+//   - if dryRun is true, it prints those lists, but otherwise makes the associated changes
 func RunSyncSet(logger *log.Logger, source Source, destination Destination, config Config) error {
 	sourcePeople, err := source.ListUsers(GetSourceAttributes(config.AttributeMap))
 	if err != nil {
@@ -331,18 +331,15 @@ func (e *EmptySource) ListUsers(desiredAttrs []string) ([]Person, error) {
 	return []Person{}, nil
 }
 
-// Init sets the startTime to the current time,
-//    sets the endTime based on secondsPerBatch into the future
+// Init sets the startTime to the current time, sets the endTime based on secondsPerBatch into the future
 func NewBatchTimer(batchSize, secondsPerBatch int) BatchTimer {
 	b := BatchTimer{}
 	b.Init(batchSize, secondsPerBatch)
 	return b
 }
 
-// BatchTimer is intended as a time limited batch enforcer
-// To create one, call its Init method.
-// Then, to use it call its WaitOnBatch method after every call to
-//  the associated go routine
+// BatchTimer is intended as a time limited batch enforcer. To create one, call its Init method.
+// Then, to use it call its WaitOnBatch method after every call to the associated go routine
 type BatchTimer struct {
 	startTime       time.Time
 	endTime         time.Time
@@ -351,8 +348,7 @@ type BatchTimer struct {
 	BatchSize       int
 }
 
-// Init sets the startTime to the current time,
-//    sets the endTime based on secondsPerBatch into the future
+// Init sets the startTime to the current time, sets the endTime based on secondsPerBatch into the future
 func (b *BatchTimer) Init(batchSize, secondsPerBatch int) {
 	b.startTime = time.Now()
 	b.setEndTime()
@@ -369,10 +365,9 @@ func (b *BatchTimer) setEndTime() {
 	b.endTime = b.startTime.Add(time.Second * time.Duration(b.SecondsPerBatch))
 }
 
-// WaitOnBatch increments the Counter and then
-//   if fewer than BatchSize have been dealt with, just returns without doing anything
-//   Otherwise, sleeps until the batch time has expired (i.e. current time is past endTime).
-//   If this last process occurs, then it ends by resetting the batch's times and counter.
+// WaitOnBatch increments the Counter and then if fewer than BatchSize have been dealt with, just returns without doing
+// anything Otherwise, sleeps until the batch time has expired (i.e. current time is past endTime). If this last process
+// occurs, then it ends by resetting the batch's times and counter.
 func (b *BatchTimer) WaitOnBatch() {
 	b.Counter++
 	if b.Counter < b.BatchSize {

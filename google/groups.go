@@ -135,8 +135,8 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]internal.Person, erro
 
 func (g *GoogleGroups) ApplyChangeSet(
 	changes internal.ChangeSet,
-	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
-
+	eventLog chan<- internal.EventLogItem,
+) internal.ChangeResults {
 	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
@@ -207,8 +207,8 @@ func (g *GoogleGroups) addMember(
 	email, role string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	newMember := admin.Member{
@@ -237,8 +237,8 @@ func (g *GoogleGroups) removeMember(
 	email string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	err := g.AdminService.Members.Delete(g.GroupSyncSet.GroupEmail, email).Do()
