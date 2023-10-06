@@ -180,7 +180,7 @@ func processExpressions(logger *log.Logger, config Config, person Person) Person
 //   - it remaps their attributes to match the keys used in the destination
 //   - it gets the list of people from the destination
 //   - it generates the lists of people to change, update and delete
-//   - if dryRun is true, it prints those lists, but otherwise makes the associated changes
+//   - if dryRun is true, it prints those lists, otherwise it makes the associated changes
 func RunSyncSet(logger *log.Logger, source Source, destination Destination, config Config) error {
 	sourcePeople, err := source.ListUsers(GetSourceAttributes(config.AttributeMap))
 	if err != nil {
