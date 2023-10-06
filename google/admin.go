@@ -11,8 +11,7 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 )
 
-// initGoogleAdminService authenticates with the Google API and returns an admin.Service
-//  that has the requested scopes
+// initGoogleAdminService authenticates with the Google API and returns an admin.Service that has the requested scopes
 func initGoogleAdminService(auth GoogleAuth, adminEmail string, scopes ...string) (admin.Service, error) {
 	googleAuthJson, err := json.Marshal(auth)
 	if err != nil {

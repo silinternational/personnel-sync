@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/syslog"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	admin "google.golang.org/api/admin/directory/v1"
+	"google.golang.org/api/googleapi"
 
 	"github.com/silinternational/personnel-sync/v6/internal"
 
@@ -96,7 +98,14 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]internal.Person, erro
 		return nil
 	})
 	if err != nil {
-		return []internal.Person{}, fmt.Errorf("unable to get members of group %s: %s", g.GroupSyncSet.GroupEmail, err.Error())
+		syncErr := internal.SyncError{
+			Message:   fmt.Errorf("unable to get members of group %s: %w", g.GroupSyncSet.GroupEmail, err),
+			SendAlert: true,
+		}
+		if e, ok := err.(*googleapi.Error); ok && e.Code == http.StatusServiceUnavailable {
+			syncErr.SendAlert = false
+		}
+		return []internal.Person{}, syncErr
 	}
 
 	var members []internal.Person
@@ -126,8 +135,8 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]internal.Person, erro
 
 func (g *GoogleGroups) ApplyChangeSet(
 	changes internal.ChangeSet,
-	eventLog chan<- internal.EventLogItem) internal.ChangeResults {
-
+	eventLog chan<- internal.EventLogItem,
+) internal.ChangeResults {
 	var results internal.ChangeResults
 	var wg sync.WaitGroup
 
@@ -198,8 +207,8 @@ func (g *GoogleGroups) addMember(
 	email, role string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	newMember := admin.Member{
@@ -228,8 +237,8 @@ func (g *GoogleGroups) removeMember(
 	email string,
 	counter *uint64,
 	wg *sync.WaitGroup,
-	eventLog chan<- internal.EventLogItem) {
-
+	eventLog chan<- internal.EventLogItem,
+) {
 	defer wg.Done()
 
 	err := g.AdminService.Members.Delete(g.GroupSyncSet.GroupEmail, email).Do()

@@ -636,7 +636,9 @@ available to be updated.
 
 Custom schema properties can be added using dot notation. For example, a
 custom property with Field name `Building` in the custom schema `Location`
-is represented as `Location.Building`.
+is represented as `Location.Building`. __NOTE:__ Spaces in schema name and field 
+name should be replaced by underscores. Google may also append a number on field
+names, e.g. "Building_2", in which case the configuration should be `Location.Building_2`
              
 Phone types are represented by separating the property name from its type with
 a comma (`,`). For example: `phone,home` or `phone,work`. Multiple phones of the
