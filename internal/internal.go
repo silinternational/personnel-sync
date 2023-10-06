@@ -331,7 +331,8 @@ func (e *EmptySource) ListUsers(desiredAttrs []string) ([]Person, error) {
 	return []Person{}, nil
 }
 
-// Init sets the startTime to the current time, sets the endTime based on secondsPerBatch into the future
+// NewBatchTimer returns a new BatchTimer with the startTime set to the current time and the endTime set to
+// secondsPerBatch from now
 func NewBatchTimer(batchSize, secondsPerBatch int) BatchTimer {
 	b := BatchTimer{}
 	b.Init(batchSize, secondsPerBatch)
