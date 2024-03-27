@@ -1,4 +1,0 @@
-- name: deploy_prod
-  service: app
-  tag: main
-  command: bash -c "./build.sh && serverless deploy --verbose"

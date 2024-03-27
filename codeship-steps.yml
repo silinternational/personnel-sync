@@ -1,3 +1,0 @@
-- name: test
-  service: app
-  command: bash -c "go test ./..."
