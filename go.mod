@@ -6,6 +6,7 @@ replace github.com/silinternational/personnel-sync/v6 => ./
 
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
+	github.com/aws/aws-lambda-go v1.46.0
 	github.com/aws/aws-sdk-go v1.49.17
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/net v0.20.0
