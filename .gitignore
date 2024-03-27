@@ -1,19 +1,16 @@
 # Serverless directories
 .serverless
-package-lock.json
 
 # golang output binary directory
 bin
 
 # local creds and stuff
-.env
-aws.env
+*.env
 *.aes
 config*.json
 
 # dev tools metadata
 .idea/
-node_modules/
 .vscode
 
 lambda-example/go.mod
