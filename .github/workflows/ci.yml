@@ -21,6 +21,9 @@ jobs:
 
     - run: go test -v ./...
 
+    - name: Fetch all tags
+      run: git fetch --force --tags
+
     - name: Run GoReleaser
       uses: goreleaser/goreleaser-action@v5
       if: startsWith(github.ref, 'refs/tags/')
