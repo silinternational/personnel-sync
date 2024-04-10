@@ -2,8 +2,6 @@ module github.com/silinternational/personnel-sync/v6
 
 go 1.20
 
-replace github.com/silinternational/personnel-sync/v6 => ./
-
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
 	github.com/aws/aws-lambda-go v1.46.0
