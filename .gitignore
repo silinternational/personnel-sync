@@ -14,3 +14,6 @@ config*.json
 .vscode
 
 lambda-example/go.mod
+
+# GoReleaser build output
+dist/
