@@ -781,7 +781,7 @@ appropriate domain privileges and who has logged in at least once into Google Wo
 accepted the terms and conditions. The email address for this user should be stored in the `config.json`
 as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 
-## SolarWinds WebHelpDesk
+### SolarWinds WebHelpDesk
 
 
 ```json
@@ -831,6 +831,8 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 ```
 
 `ListClientsPageLimit`, `BatchSize` and `BatchDelaySeconds` are optional. Their defaults are as shown in the example config.
+
+# Other notes
 
 ### Exporting logs from CloudWatch
 
