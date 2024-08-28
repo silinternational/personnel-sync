@@ -35,18 +35,18 @@
   },
   "AttributeMap": [
     {
-      "SourceName": "First_Name",
-      "DestinationName": "givenName",
+      "Source": "First_Name",
+      "Destination": "givenName",
       "required": true
     },
     {
-      "SourceName": "Last_Name",
-      "DestinationName": "sn",
+      "Source": "Last_Name",
+      "Destination": "sn",
       "required": true
     },
     {
-      "SourceName": "Email",
-      "DestinationName": "mail",
+      "Source": "Email",
+      "Destination": "mail",
       "required": true
     }
   ],
