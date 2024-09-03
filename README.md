@@ -781,7 +781,7 @@ appropriate domain privileges and who has logged in at least once into Google Wo
 accepted the terms and conditions. The email address for this user should be stored in the `config.json`
 as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 
-## SolarWinds WebHelpDesk
+### SolarWinds WebHelpDesk
 
 
 ```json
@@ -831,6 +831,40 @@ as the `DelegatedAdminEmail` value under `Destination`/`ExtraJSON`.
 ```
 
 `ListClientsPageLimit`, `BatchSize` and `BatchDelaySeconds` are optional. Their defaults are as shown in the example config.
+
+## AttributeMap
+
+The `AttributeMap` section of the config file lists the data attributes to be synchronized from Source to Destination. It has the following parameters:
+
+- `Source`
+
+This is the name of an attribute as found in the [Source](#Sources) data provider. It is a required parameter.
+
+- `Destination`
+
+This is the name of an attribute as found in the [Destination](#Destinations) data provider. It is a required parameter.
+
+- `Required`
+
+If this parameter is included and contains `true`, then any source record that does not include this attribute is dropped from the data set.
+
+- `CaseSensitive`
+
+If this parameter is included and contains `true`, then the comparison between source and destination data values does not match if case is different.
+
+- `Expression`
+
+Optional regular expression string to use with the `Replace` parameter. Use groups delimited by parentheses to manipulate data as it is transferred from Source to Destination.
+
+Example: `(.*)`
+
+- `Replace`
+
+Optional replacement string to manipulate Source data before writing to the Destination. Group identifiers like `$1` can be used to reference groups defined in the `Expression` parameter.
+
+Example: `https://example.com?query=$1`
+
+# Other notes
 
 ### Exporting logs from CloudWatch
 
