@@ -134,6 +134,9 @@ func GenerateChangeSet(logger *log.Logger, sourcePeople, destinationPeople []Per
 
 		if !personAttributesAreEqual(logger, sp, destinationPerson, config) {
 			sp.ID = destinationPerson.Attributes["id"]
+			if destinationPerson.ID != "" { // use ID if it is set to something else
+				sp.ID = destinationPerson.ID
+			}
 			changeSet.Update = append(changeSet.Update, sp)
 			continue
 		}
