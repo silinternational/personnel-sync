@@ -747,6 +747,7 @@ In the [Google Developer Console](https://console.developers.google.com) ...
   * For the Google Users adapter, enable "Admin SDK"
   * For the Google Groups adapter, enable "Admin SDK"
   * For the Google Contacts adapter, enable "Contacts API"
+  * For the Google Sheets adapter, enable "Google Sheets API"
 * Create a new Service Account and a corresponding JSON credential file, which should contain something like this:
 
 ```json
@@ -774,7 +775,7 @@ In Google Admin, Security, [API Controls](https://admin.google.com/ac/owl?hl=en)
   `https://www.googleapis.com/auth/admin.directory.group.member`
 * The API Scope required for Google Contacts is: `https://www.google.com/m8/feeds/contacts/`
 * The API Scope required for Google User Directory is: `https://www.googleapis.com/auth/admin.directory.user`
-* Google Sheets does not require Domain-wide Delegation. Instead, share the sheet with the service account. Note: it will say the user is not in the organization. This warning can be ignored.
+* Google Sheets does not require Domain-wide Delegation. Instead, share the sheet with the service account. Note: it will say the user is not in the organization. This warning can be ignored. If you do add a `DelegatedAdminEmail` address, you must use the API Scope https://www.googleapis.com/auth/spreadsheets which will grant admin access to all sheets.
 
 The sync job will need to use the Service Account credentials to impersonate another user that has
 appropriate domain privileges and who has logged in at least once into Google Workspace and
