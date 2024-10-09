@@ -224,9 +224,6 @@ func RunSyncSet(logger *log.Logger, source Source, destination Destination, conf
 
 	results := destination.ApplyChangeSet(changeSet, eventLog)
 
-	logger.Printf("Sync results: %v users added, %v users updated, %v users removed\n",
-		results.Created, results.Updated, results.Deleted)
-
 	for i := 0; i < 100; i++ {
 		time.Sleep(time.Millisecond * 10)
 		if len(eventLog) == 0 {
@@ -234,6 +231,9 @@ func RunSyncSet(logger *log.Logger, source Source, destination Destination, conf
 		}
 	}
 	close(eventLog)
+
+	logger.Printf("Sync results: %v users added, %v users updated, %v users removed\n",
+		results.Created, results.Updated, results.Deleted)
 
 	return nil
 }
