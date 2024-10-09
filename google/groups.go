@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/syslog"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -112,13 +113,9 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]internal.Person, erro
 
 	for _, nextMember := range membersList {
 		// Do not include ExtraManager, ExtraOwners, or ExtraMember in list to prevent inclusion in delete list
-		if isExtraManager, _ := internal.InArray(nextMember.Email, g.GroupSyncSet.ExtraManagers); isExtraManager {
-			continue
-		}
-		if isExtraOwner, _ := internal.InArray(nextMember.Email, g.GroupSyncSet.ExtraOwners); isExtraOwner {
-			continue
-		}
-		if isExtraMember, _ := internal.InArray(nextMember.Email, g.GroupSyncSet.ExtraMembers); isExtraMember {
+		if slices.Contains(g.GroupSyncSet.ExtraManagers, nextMember.Email) ||
+			slices.Contains(g.GroupSyncSet.ExtraOwners, nextMember.Email) ||
+			slices.Contains(g.GroupSyncSet.ExtraMembers, nextMember.Email) {
 			continue
 		}
 
@@ -183,13 +180,9 @@ func (g *GoogleGroups) ApplyChangeSet(
 	if !g.GroupSyncSet.DisableDelete {
 		for _, dp := range changes.Delete {
 			// Do not delete ExtraManagers, ExtraOwners, or ExtraMembers
-			if isExtraManager, _ := internal.InArray(dp.CompareValue, g.GroupSyncSet.ExtraManagers); isExtraManager {
-				continue
-			}
-			if isExtraOwner, _ := internal.InArray(dp.CompareValue, g.GroupSyncSet.ExtraOwners); isExtraOwner {
-				continue
-			}
-			if isExtraMember, _ := internal.InArray(dp.CompareValue, g.GroupSyncSet.ExtraMembers); isExtraMember {
+			if slices.Contains(g.GroupSyncSet.ExtraManagers, dp.CompareValue) ||
+				slices.Contains(g.GroupSyncSet.ExtraOwners, dp.CompareValue) ||
+				slices.Contains(g.GroupSyncSet.ExtraMembers, dp.CompareValue) {
 				continue
 			}
 			wg.Add(1)

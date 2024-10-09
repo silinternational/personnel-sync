@@ -3,26 +3,15 @@ package internal
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 )
 
 func AddStringToSlice(newString string, slice []string) []string {
-	if !IsStringInSlice(newString, slice) {
+	if !slices.Contains(slice, newString) {
 		slice = append(slice, newString)
 	}
 	return slice
-}
-
-// IsStringInSlice iterates over a slice of strings, looking for the given
-// string. If found, true is returned. Otherwise, false is returned.
-func IsStringInSlice(needle string, haystack []string) bool {
-	for _, hs := range haystack {
-		if needle == hs {
-			return true
-		}
-	}
-
-	return false
 }
 
 // AddParamsToURL returns the input url string if there are no params to add
