@@ -224,7 +224,7 @@ func RunSyncSet(logger *log.Logger, source Source, destination Destination, conf
 
 	results := destination.ApplyChangeSet(changeSet, eventLog)
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		time.Sleep(time.Millisecond * 10)
 		if len(eventLog) == 0 {
 			break
