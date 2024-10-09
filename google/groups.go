@@ -111,7 +111,7 @@ func (g *GoogleGroups) ListUsers(desiredAttrs []string) ([]internal.Person, erro
 	var members []internal.Person
 
 	for _, nextMember := range membersList {
-		// Do not include Extra Managers or ExtraOwners in list to prevent inclusion in delete list
+		// Do not include ExtraManager, ExtraOwners, or ExtraMember in list to prevent inclusion in delete list
 		if isExtraManager, _ := internal.InArray(nextMember.Email, g.GroupSyncSet.ExtraManagers); isExtraManager {
 			continue
 		}
