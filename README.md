@@ -617,9 +617,9 @@ Example config:
 Note: `Source` fields should be adjusted to fit the actual source adapter.
 
 ### Google Users
-This destination can update User records in the Google Directory. The compare
-attribute is `email` (`primaryEmail`). A limited subset of user properties are
-available to be updated. 
+This destination can update User records in the Google Directory. Create and
+delete are not yet implemented. The compare attribute is `email` (`primaryEmail`).
+A limited subset of user properties are available to be updated. 
 
 | property   | Google property | Google sub-property | Google type  |
 |------------|-----------------|---------------------|--------------|

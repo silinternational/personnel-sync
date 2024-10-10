@@ -46,49 +46,6 @@ func TestAddStringToSlice(t *testing.T) {
 	}
 }
 
-func TestIsStringInSlice(t *testing.T) {
-	type testData struct {
-		name     string
-		needle   string
-		haystack []string
-		want     bool
-	}
-
-	allTestData := []testData{
-		{
-			name:     "empty haystack",
-			needle:   "no",
-			haystack: []string{},
-			want:     false,
-		},
-		{
-			name:     "not in haystack",
-			needle:   "no",
-			haystack: []string{"really", "are you sure"},
-			want:     false,
-		},
-		{
-			name:     "in one element haystack",
-			needle:   "yes",
-			haystack: []string{"yes"},
-			want:     true,
-		},
-		{
-			name:     "in longer haystack",
-			needle:   "yes",
-			haystack: []string{"one", "two", "three", "yes"},
-			want:     true,
-		},
-	}
-
-	for i, td := range allTestData {
-		t.Run(td.name, func(t *testing.T) {
-			got := IsStringInSlice(td.needle, td.haystack)
-			require.Equal(t, td.want, got, "incorrect value for test %v", i)
-		})
-	}
-}
-
 func TestAddParamsToURL(t *testing.T) {
 	tests := []struct {
 		name            string
