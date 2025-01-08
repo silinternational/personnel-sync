@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/net v0.29.0
+	golang.org/x/net v0.33.0
 	golang.org/x/oauth2 v0.23.0
 	google.golang.org/api v0.199.0
 )
