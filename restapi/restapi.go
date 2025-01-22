@@ -212,14 +212,7 @@ func (r *RestAPI) listUsersForPath(
 		return
 	}
 
-	if scheme != PaginationSchemeItems && scheme != PaginationSchemePages {
-		msg := fmt.Sprintf("invalid pagination scheme (%s), must be %s or %s",
-			r.Pagination.Scheme, PaginationSchemeItems, PaginationSchemePages)
-		log.Println(msg)
-		errLog <- msg
-		return
-	}
-
+	batchCounter := 0
 	for i := r.Pagination.FirstIndex; i <= r.Pagination.PageLimit; i++ {
 		nextIndex := i
 		if scheme == PaginationSchemeItems {
@@ -245,6 +238,13 @@ func (r *RestAPI) listUsersForPath(
 		}
 		for _, pp := range p {
 			people <- pp
+		}
+
+		batchCounter++
+		if batchCounter >= r.BatchSize {
+			log.Printf("listUsersForPath waiting %d seconds for rate limit", r.BatchDelaySeconds)
+			time.Sleep(time.Second * time.Duration(r.BatchDelaySeconds))
+			batchCounter = 0
 		}
 	}
 }
@@ -483,9 +483,18 @@ func (r *RestAPI) validateConfig() error {
 	if r.BatchSize <= 0 {
 		r.BatchSize = DefaultBatchSize
 	}
+
 	if r.BatchDelaySeconds <= 0 {
 		r.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
+
+	switch r.Pagination.Scheme {
+	case "", PaginationSchemeItems, PaginationSchemePages:
+	default:
+		return fmt.Errorf("invalid pagination scheme (%s), must be %s or %s",
+			r.Pagination.Scheme, PaginationSchemeItems, PaginationSchemePages)
+	}
+
 	return r.Filters.Validate()
 }
 
