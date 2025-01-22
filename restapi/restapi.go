@@ -220,6 +220,7 @@ func (r *RestAPI) listUsersForPath(
 		return
 	}
 
+	batchCounter := 0
 	for i := r.Pagination.FirstIndex; i <= r.Pagination.PageLimit; i++ {
 		nextIndex := i
 		if scheme == PaginationSchemeItems {
@@ -245,6 +246,13 @@ func (r *RestAPI) listUsersForPath(
 		}
 		for _, pp := range p {
 			people <- pp
+		}
+
+		batchCounter++
+		if batchCounter >= r.BatchSize {
+			log.Printf("listUsersForPath waiting %d seconds for rate limit", r.BatchDelaySeconds)
+			time.Sleep(time.Second * time.Duration(r.BatchDelaySeconds))
+			batchCounter = 0
 		}
 	}
 }
