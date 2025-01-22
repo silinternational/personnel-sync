@@ -483,13 +483,18 @@ func (r *RestAPI) validateConfig() error {
 	if r.BatchSize <= 0 {
 		r.BatchSize = DefaultBatchSize
 	}
+
 	if r.BatchDelaySeconds <= 0 {
 		r.BatchDelaySeconds = DefaultBatchDelaySeconds
 	}
-	if r.Pagination.Scheme != PaginationSchemeItems && r.Pagination.Scheme != PaginationSchemePages {
+
+	switch r.Pagination.Scheme {
+	case "", PaginationSchemeItems, PaginationSchemePages:
+	default:
 		return fmt.Errorf("invalid pagination scheme (%s), must be %s or %s",
 			r.Pagination.Scheme, PaginationSchemeItems, PaginationSchemePages)
 	}
+
 	return r.Filters.Validate()
 }
 
