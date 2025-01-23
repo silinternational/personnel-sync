@@ -1,6 +1,7 @@
 package alert
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ses"
 	"github.com/aws/aws-sdk-go-v2/service/ses/types"
-	"golang.org/x/net/context"
 )
 
 type Config struct {
