@@ -1,14 +1,16 @@
 package alert
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
 
 type Config struct {
@@ -25,23 +27,24 @@ func SendEmail(config Config, body string) {
 	charSet := config.CharSet
 
 	subject := config.SubjectText
-	subjContent := ses.Content{
+	subjContent := types.Content{
 		Charset: &charSet,
 		Data:    &subject,
 	}
 
-	msgContent := ses.Content{
+	msgContent := types.Content{
 		Charset: &charSet,
 		Data:    &body,
 	}
 
-	msgBody := ses.Body{
+	msgBody := types.Body{
 		Text: &msgContent,
 	}
 
-	emailMsg := ses.Message{}
-	emailMsg.SetSubject(&subjContent)
-	emailMsg.SetBody(&msgBody)
+	emailMsg := types.Message{
+		Subject: &subjContent,
+		Body:    &msgBody,
+	}
 
 	// Only report the last email error
 	lastError := ""
@@ -63,31 +66,38 @@ func SendEmail(config Config, body string) {
 	}
 }
 
-func sendAnEmail(emailMsg ses.Message, recipient string, config Config) error {
-	recipients := []*string{&recipient}
-
+func sendAnEmail(emailMsg types.Message, recipient string, cfg Config) error {
 	input := &ses.SendEmailInput{
-		Destination: &ses.Destination{
-			ToAddresses: recipients,
+		Destination: &types.Destination{
+			ToAddresses: []string{recipient},
 		},
 		Message: &emailMsg,
-		Source:  aws.String(config.ReturnToAddr),
+		Source:  aws.String(cfg.ReturnToAddr),
 	}
 
-	cfg := &aws.Config{Region: aws.String(config.AWSRegion)}
-	if config.AWSAccessKeyID != "" && config.AWSSecretAccessKey != "" {
-		cfg.Credentials = credentials.NewStaticCredentials(config.AWSAccessKeyID, config.AWSSecretAccessKey, "")
-	}
-	sess, err := session.NewSession(cfg)
+	svc, err := createSESService(cfg.AWSRegion, cfg.AWSAccessKeyID, cfg.AWSSecretAccessKey)
 	if err != nil {
-		return fmt.Errorf("error creating AWS session: %s", err)
+		return fmt.Errorf("failed to create SES service: %w", err)
 	}
 
-	svc := ses.New(sess)
-	result, err := svc.SendEmail(input)
+	result, err := svc.SendEmail(context.Background(), input)
 	if err != nil {
-		return fmt.Errorf("error sending email, result: %s, error: %s", result, err)
+		return fmt.Errorf("error sending email: %w", err)
 	}
 	log.Printf("alert message sent to %s, message ID: %s", recipient, *result.MessageId)
 	return nil
+}
+
+func createSESService(region, key, secret string) (*ses.Client, error) {
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("AWS SDK LoadDefaultConfig failed: %w", err)
+	}
+
+	cfg.Region = region
+	if key != "" && secret != "" {
+		cfg.Credentials = credentials.NewStaticCredentialsProvider(key, secret, "")
+	}
+
+	return ses.NewFromConfig(cfg), nil
 }
