@@ -82,7 +82,7 @@ func sendAnEmail(emailMsg types.Message, recipient string, cfg Config) error {
 
 	result, err := svc.SendEmail(context.Background(), input)
 	if err != nil {
-		return fmt.Errorf("error sending email, error: %w", err)
+		return fmt.Errorf("error sending email: %w", err)
 	}
 	log.Printf("alert message sent to %s, message ID: %s", recipient, *result.MessageId)
 	return nil
