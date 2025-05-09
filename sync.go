@@ -84,6 +84,10 @@ func RunSync(configFile string) error {
 
 	// Iterate through SyncSets and process changes
 	for i, syncSet := range config.SyncSets {
+		if syncSet.Disable {
+			continue
+		}
+
 		if syncSet.Name == "" {
 			msg := "configuration contains a set with no name"
 			alertList = append(alertList, msg)
