@@ -865,6 +865,26 @@ Optional replacement string to manipulate Source data before writing to the Dest
 
 Example: `https://example.com?query=$1`
 
+## SyncSets
+
+At least one configuration set must be defined in SyncSets. This is where the API path or other adapter-specific options are specified.
+
+- `Name`
+
+The name of the SyncSet, used for log messages
+
+- `Source`
+
+Data source configuration. Refer to the adapter documentation above for details.
+
+- `Destination`
+
+Data destination configuration. Refer to the adapter documentation above for details.
+
+- `Disable`
+
+If set to `true`, this SyncSet will be skipped.
+
 # Other notes
 
 ### Exporting logs from CloudWatch
@@ -888,4 +908,3 @@ stream. Note the single quotes around the log stream name to prevent the shell
 from interpreting the `$` character. `--output text` can be changed to 
 `--output json` if desired. Timestamps are available if needed, but omitted
 in this example by the `--query` string.
-

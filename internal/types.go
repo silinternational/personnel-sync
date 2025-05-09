@@ -42,6 +42,7 @@ type SyncSet struct {
 	Name        string
 	Source      json.RawMessage
 	Destination json.RawMessage
+	Disable     bool
 }
 
 type ChangeSet struct {
