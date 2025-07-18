@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ses v1.29.6
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/net v0.38.0
-	golang.org/x/oauth2 v0.23.0
+	golang.org/x/oauth2 v0.27.0
 	google.golang.org/api v0.199.0
 )
 
