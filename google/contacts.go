@@ -6,7 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"log/syslog"
 	"net/http"
@@ -309,7 +309,7 @@ func (g *GoogleContacts) httpRequest(verb, url, body string, headers map[string]
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read http response body: %s", err)
 	}
