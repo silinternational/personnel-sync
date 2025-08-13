@@ -1,6 +1,6 @@
 module github.com/silinternational/personnel-sync/v6
 
-go 1.25.0
+go 1.25
 
 toolchain go1.24.1
 
