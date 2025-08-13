@@ -101,7 +101,7 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 
 		w.WriteHeader(200)
 		w.Header().Set("content-type", "application/json")
-		_, _ = fmt.Fprintf(w, string(jsonBytes))
+		_, _ = fmt.Fprint(w, string(jsonBytes))
 	})
 
 	whdConfig := WebHelpDesk{
