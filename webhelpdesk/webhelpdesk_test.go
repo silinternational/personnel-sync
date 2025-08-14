@@ -96,13 +96,12 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 
 		jsonBytes, err := json.Marshal(fixtures[key])
 		if err != nil {
-			t.Errorf("Unable to marshal fixture results, error: %s", err.Error())
-			t.FailNow()
+			t.Fatalf("Unable to marshal fixture results, error: %s", err.Error())
 		}
 
 		w.WriteHeader(200)
 		w.Header().Set("content-type", "application/json")
-		_, _ = fmt.Fprintf(w, string(jsonBytes))
+		_, _ = fmt.Fprint(w, string(jsonBytes))
 	})
 
 	whdConfig := WebHelpDesk{
@@ -233,8 +232,7 @@ func TestWebHelpDesk_ListUsers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w, err := NewWebHelpDeskDestination(tt.fields.DestinationConfig)
 			if err != nil {
-				t.Error(err)
-				t.FailNow()
+				t.Fatal(err)
 			}
 			got, err := w.ListUsers([]string{})
 			if (err != nil) != tt.wantErr {
@@ -254,26 +252,22 @@ func TestCreateChangeSet(t *testing.T) {
 
 	configJSON, err := internal.LoadConfig("./config.json")
 	if err != nil {
-		t.Errorf("Failed to load test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to load test config, error: %s", err.Error())
 	}
 
 	testConfig, err := internal.ReadConfig(configJSON)
 	if err != nil {
-		t.Errorf("Failed to read test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to read test config, error: %s", err.Error())
 	}
 
 	whd, err := NewWebHelpDeskDestination(testConfig.Destination)
 	if err != nil {
-		t.Errorf("Failed to get new whd client, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to get new whd client, error: %s", err.Error())
 	}
 
 	users, err := whd.ListUsers([]string{})
 	if err != nil {
-		t.Errorf("Failed to list whd users, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to list whd users, error: %s", err.Error())
 	}
 
 	source, err := restapi.NewRestAPISource(testConfig.Source)
@@ -296,20 +290,17 @@ func TestWebHelpDesk_CreateUser(t *testing.T) {
 
 	configJSON, err := internal.LoadConfig("./config.json")
 	if err != nil {
-		t.Errorf("Failed to load test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to load test config, error: %s", err.Error())
 	}
 
 	testConfig, err := internal.ReadConfig(configJSON)
 	if err != nil {
-		t.Errorf("Failed to read test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to read test config, error: %s", err.Error())
 	}
 
 	whd, err := NewWebHelpDeskDestination(testConfig.Destination)
 	if err != nil {
-		t.Errorf("Failed to get new whd client, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to get new whd client, error: %s", err.Error())
 	}
 
 	personToCreate := internal.Person{

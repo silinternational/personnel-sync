@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log/syslog"
 	"net/http"
 	"strconv"
@@ -255,7 +255,7 @@ func (w *WebHelpDesk) makeHttpRequest(path, method, body string, additionalQuery
 		return []byte{}, err
 	}
 
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err
 	}

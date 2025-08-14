@@ -20,14 +20,12 @@ func TestGoogleUsers_ListUsers(t *testing.T) {
 
 	rawConfig, err := internal.LoadConfig("../cmd/config.json")
 	if err != nil {
-		t.Errorf("Failed to load test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to load test config, error: %s", err.Error())
 	}
 
 	testConfig, err := internal.ReadConfig(rawConfig)
 	if err != nil {
-		t.Errorf("Failed to read test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to read test config, error: %s", err.Error())
 	}
 
 	type fields struct {
@@ -88,14 +86,12 @@ func TestGoogleUsers_ApplyChangeSet(t *testing.T) {
 
 	rawConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
-		t.Errorf("Failed to load test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to load test config, error: %s", err.Error())
 	}
 
 	testConfig, err := internal.ReadConfig(rawConfig)
 	if err != nil {
-		t.Errorf("Failed to read test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to read test config, error: %s", err.Error())
 	}
 
 	type fields struct {

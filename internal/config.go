@@ -3,7 +3,6 @@ package internal
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -40,7 +39,7 @@ func LoadConfig(configFile string) ([]byte, error) {
 
 	log.Printf("Using config file: %s\n", configFile)
 
-	data, err := ioutil.ReadFile(configFile)
+	data, err := os.ReadFile(configFile)
 	if err != nil {
 		log.Printf("unable to read application config file %s, error: %s\n", configFile, err.Error())
 		return nil, err

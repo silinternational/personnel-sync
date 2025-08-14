@@ -296,23 +296,19 @@ func TestRestAPI_ListUsers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r, err := NewRestAPISource(tt.sourceConfig)
 			if err != nil {
-				t.Errorf("Failed to get new RestAPI, error: %s", err.Error())
-				t.FailNow()
+				t.Fatalf("Failed to get new RestAPI, error: %s", err.Error())
 			}
 			err = r.ForSet([]byte(tt.syncSet))
 			if err != nil {
-				t.Errorf("ForSet error: %s", err)
-				t.FailNow()
+				t.Fatalf("ForSet error: %s", err)
 			}
 			got, err := r.ListUsers(tt.desiredAttrs)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("RestAPI.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
-				t.FailNow()
+				t.Fatalf("RestAPI.ListUsers() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if err != nil && !strings.Contains(err.Error(), tt.errMsg) {
-				t.Errorf(`Unexpected error message "%s", expected: "%v"`, err, tt.errMsg)
-				t.FailNow()
+				t.Fatalf(`Unexpected error message "%s", expected: "%v"`, err, tt.errMsg)
 			}
 
 			require.Equal(t, tt.want, got)
@@ -455,8 +451,7 @@ func TestRestAPI_listUsersForPath(t *testing.T) {
 				for msg := range errLog {
 					errs = append(errs, msg)
 				}
-				t.Errorf("errors listing users: %s", strings.Join(errs, ","))
-				t.FailNow()
+				t.Fatalf("errors listing users: %s", strings.Join(errs, ","))
 			}
 
 			var results []internal.Person
@@ -876,8 +871,7 @@ func TestRestAPI_listUsersForPathWithPagination(t *testing.T) {
 				for msg := range errLog {
 					errs = append(errs, msg)
 				}
-				t.Errorf("errors listing users: %s", strings.Join(errs, ","))
-				t.FailNow()
+				t.Fatalf("errors listing users: %s", strings.Join(errs, ","))
 			}
 
 			var results []string

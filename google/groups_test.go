@@ -15,14 +15,12 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 
 	rawConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
-		t.Errorf("Failed to load test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to load test config, error: %s", err.Error())
 	}
 
 	testConfig, err := internal.ReadConfig(rawConfig)
 	if err != nil {
-		t.Errorf("Failed to read test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to read test config, error: %s", err.Error())
 	}
 
 	type fields struct {
@@ -58,8 +56,7 @@ func TestGoogleGroups_ApplyChangeSet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := NewGoogleGroupsDestination(tt.fields.DestinationConfig)
 			if err != nil {
-				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
-				t.FailNow()
+				t.Fatalf("Failed to get new googleGroups instance, error: %s", err.Error())
 			}
 			eventLog := make(chan internal.EventLogItem, 50)
 			if got := g.ApplyChangeSet(tt.args.changes, eventLog); !reflect.DeepEqual(got, tt.want) {
@@ -76,14 +73,12 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 
 	rawConfig, err := internal.LoadConfig("./config.json")
 	if err != nil {
-		t.Errorf("Failed to load test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to load test config, error: %s", err.Error())
 	}
 
 	testConfig, err := internal.ReadConfig(rawConfig)
 	if err != nil {
-		t.Errorf("Failed to read test config, error: %s", err.Error())
-		t.FailNow()
+		t.Fatalf("Failed to read test config, error: %s", err.Error())
 	}
 
 	type fields struct {
@@ -110,8 +105,7 @@ func TestGoogleGroups_ListUsers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			g, err := NewGoogleGroupsDestination(tt.fields.DestinationConfig)
 			if err != nil {
-				t.Errorf("Failed to get new googleGroups instance, error: %s", err.Error())
-				t.FailNow()
+				t.Fatalf("Failed to get new googleGroups instance, error: %s", err.Error())
 			}
 			got, err := g.ListUsers([]string{})
 			if (err != nil) != tt.wantErr {

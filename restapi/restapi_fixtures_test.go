@@ -3,7 +3,6 @@ package restapi
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -196,7 +195,7 @@ func getTestServer() *httptest.Server {
 			}
 
 			// basic check to see if a POST has a request body
-			bodyBytes, err := ioutil.ReadAll(req.Body)
+			bodyBytes, err := io.ReadAll(req.Body)
 			if err != nil {
 				status = http.StatusBadRequest
 			}
